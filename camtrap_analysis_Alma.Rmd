@@ -1,0 +1,682 @@
+---
+title: "camtrap_analysis_Alma"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+ 
+Orinial Author:  Maximilian Sittinger (https://orcid.org/0000-0002-4096-8556)
+Modifications Author: Alma Steireif
+
+This R script does the following:
+ - process and plot data from 3 Insect Detect camera traps, which were deployed above platforms in 9 different meadows in Sachsen-Anhalt, Germany from July to August 2024
+ 
+ 
+
+ 
+ 
+## 1 Import required packages
+
+```{r setup, include=FALSE}
+# Load required packages
+library(tidyverse)
+library(patchwork)
+library(viridis)
+
+sessionInfo()
+```
+ 
+Script was written and plots were created with:
+ - R version 4.4.0 (2024-04-24 ucrt)
+ - viridis_0.6.5, viridisLite_0.4.2,mpatchwork_1.3.0, lubridate_1.9.3, forcats_1.0.0, stringr_1.5.1, dplyr_1.1.4, purrr_1.0.2, readr_2.1.5, tidyr_1.3.1, tibble_3.2.1, ggplot2_3.5.1, tidyverse_2.0.0  
+
+# Platform cameras
+
+## 2 Import platform data
+
+Import camera trap metadata with post-processed classification results
+ - tracking IDs with less than 3 images and 85 tracking IDs with more than 1,800 images were removed during post-processing (default settings: "-min_tracks 3" and “-max_tracks 1800”)
+ 
+```{r load platform data}
+camtrap36 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam36/results/2024-10-15_15-05-49_metadata_processed/seppi-cam36_metadata_classified_top1_final.csv", col_names = TRUE)
+camtrap37 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam37/results/2024-10-15_15-09-59_metadata_processed/seppi-cam37_metadata_classified_top1_final.csv", col_names = TRUE)
+camtrap38 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam38/results/2024-10-15_15-01-34_metadata_processed/seppi-cam38_metadata_classified_top1_final.csv", col_names = TRUE)
+
+# Combine data from all camera traps
+platform_cams <- bind_rows(
+  camtrap36,
+  camtrap37,
+  camtrap38
+)
+
+rm(camtrap36, camtrap37, camtrap38) # Remove individual cameras dataframes
+```
+
+```{r site assignment}
+#associate experiment date with site
+platform_cams <- platform_cams %>%
+  mutate(location = case_when(
+    grepl("2024-07-11", start_time) ~ "WED",  # Match the 11th July to Wedringen
+    grepl("2024-07-14", start_time) ~ "STP",  # Match the 14th July to Steutz
+    grepl("2024-07-18", start_time) ~ "JEP",  # Match the 18th July to Jerichow
+    grepl("2024-07-20", start_time) ~ "KOT",  # Match the 20th July to Köthen
+    grepl("2024-07-21", start_time) ~ "DES",  # Match the 21nd July to Dessau
+    grepl("2024-07-24", start_time) ~ "HLI",  # Match the 24th July to Pölsfeld
+    grepl("2024-07-29", start_time) ~ "WUP",  # Match the 29th July to Wulfen
+    grepl("2024-07-30", start_time) ~ "WDG",  # Match the 30th July to Wedringen
+    grepl("2024-08-13", start_time) ~ "BUH",  # Match the 13th August to Bühne
+    TRUE ~ "UNKNOWN"  # Default value
+  ))
+```
+
+```{r transect assignment}
+platform_cams <- platform_cams %>%
+  mutate(transect = case_when(
+    grepl("seppi-cam36", cam_ID) & grepl("WED", location) ~ "3",  #cam36, WED, T3
+    grepl("seppi-cam36", cam_ID) & grepl("STP", location) ~ "1",  #cam36, STP, T4
+    grepl("seppi-cam36", cam_ID) & grepl("JEP", location) ~ "2",  #cam36, JEP, T2
+    grepl("seppi-cam36", cam_ID) & grepl("KOT", location) ~ "5",  #cam36, KOT, T5
+    grepl("seppi-cam36", cam_ID) & grepl("DES", location) ~ "1",  #cam36, DES, T1
+    grepl("seppi-cam36", cam_ID) & grepl("HLI", location) ~ "1",  #cam36, HLI, T1
+    grepl("seppi-cam36", cam_ID) & grepl("WUP", location) ~ "3",  #cam36, WUP, T3
+    grepl("seppi-cam36", cam_ID) & grepl("WDG", location) ~ "5",  #cam36, WDG, T5
+    grepl("seppi-cam36", cam_ID) & grepl("BUH", location) ~ "1",  #cam36, BUH, T1
+    
+    grepl("seppi-cam37", cam_ID) & grepl("WED", location) ~ "5",  #cam37, WED, T5
+    grepl("seppi-cam37", cam_ID) & grepl("STP", location) ~ "5",  #cam37, STP, T5
+    grepl("seppi-cam37", cam_ID) & grepl("JEP", location) ~ "5",  #cam37, JEP, T5
+    grepl("seppi-cam37", cam_ID) & grepl("KOT", location) ~ "1",  #cam37, KOT, T1
+    grepl("seppi-cam37", cam_ID) & grepl("DES", location) ~ "3",  #cam37, DES, T3
+    grepl("seppi-cam37", cam_ID) & grepl("HLI", location) ~ "4",  #cam37, HLI, T4
+    grepl("seppi-cam37", cam_ID) & grepl("WUP", location) ~ "5",  #cam37, WUP, T5
+    grepl("seppi-cam37", cam_ID) & grepl("WDG", location) ~ "1",  #cam37, WDG, T1
+    grepl("seppi-cam37", cam_ID) & grepl("BUH", location) ~ "3",  #cam37, BUH, T3
+    
+    grepl("seppi-cam38", cam_ID) & grepl("WED", location) ~ "2",  #cam38, WED, T2
+    grepl("seppi-cam38", cam_ID) & grepl("STP", location) ~ "3",  #cam38, STP, T3
+    grepl("seppi-cam38", cam_ID) & grepl("JEP", location) ~ "1",  #cam38, JEP, T1
+    grepl("seppi-cam38", cam_ID) & grepl("KOT", location) ~ "3",  #cam38, KOT, T3
+    grepl("seppi-cam38", cam_ID) & grepl("DES", location) ~ "5",  #cam38, DES, T5
+    grepl("seppi-cam38", cam_ID) & grepl("HLI", location) ~ "5",  #cam38, HLI, T5
+    grepl("seppi-cam38", cam_ID) & grepl("WUP", location) ~ "1",  #cam38, WUP, T1
+    grepl("seppi-cam38", cam_ID) & grepl("WDG", location) ~ "3",  #cam38, WDG, T3
+    grepl("seppi-cam38", cam_ID) & grepl("BUH", location) ~ "5",  #cam38, BUH, T5
+    
+    TRUE ~ "UNKNOWN"  # Default value
+  ))
+```
+ 
+ 
+ 
+```{r load recording logs}
+# Import record logs which contain start and end time of each recording, as well as the total minutes recorded per session, the number of crops and IDs 
+
+camtrap36_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam36/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M")) # Extract Time as HH:MM
+
+
+camtrap37_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam37/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M") # Extract Time as HH:MM
+  )
+
+camtrap38_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam38/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M") # Extract Time as HH:MM
+  )
+
+#camtrap36_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam36/record_log.csv", col_names= T)
+#camtrap37_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam37/record_log.csv", col_names= T)
+#camtrap38_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam38/record_log.csv", col_names= T)
+```
+
+
+```{r combine recording logs}
+#bind the three camera recording logs together and remove the individual dataframes
+camtrap_logs_rec <- bind_rows(camtrap36_logs_rec, camtrap37_logs_rec, camtrap38_logs_rec)
+#rm(camtrap36_logs_rec, camtrap37_logs_rec, camtrap38_logs_rec)
+```
+ 
+# 3 Platform data summary
+
+```{r data summary}
+
+# Total recording time of all camera traps
+sum(camtrap_logs_rec$rec_time_min) / 60
+# ~146.204h
+
+# Total recording time per camera trap
+camtrap_logs_rec |> 
+  group_by(cam_ID) |> 
+  summarise(record_time_total_h = sum(rec_time_min) / 60)
+#seppi-cam36	40.35h			
+#seppi-cam37	52.79h			
+#seppi-cam38	53.05h	
+
+# Total number of captured images
+sum(platform_cams$track_ID_imgs)
+# 38450 images
+
+
+# Total number of all unique tracking IDs
+nrow(platform_cams)
+# 2096  tracking IDs total
+
+# Total number of all unique tracking IDs of insect classes
+platform_cams |> 
+  filter(str_detect(top1, "none", negate = TRUE)) |> # how many insect pictures are left when excluding the none_something classes
+  nrow()
+# 1180 tracking IDs of insect classes
+
+# Total number of all unique tracking IDs of non-insect classes
+platform_cams |> 
+  filter(str_detect(top1, "none")) |> # how many none_something pictures are there
+  nrow()
+# 916 tracking IDs of non-insect classes (background, bird, dirt, shadow)
+
+  
+# Total number of captured images, for which the top1 class with the highest weighted probability was hoverfly
+platform_cams |> 
+  filter(str_detect(top1, "hfly")) |>
+  summarise(track_ID_imgs_hfly = sum(track_ID_imgs))
+# 1452 images of hoverfly classes
+
+# Total number of all unique tracking IDs that were classified as hoverfly
+platform_cams |> 
+  filter(str_detect(top1, "hfly")) |>
+  nrow()
+# 77 tracking IDs of hoverfly classes
+
+# Total number of all unique tracking IDs per hoverfly class
+platform_cams |> 
+  filter(str_detect(top1, "hfly")) |>
+  count(top1)
+#hfly_episyr	22 tracking IDs
+#hfly_eristal	4 tracking IDs
+#hfly_eupeo	5 tracking IDs
+#hfly_myathr	4	tracking IDs
+#hfly_sphaero	2 tracking IDs
+#hfly_syrphus	40 tracking IDs
+
+table(platform_cams$top1)
+```
+ 
+## 4 Set ggplot2 theme 
+```{r set ggplot2 theme}
+# Save current default theme
+theme_default <- theme_get()
+
+# Set new theme
+theme_new <- theme_classic(base_size = 12) +
+  theme(axis.line = element_blank(),
+        axis.text = element_text(colour = "black"),
+        axis.ticks = element_line(linewidth = 0.4, colour = "black"),
+        legend.key.size = unit(0.5, "cm"),
+        legend.margin = margin(t = 0),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        panel.border = element_rect(linewidth = 0.4, colour = "black", fill = NA),
+        panel.grid.major.y = element_line(colour = "grey90", linewidth = 0.2),
+        plot.margin = margin(2, 2, 2, 2, "pt"),
+        plot.title = element_text(size = 10))
+theme_set(theme_new)
+
+# Optional: Set time locale to English to plot month names in correct format
+Sys.getlocale()
+#Sys.setlocale("LC_TIME", "en_GB.utf8")
+```
+
+
+## 5 Platform plotting
+
+```{r recording duration per session}
+#visualize the recording duration per session
+ggplot(camtrap_logs_rec, aes(x = cam_ID, y = rec_time_min/60, #divide by 60 to get hours
+                             fill=rec_time_min/60)) + #fill the bars with the total hours recorded
+  geom_bar(stat= "identity") +
+  geom_col(colour = "grey")+ #add grey outline to the stacked sections
+  labs(title = "Recording duration per session", # Session not day bc some recordings are split within one day
+       x = "Camera",
+       y = "Total hours recorded") +
+  labs(fill = "Hours recorded") +
+  theme_minimal()+
+  scale_fill_viridis(direction = -1) #reverse the viridis color scale
+```
+
+
+```{r unique IDs per class}
+# Generate color palette to plot the same color for each month respectively,
+# even if the number of months the camera traps were active differs
+viridis_9 <- viridis_pal()(9)
+#scales::show_col(viridis_5)
+
+# barplot_total function to plot the total number of unique tracking IDs per class
+barplot_total <- function(df, class_exclude, title) {
+  df |> 
+    filter(str_detect(top1, {{ class_exclude }}, negate = TRUE)) |>
+    add_count(top1) |> 
+    ggplot(aes(reorder(top1, -n))) +
+    geom_bar(aes(fill = location), color = "black", linewidth = 0.2) +
+    scale_fill_manual(name = "Location", values = viridis_9) +
+    labs(title = {{ title }}, x = "Predicted class", y = "Number of unique tracking IDs") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.3),
+          legend.position = c(0.9, 0.7))
+}
+
+(ct36 <- platform_cams |>
+  filter(str_detect(cam_ID, "cam36")) |>
+  barplot_total(class_exclude = "none", title = "Camtrap 36") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 250), n.breaks = 16))
+
+(ct37 <- platform_cams |>
+  filter(str_detect(cam_ID, "cam37")) |>
+  barplot_total(class_exclude = "none", title = "Camtrap 37") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 250), n.breaks = 16))
+
+(ct38 <- platform_cams |>
+  filter(str_detect(cam_ID, "cam38")) |>
+  barplot_total(class_exclude = "none", title = "Camtrap 38") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 70), n.breaks = 16))
+
+(ct_all <- platform_cams |>
+  barplot_total(class_exclude = "none", title = "All camera traps") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 550), n.breaks = 16))
+  
+  
+# Combine plots
+(ct36 + labs(x = "")) +
+(ct37 + labs(x = "", y = "")) +
+(ct38 + labs(x = "", y = "")) +
+(ct_all + labs(y = "")) +
+  plot_annotation(tag_levels = "A") & 
+  theme(plot.tag = element_text(size = 11, face = "bold"))
+
+# Plot all classes, including "none_bg", "none_bird", "none_dirt", "none_shadow"
+platform_cams |> 
+  barplot_total(class_exclude = "0", title = "Camtraps merged") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 550), n.breaks = 14)
+
+```
+
+
+### Time difference between tracking IDs 
+Calculate minimum difference between end_time and start_time of the 5 previous tracking IDs of the same predicted class, grouped by camtrap, date, recording interval.
+
+```{r time difference between tracked IDs}
+
+timediff <- platform_cams |> 
+  filter(str_detect(top1, "none", negate = TRUE)) |>
+  group_by(cam_ID, date, hour(start_time), top1) |> 
+  mutate(time_diff_prevID_1 = start_time - lag(end_time, 1)) |> 
+  mutate(time_diff_prevID_2 = start_time - lag(end_time, 2)) |> 
+  mutate(time_diff_prevID_3 = start_time - lag(end_time, 3)) |> 
+  mutate(time_diff_prevID_4 = start_time - lag(end_time, 4)) |> 
+  mutate(time_diff_prevID_5 = start_time - lag(end_time, 5)) |> 
+  mutate(across(time_diff_prevID_1:time_diff_prevID_5, ~replace(., . < 0, NA))) |> 
+  mutate(time_diff_prevID = pmin(time_diff_prevID_1, time_diff_prevID_2, time_diff_prevID_3,
+                                 time_diff_prevID_4, time_diff_prevID_5, na.rm = TRUE)) |>
+  filter(time_diff_prevID < 30) # keep only time differences < 30 s
+
+# Number of tracking IDs with time difference of < 5 s to previous ID of the same top1 class
+timediff |> 
+  filter(time_diff_prevID < 5) |> 
+  nrow()
+# 204 tracking IDs
+
+# Plot time difference to previous tracking ID of the same predicted class
+timediff |> 
+  ggplot(aes(as.numeric(time_diff_prevID))) +
+  geom_histogram(aes(fill = as.factor(cam_ID)), binwidth = 1, color = "black", linewidth = 0.2) +
+  scale_fill_viridis_d(name = "Camtrap") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), n.breaks = 11) +
+  scale_x_continuous(expand = c(0.01, 0.01), limits = c(-0.5, 30.5), n.breaks = 31) +
+  labs(x = "Time difference to previous tracking ID of same class [s]",
+       y = "Number of unique tracking IDs") +
+  theme(legend.position = c(0.94, 0.8),
+        plot.margin = margin(4, 2, 2, 2, "pt"))
+
+```
+
+```{r visit duration per class}
+#plot of average visit duration (duration_s) per top1 class
+insect_platform_cams <- platform_cams |>
+  filter(str_detect(top1, "none", negate = TRUE))|>
+  select(top1, duration_s) |>
+   group_by(top1) |>
+   summarise(
+    mean_duration = mean(duration_s, na.rm = TRUE),
+    sd_duration = sd(duration_s, na.rm = TRUE))
+
+
+# Plot with error bars
+ggplot(insect_platform_cams, aes(x = top1, y = mean_duration, fill = top1)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(
+    ymin = mean_duration - sd_duration,
+    ymax = mean_duration + sd_duration
+  ), width = 0.2, color = "black") +
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, vjust = 0.3), legend.position = "none" ) +
+  labs(title = "Platform visit duration per top1 class",
+       x = "Insect Class",
+       y = "Mean Duration (s)") +
+  scale_fill_viridis_d()
+```
+
+# Flower cameras
+
+
+```{r load flower data}
+camtrap31 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam31/results/2024-10-28_16-15-25_metadata_processed/seppi-cam31_metadata_classified_top1_final.csv", col_names = TRUE)
+camtrap32 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam32/results/2024-10-28_16-38-45_metadata_processed/seppi-cam32_metadata_classified_top1_final.csv", col_names = TRUE)
+camtrap33 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam33/results/2024-12-10_20-12-07_metadata_processed/seppi-cam33_metadata_classified_top1_final.csv", col_names = TRUE)
+camtrap34 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam34/results/2024-12-10_20-12-37_metadata_processed/seppi-cam34_metadata_classified_top1_final.csv", col_names = TRUE)
+camtrap35 <- read_csv("C:/Users/Almas/YOLOv5/yolov5-master/runs/predict-cls/seppi-cam35/results/2024-12-10_20-12-54_metadata_processed/seppi-cam35_metadata_classified_top1_final.csv", col_names = TRUE)
+
+# Combine data from all camera traps
+flower_cams <- bind_rows(
+  camtrap31,
+  camtrap32,
+  camtrap33,
+  camtrap34,
+  camtrap35
+)
+
+rm(camtrap31, camtrap32, camtrap33, camtrap34, camtrap35) # Remove individual cameras dataframes
+```
+
+
+```{r site assignment}
+flower_cams <- flower_cams %>%
+mutate(location = case_when(
+    grepl("2024-07-11", start_time) ~ "WED",  # Match the 11th July to Wedringen
+    grepl("2024-07-14", start_time) ~ "STP",  # Match the 14th July to Steutz
+    grepl("2024-07-18", start_time) ~ "JEP",  # Match the 18th July to Jerichow
+    grepl("2024-07-20", start_time) ~ "KOT",  # Match the 20th July to Köthen
+    grepl("2024-07-21", start_time) ~ "DES",  # Match the 21nd July to Dessau
+    grepl("2024-07-24", start_time) ~ "HLI",  # Match the 24th July to Pölsfeld
+    grepl("2024-07-29", start_time) ~ "WUP",  # Match the 29th July to Wulfen
+    grepl("2024-07-30", start_time) ~ "WDG",  # Match the 30th July to Wedringen
+    grepl("2024-08-13", start_time) ~ "BUH",  # Match the 13th August to Bühne
+    TRUE ~ "UNKNOWN"  # Default value
+  ))
+```
+
+```{r flower assignment}
+# Assign flower species to each camera trap
+flower_cams <- flower_cams |>
+  mutate(flower_sp = case_when(
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-11", date) ~ "kna_arv", #cam31, 11th July, kna_arv
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-14", date) ~ "dau_car", #cam31, 14th July, dau_car
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-18", date) ~ "hyp_per", #cam31, 18th July, hyp_per
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-20", date) ~ "pas_sat", #cam31, 20th July, pas_sat
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-21", date) ~ "dau_car", #cam31, 21st July, dau_car
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-24", date) ~ "pas_sat", #cam31, 24th July, pas_sat  
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-29", date) ~ "pas_sat", #cam31, 29th July, pas_sat
+    grepl("seppi-cam31", cam_ID) & grepl("2024-07-30", date) ~ "gal_alb", #cam31, 30th July, gal_alb
+    grepl("seppi-cam31", cam_ID) & grepl("2024-08-13", date) ~ "lot_cor", #cam31, 13th August, lot_cor
+    
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-11", date) ~ "kna_arv", #cam32, 11th July, kna_arv
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-14", date) ~ "cre_bie", #cam32, 14th July, cre_bie
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-18", date) ~ "peu_off", #cam32, 18th July, peu_off
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-20", date) ~ "kna_arv", #cam32, 20th July, kna_arv
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-21", date) ~ "cre_bie", #cam32, 21st July, cre_bie
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-24", date) ~ "kna_arv", #cam32, 24th July, kna_arv
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-29", date) ~ "cre_bie", #cam32, 29th July, cre_bie
+    grepl("seppi-cam32", cam_ID) & grepl("2024-07-30", date) ~ "pas_sat", #cam32, 30th July, pas_sat
+    grepl("seppi-cam32", cam_ID) & grepl("2024-08-13", date) ~ "gal_alb", #cam32, 13th August, gal_alb
+    
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-11", date) ~ "dau_car", #cam33, 11th July, dau_car
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-14", date) ~ "tri_rep", #cam33, 14th July, tri_rep
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-18", date) ~ "gal_bor", #cam33, 18th July, gal_bor
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-20", date) ~ "cre_bie", #cam33, 20th July, cre_bie
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-21", date) ~ "cre_bie", #cam33, 21st July, cre_bie
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-24", date) ~ "hyp_per", #cam33, 24th July, hyp_per
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-29", date) ~ "pas_sat", #cam33, 29th July, pas_sat
+    grepl("seppi-cam33", cam_ID) & grepl("2024-07-30", date) ~ "cen_jac", #cam33, 30th July, cen_jac
+    grepl("seppi-cam33", cam_ID) & grepl("2024-08-13", date) ~ "tri_pra", #cam33, 13th August, tri_pra
+    
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-11", date) ~ "pas_sat", #cam34, 11th July, pas_sat
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-14", date) ~ "kna_arv", #cam34, 14th July, kna_arv
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-18", date) ~ "peu_off", #cam34, 18th July, peu_off
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-20", date) ~ "dau_car", #cam34, 20th July, dau_car
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-21", date) ~ "tri_pra", #cam34, 21st July, tri_pra
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-24", date) ~ "tri_pra", #cam34, 24th July, tri_pra
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-29", date) ~ "dau_car", #cam34, 29th July, dau_car
+    grepl("seppi-cam34", cam_ID) & grepl("2024-07-30", date) ~ "dia_car", #cam34, 30th July, dia_car
+    grepl("seppi-cam34", cam_ID) & grepl("2024-08-13", date) ~ "dau_car", #cam34, 13th August, dau_car
+    
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-11", date) ~ "pas_sat", #cam35, 11th July, pas_sat
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-14", date) ~ "hyp_per", #cam35, 14th July, hyp_per
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-18", date) ~ "pas_sat", #cam35, 18th July, pas_sat
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-20", date) ~ "cre_bie", #cam35, 20th July, cre_bie
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-21", date) ~ "pas_sat", #cam35, 21st July, pas_sat
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-24", date) ~ "hyp_per", #cam35, 24th July, hyp_per
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-29", date) ~ "pas_sat", #cam35, 29th July, pas_sat
+    grepl("seppi-cam35", cam_ID) & grepl("2024-07-30", date) ~ "dau_car", #cam35, 30th July, dau_car
+    grepl("seppi-cam35", cam_ID) & grepl("2024-08-13", date) ~ "tri_pra" #cam35, 13th August, tri_pra
+  ))
+
+```
+
+```{r load flower recording logs}
+
+camtrap31_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam31/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M")) # Extract Time as HH:MM
+
+camtrap32_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam32/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M") # Extract Time as HH:MM
+  )
+
+camtrap33_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam33/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M") # Extract Time as HH:MM
+  )
+
+camtrap34_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam34/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M") # Extract Time as HH:MM
+  )
+
+camtrap35_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam35/record_log.csv", col_names=T) |> mutate(
+    # Extract date and time components from rec_start and rec_end
+    record_start_date = as_date(rec_start), # Convert to Date
+    record_start_time = format(rec_start, "%H:%M"), # Extract Time as HH:MM
+    record_end_time = format(rec_end, "%H:%M") # Extract Time as HH:MM
+  )
+
+
+flower_logs_rec <- bind_rows(camtrap31_logs_rec, camtrap32_logs_rec, camtrap33_logs_rec, camtrap34_logs_rec, camtrap35_logs_rec)
+
+
+
+```
+
+## 6 Flower camera data summary
+
+```{r data summary}
+# Total recording time of all camera traps
+sum(flower_logs_rec$rec_time_min) / 60
+# ~251.6585h
+
+# Total recording time per camera trap
+flower_logs_rec |> 
+  group_by(cam_ID) |> 
+  summarise(record_time_total_h = sum(rec_time_min) / 60)
+#seppi-cam31	54.00950			
+#seppi-cam32	54.00950			
+#seppi-cam33	53.87150			
+#seppi-cam34	53.89483			
+#seppi-cam35	35.87317	
+
+# Total number of captured images
+sum(flower_cams$track_ID_imgs)
+# 192 290 images
+
+
+# Total number of all unique tracking IDs
+nrow(flower_cams)
+# 5553  tracking IDs total
+
+# Total number of all unique tracking IDs of insect classes
+flower_cams |> 
+  filter(str_detect(top1, "none", negate = TRUE)) |> # how many insect pictures are left when excluding the none_something classes
+  nrow()
+# 445 tracking IDs of insect classes
+
+# Total number of all unique tracking IDs of non-insect classes
+flower_cams |> 
+  filter(str_detect(top1, "none")) |> # how many none_something pictures are there
+  nrow()
+# 5105 tracking IDs of non-insect classes (background, bird, dirt, shadow)
+
+  
+# Total number of captured images, for which the top1 class with the highest weighted probability was hoverfly
+flower_cams |> 
+  filter(str_detect(top1, "hfly")) |>
+  summarise(track_ID_imgs_hfly = sum(track_ID_imgs))
+# 784 images of hoverfly classes
+
+# Total number of all unique tracking IDs that were classified as hoverfly
+flower_cams |> 
+  filter(str_detect(top1, "hfly")) |>
+  nrow()
+# 35 tracking IDs of hoverfly classes
+
+# Total number of all unique tracking IDs per hoverfly class
+flower_cams |> 
+  filter(str_detect(top1, "hfly")) |>
+  count(top1)
+#hfly_episyr	3			
+#hfly_eristal	12			
+#hfly_eupeo	16			
+#hfly_sphaero	4	
+
+table(flower_cams$top1)
+```
+## 7 Flower camera plotting
+
+```{r recording duration per session}
+#visualize the recording duration per session
+ggplot(flower_logs_rec, aes(x = cam_ID, y = rec_time_min/60, #divide by 60 to get hours
+                             fill=rec_time_min/60)) + #fill the bars with the total hours recorded
+  geom_bar(stat= "identity") +
+  geom_col(colour = "grey")+ #add grey outline to the stacked sections
+  labs(title = "Recording duration per session", # Session not day bc some recordings are split within one day
+       x = "Camera",
+       y = "Total hours recorded") +
+  labs(fill = "Hours recorded") +
+  theme_minimal()+
+  scale_fill_viridis(direction = -1) #reverse the viridis color scale
+```
+```{r unique IDs per class}
+# Generate color palette to plot the same color for each site respectively,
+# even if the number of months the camera traps were active differs
+viridis_9 <- viridis_pal()(9) #numnber of sites
+
+
+(ct31 <- flower_cams |>
+  filter(str_detect(cam_ID, "cam31")) |>
+  barplot_total(class_exclude = "none", title = "Camtrap 31") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 15), n.breaks = 16))
+
+(ct32 <- flower_cams |>
+  filter(str_detect(cam_ID, "cam32")) |>
+  barplot_total(class_exclude = "none", title = "Camtrap 32") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 40), n.breaks = 16))
+
+(ct33 <- flower_cams |>
+  filter(str_detect(cam_ID, "cam33")) |>
+  barplot_total(class_exclude = "none", title = "Camtrap 33") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 50), n.breaks = 16))
+
+(ct34 <- flower_cams |>
+    filter(str_detect(cam_ID, "cam34")) |>
+    barplot_total(class_exclude = "none", title = "Camtrap 34") +
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 20), n.breaks = 16))
+
+(ct35 <- flower_cams |>
+    filter(str_detect(cam_ID, "cam35")) |>
+    barplot_total(class_exclude = "none", title = "Camtrap 35") +
+    scale_y_continuous(expand = c(0, 0), limits = c(0, 100), n.breaks = 16))
+
+(ct_all_flower <- flower_cams |>
+  barplot_total(class_exclude = "none", title = "All camera traps") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 200), n.breaks = 16))
+  
+# Combine plots
+(ct31 + labs(x = "")) +
+(ct32 + labs(x = "", y = "")) +
+(ct33 + labs(x = "", y = "")) +
+(ct34 + labs(x = "", y = "")) +
+(ct35 + labs(x = "", y = "")) +
+(ct_all_flower + labs(y = "")) +
+  plot_annotation(tag_levels = "A") & 
+  theme(plot.tag = element_text(size = 11, face = "bold"))
+
+# Plot all classes, including "none_bg", "none_bird", "none_dirt", "none_shadow"
+flower_cams |> 
+  barplot_total(class_exclude = "0", title = "Camtraps merged") +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 5000), n.breaks = 14)
+
+flower_cams |> 
+  filter(str_detect(top1, "none",  negate = TRUE)) |> # Exclude none_ class
+  ggplot(aes(x = location, fill = top1)) +
+  geom_bar() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.3)) +
+  labs(title = "Number of unique tracking IDs per site",
+       x = "Site",
+       y = "Number of unique tracking IDs") +
+  scale_fill_viridis_d()+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 300))
+
+```
+
+```{r visit duration per class}
+#plot of average visit duration (duration_s) per top1 class
+insect_flower_cams <- flower_cams |>
+  filter(str_detect(top1, "none", negate = TRUE))|>
+  select(top1, duration_s) |>
+   group_by(top1) |>
+   summarise(
+    mean_duration = mean(duration_s, na.rm = TRUE),
+    sd_duration = sd(duration_s, na.rm = TRUE))
+
+
+# Plot with error bars
+ggplot(insect_flower_cams, aes(x = top1, y = mean_duration, fill = top1)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(
+    ymin = mean_duration - sd_duration,
+    ymax = mean_duration + sd_duration
+  ), width = 0.2, color = "black") +
+  coord_flip() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, vjust = 0.3), legend.position = "none" ) +
+  labs(title = "Platform visit duration per top1 class",
+       x = "Insect Class",
+       y = "Mean Duration (s)") +
+  scale_fill_viridis_d()
+
+```
+
