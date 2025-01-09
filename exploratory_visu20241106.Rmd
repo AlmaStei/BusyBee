@@ -7,9 +7,7 @@ output: html_document
 
 
 ```{r, include=FALSE}
-library(ggplot2)
-library(dplyr)
-library(tidyr)
+library(tidyverse)
 library(readxl)
 library(viridis)
 library(stringr)
@@ -28,7 +26,7 @@ library(fossil) # helps with creating site-by-species-matrix for use with iNEXT
 ## Pan traps
 ```{r load and clean data}
 # read one sheet from an excel file
-df <-readxl::read_excel("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/data_field/Labels_pantraps_clean.csv.xlsx", sheet = "Labels_pantraps_clean",range = "A1:AL138")
+df <-readxl::read_excel("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/data_field/Labels_pantraps_clean.csv.xlsx", sheet = "Labels_pantraps_clean",range = "A1:AS138")
 
 r_clean <- df %>%
   # Remove rows where 'ID_date' contains '_missing'
@@ -36,7 +34,7 @@ r_clean <- df %>%
   select(SITE = ID_date, 
          small = notes,
          thrips = less_1mm,
-         apocrita:spider) %>% #select site names, notes and all the taxa columns
+         apocrita:Polleniidae) %>% #select site names, notes and all the taxa columns
   mutate(spider = if_else(is.na(spider), 0, spider))%>% # remove NAs from spider column
   separate(SITE, 
            into = c("Site", "Transect", "Color", "Date"), #separate site names into site, transect, color and date 
@@ -105,8 +103,8 @@ ggplot(data_long, aes(x = Site, y = Count, fill = Taxa)) +
 ```{r large insects}
 #create subset of data only for larger than 3mm insects
 insect_large <- r_clean %>%
-  select(Site:symphyta) %>%
-  pivot_longer(cols =  apocrita:symphyta,  
+  select(Site:Polleniidae) %>%
+  pivot_longer(cols =  apocrita:Polleniidae,  
                names_to = "Taxa", 
                values_to = "Count") 
 ```
@@ -129,7 +127,9 @@ ggplot(insect_large, aes(x = Taxa, y = Count, fill = Site)) +
        y = "Total Count") +
   theme_minimal() +
   scale_fill_viridis(discrete = TRUE, option= "plasma") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), n.breaks =8)
+
 
 #the platform categories are quite different than families, so let's convert these categories to something similar so we can compare
 
@@ -152,7 +152,7 @@ ggplot(plat_insect_large, aes(x = reorder(category, -Count), y = Count, fill = S
   theme_minimal() +
   scale_fill_viridis(discrete = TRUE) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 500), n.breaks =8)
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), n.breaks =8)
 
 
 ```
@@ -229,7 +229,7 @@ head(net_data)
 # Summarize to get the count of interactions between each plant-pollinator pair
 interaction_counts <- net_data %>%
   # Group by SITE and standardized family name (fam), then count interactions
-  group_by(plant_species, family) %>%
+  group_by(site, family) %>%
   summarize(interaction_count = n(), .groups = 'drop') #summarize the data
   
 ggplot(interaction_counts, aes(x = site, y = interaction_count, fill = family)) +
@@ -242,10 +242,10 @@ ggplot(interaction_counts, aes(x = site, y = interaction_count, fill = family)) 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # plot the data according to plant species
-ggplot(interaction_counts, aes(x = reorder(plant_species, interaction_count), y = interaction_count, fill = family)) +
+ggplot(interaction_counts, aes(x = reorder(site, interaction_count), y = interaction_count, fill = family)) +
   geom_bar(stat = "identity") +
   labs(title = "Stacked Species Counts by flower species",
-       x = "Flower speceis",
+       x = "Site",
        y = "Total Count") +
   theme_minimal() +
   scale_fill_viridis(discrete = TRUE) +
@@ -277,8 +277,9 @@ ggplot(fam_counts_df, aes(x = fam_ID, y = frequency, width=.7)) +
 
 sum(fam_counts_df$Frequency);length(fam_counts_df$fam_ID);levels(as.factor(interaction_counts$family))
 ```
-## iNext
 
+
+## iNext
 ```{r}
 #Saturation curves and diversity metrics using iNEXT
 library(iNEXT)
@@ -286,13 +287,13 @@ library(ggplot2) # helps with graphs
 library(fossil) # helps with creating site-by-species-matrix for use with iNEXT 
 library(readxl) 
 
-str(net_data)
+str(net_data) #check the structure of the data
 
-length(net_data$final_ID)
-# 1579
+length(net_data$final_ID) 
+# 1579 
 
 net_data <- net_data %>%
-  filter(plant_species != "no info")
+  filter(plant_species != "no info") #remove rows with no info in the plant_species column  
 
 cleaned_data <- net_data %>%
   filter(!is.na(family), !is.na(site), !is.na(total_interaction))
@@ -323,7 +324,7 @@ net_data<-subset(net_data, net_data[8]!="") #remove rows with empty values in th
 
 matrix_butterflies <- create.matrix(x = net_data,
                                 tax.name = 'family',
-                                locality = 'site',
+                                locality = 'site_type',
                                 abund = TRUE,
                                 abund.col = 'total_interaction')
 ##Check your work
