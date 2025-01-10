@@ -44,7 +44,6 @@ bowltrap_clean <- df %>%
     Date = as.Date(Date, format = "%d.%m.%Y") #format date
   )
 
-head(bowltrap_clean)
 rm(df)
 ```
 
@@ -77,10 +76,7 @@ bowltrap_clean <- bowltrap_clean %>%
   mutate(apocrita = coalesce(apocrita, 0) + coalesce(proctotrupidae ,0)) %>%
   select(-proctotrupidae, -tenthredinidae, -spider, -cicadellidae)
 
-
-head(bowltrap_clean)
 ```
-
 
 ```{r large insects}
 #create subset of data only for larger than 3mm insects
@@ -126,8 +122,6 @@ ggplot(plat_bowl_large, aes(x = reorder(category, -Count), y = Count, fill = Sit
   scale_y_continuous(expand = c(0, 0), limits = c(0, 70))
 ```
 
-
-
 ```{r small insects}
 bowl_small <- bowltrap_clean %>%
   select(Site:Date, small_thrip:small_staphylinidae) %>%
@@ -160,14 +154,150 @@ ggplot(bowl_small, aes(x = Site, y = Count, fill = Taxa)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+### iNext - rarefaction curves
+- iNEXT focuses on three measures of Hill numbers of order q: 
+    + species richness (q = 0), 
+    + Shannon diversity (q = 1, the exponential of Shannon entropy) 
+    + Simpson diversity (q = 2, the inverse of Simpson concentration)    
+ 
+[Source](https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html) 
+
+```{r rarefaction curves for pan traps}
+bowl_large2 <- as.data.frame(bowl_large) #make 'dat' into a data frame that can be read by create.matrix
+
+bowl_large2 <- bowl_large2 %>%
+        mutate(Site_type = case_when( #adding site_type column
+                Site %in% c("WED", "KOT", "WDG", "BUH") ~ "young_restored", #young restored sites
+                Site %in% c("STP", "JEP", "DES", "HLI", "WUP") ~ "reference", #reference sites
+                TRUE ~ NA_character_)) # Default case, if needed
+
+bowl_large2 <-subset(bowl_large2, bowl_large2[6]!=0) #remove rows with empty values in the 'family' column
+
+#rarefaction curves for site_type ---------------------------------------------
+matrix_bowl_type <- create.matrix(x = bowl_large2,
+                                tax.name = 'Taxa',
+                                locality = 'Site_type',
+                                abund = TRUE,
+                                abund.col = 'Count')
+##Check your work
+identical(sum(matrix_bowl_type),sum(bowl_large2$Count))
+#both have 105 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_bowl_type <- as.data.frame(matrix_bowl_type)
+
+#run iNEXT to get the diversity estimates per SITE_TYPE
+set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_type,  q = c(0,1,2), datatype = 'abundance') #set seed for reproducibility, iNEXT include all three indices of diversity
+
+# This are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst 
+
+# Plot the results
+ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
+
+#save the plot
+rarefaction_bowl_sitetype <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Pan traps: rarefaction curves per site type") 
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_sitetype.png")
+
+rm(matrix_bowl_type, rarefaction_bowl_sitetype) #remove the matrix and plot to clear up memory
+
+#rarefaction curves for site ---------------------------------------------
+matrix_bowl_site <- create.matrix(x = bowl_large2,
+                                tax.name = 'Taxa',
+                                locality = 'Site',
+                                abund = TRUE,
+                                abund.col = 'Count')
+##Check your work
+identical(sum(matrix_bowl_site),sum(bowl_large2$Count))
+#both have 105 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_bowl_site <- as.data.frame(matrix_bowl_site)
+
+#run iNEXT to get the diversity estimates per SITE
+set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_site,  q = c(0,1,2), datatype = 'abundance')  #set seed for reproducibility, iNEXT include all three indices of diversity
+
+# This are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst
+
+# Plot the results
+ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
+
+# Save the plot
+rarefaction_bowl_site <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Pan traps: rarefaction curves per site")
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_site.png")
+
+rm(matrix_bowl_site, rarefaction_bowl_site) #remove the matrix and plot to clear up memory
+
+#rarefaction curves for transect ---------------------------------------------  
+matrix_bowl_transect <- create.matrix(x = bowl_large2,
+                                tax.name = 'Taxa',
+                                locality = 'Transect',
+                                abund = TRUE,
+                                abund.col = 'Count')
+
+##Check your work
+identical(sum(matrix_bowl_transect),sum(bowl_large2$Count)) #both have 105 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_bowl_transect <- as.data.frame(matrix_bowl_transect)
+
+#run iNEXT to get the diversity estimates per transect number
+set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_transect,  q = c(0,1,2), datatype = 'abundance') #set seed for reproducibility, iNEXT include all three indices of diversity
+
+# This are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst
+
+# Can also plot the results
+ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
+
+# save the plot
+rarefaction_bowl_transect <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q") +
+  ggtitle("Pan traps: rarefaction curves per transects")
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_transect.png")
+
+rm(matrix_bowl_transect, rarefaction_bowl_transect) #remove the matrix and plot to clear up memory
+
+#rarefaction curves for bowl color ---------------------------------------------
+matrix_bowl_color <- create.matrix(x = bowl_large2,
+                                tax.name = 'Taxa',
+                                locality = 'Color',
+                                abund = TRUE,
+                                abund.col = 'Count')
+
+##Check your work
+identical(sum(matrix_bowl_color),sum(bowl_large2$Count)) #both have 105 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_bowl_color <- as.data.frame(matrix_bowl_color)
+
+set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_color,  q = c(0,1,2), datatype = 'abundance') 
+#set seed for reproducibility, iNEXT include all three indices of diversity
+# iNEXT_output_insects$AsyEst # AsyEst gives the diversity estimates with their confidence intervals
+
+#plot the results
+ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q") 
+
+#save the plot
+rarefaction_bowl_color <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Pan traps: rarefaction curves per bowl color")
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_color.png")
+
+rm(matrix_bowl_color, rarefaction_bowl_color) #remove the matrix and plot to clear up memory
+```
 
 ## Transect netting
+include=FALSE
 
-```{r load and clean transect data}
+```{r load transect data,include=FALSE}
 #load data
  #Read google sheets data into R
 net_data <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=2) #sheet 2 has the interaction data
+```
 
+```{r clean transect data}
 net_data <- net_data %>%
   select(site = Site, transect = Transect, final_ID = final_ID, plant_species=plant_species, field_ID=pollinator_field_ID, observed =observed, collected=collected, family=Family) #select columns of interest
 
@@ -188,8 +318,6 @@ net_data <- net_data %>%
                family %in% c("Sarcophagidae c.f.", "Sarcophagidae") ~ "Sarcophagidae",
                family %in% c("Tenthrenidae", "Tenthredinidae") ~ "Tenthredinidae",
                TRUE ~ family))  # Keep other families unchanged
-
-head(net_data)
 ```
 
 ```{r interaction counts and plot}
@@ -253,12 +381,9 @@ sum(fam_counts_df$Frequency);length(fam_counts_df$fam_ID);levels(as.factor(inter
 rm(fam_counts, fam_counts_df,interaction_counts_site)
 ```
 
-
 ### iNext - rarefaction curves
-
-#### Site type
-
-```{r rarefaction curves for site_type}
+```{r rarefaction curves for transect netting}
+# rarefaction curves for site_type ---------------------------------------------
 net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
 
 net_data<-subset(net_data, net_data[8]!="") #remove rows with empty values in the 'family' column
@@ -275,28 +400,22 @@ identical(sum(matrix_netting_type),sum(net_data$total_interaction))
 # Convert to data.frame for use with iNEXT
 matrix_netting_type <- as.data.frame(matrix_netting_type)
 
+# Run iNEXT to get the diversity estimates per SITE_TYPE
+set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_netting_type,  q = c(0,1,2), datatype = 'abundance')#set seed for reproducibility, iNEXT include all three indices of diversity
 
-# ~ Diversity by number of individuals
-
-# Compute and visualize butterfly diversity by number of individuals.
-
-# iNEXT focuses on three measures of Hill numbers of order q: species richness
-# (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and Simpson diversity (q = 2, the inverse of Simpson concentration).
-# Source: https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html
-set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_netting_type,  q = c(0,1,2), datatype = 'abundance')
-# Have a look at the output of iNext. It gives diversity estimates per meadow type.
-# This are specifically the diversity estimates with their confidence intervals:
-iNEXT_output_insects$AsyEst 
+# this are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst 
 # Can also plot the results
 ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
-```
-#### Sites
 
-```{r rarefaction curves for sites}
-net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
+#save the plot
+rarefaction_netting_sitetype <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per site type")
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_sitetype.png")
 
-net_data<-subset(net_data, net_data[8]!="") #remove rows with empty values in the 'family' column
+rm(matrix_netting_type, rarefaction_netting_sitetype)
 
+# rarefaction curves for sites ----------------------------------------------
 matrix_netting_site <- create.matrix(x = net_data,
                                 tax.name = 'family',
                                 locality = 'site',
@@ -309,28 +428,23 @@ identical(sum(matrix_netting_site),sum(net_data$total_interaction))
 # Convert to data.frame for use with iNEXT
 matrix_netting_site <- as.data.frame(matrix_netting_site)
 
+# Run iNEXT to get the diversity estimates per SITE 
+set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_site,  q = c(0,1,2), datatype = 'abundance') #set seed for reproducibility, iNEXT include all three indices of diversity
 
-# ~ Diversity by number of individuals
+# this are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst 
 
-# Compute and visualize diversity by number of individuals.
-
-# iNEXT focuses on three measures of Hill numbers of order q: species richness
-# (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and Simpson diversity (q = 2, the inverse of Simpson concentration).
-# Source: https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html
-set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_site,  q = c(0,1,2), datatype = 'abundance')
-# Have a look at the output of iNext. It gives diversity estimates per site.
-# This are specifically the diversity estimates with their confidence intervals:
-iNEXT_output_insects$AsyEst 
-# Can also plot the results
+# Plot the results
 ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
-```
 
-#### Transects 
-```{r rarefaction curves for transect number}
-net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
+#save the plot
+rarefaction_netting_site <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per site")
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_site.png")
 
-net_data<-subset(net_data, net_data[8]!="") #remove rows with empty values in the 'family' column
+rm(matrix_netting_site, rarefaction_netting_site) #remove the matrix and plot to clear up memory
 
+# rarefaction curves for transect number ---------------------------------------------
 matrix_netting_transect <- create.matrix(x = net_data,
                                 tax.name = 'family',
                                 locality = 'transect',
@@ -343,18 +457,23 @@ identical(sum(matrix_netting_transect),sum(net_data$total_interaction))
 # Convert to data.frame for use with iNEXT
 matrix_netting_transect <- as.data.frame(matrix_netting_transect)
 
+#run iNEXT to get the diversity estimates per transect number
+set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_transect,  q = c(0,1,2), datatype = 'abundance') #set seed for reproducibility, iNEXT include all three indices of diversity
 
-# ~ Diversity by number of individuals
-
-# Compute and visualize diversity by number of individuals.
-
-# iNEXT focuses on three measures of Hill numbers of order q: species richness
-# (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and Simpson diversity (q = 2, the inverse of Simpson concentration).
-# Source: https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html
-set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_transect,  q = c(0,1,2), datatype = 'abundance')
-# Have a look at the output of iNext. It gives diversity estimates per site.
 # This are specifically the diversity estimates with their confidence intervals:
-iNEXT_output_insects$AsyEst 
-# Can also plot the results
+# iNEXT_output_insects$AsyEst 
+
+# plot the results
 ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
+
+#save the plot
+rarefaction_netting_transect <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per transects")
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_transect.png")
+
+rm(matrix_netting_transect, rarefaction_netting_transect) #remove the matrix and plot to clear up memory 
 ```
+```{r}
+rm(iNEXT_output_insects,bowl_large2)
+```
+
