@@ -28,7 +28,7 @@ library(fossil) # helps with creating site-by-species-matrix for use with iNEXT
 # read one sheet from an excel file
 df <-readxl::read_excel("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/data_field/Labels_pantraps_clean.csv.xlsx", sheet = "Labels_pantraps_clean",range = "A1:AS138")
 
-r_clean <- df %>%
+bowltrap_clean <- df %>%
   # Remove rows where 'ID_date' contains '_missing'
   filter(!str_detect(ID_date, "_missing")) %>%
   select(SITE = ID_date, 
@@ -44,13 +44,13 @@ r_clean <- df %>%
     Date = as.Date(Date, format = "%d.%m.%Y") #format date
   )
 
-head(r_clean)
+head(bowltrap_clean)
 rm(df)
 ```
 
 ```{r clean data}
 # Step 1: Clean and process the `small` column
-r_clean <- r_clean %>%
+bowltrap_clean <- bowltrap_clean %>%
   mutate(small = str_remove(small, "small: ")) %>%  # Remove "small: " prefix
   mutate(small = str_replace_all(small, "none", "")) %>%  # Replace "none" with an empty string
   separate_rows(small, sep = ", ") %>%  # Split rows into individual entries
@@ -78,49 +78,19 @@ r_clean <- r_clean %>%
   select(-proctotrupidae, -tenthredinidae, -spider, -cicadellidae)
 
 
-head(r_clean)
+head(bowltrap_clean)
 ```
 
-
-```{r long format}
-# Convert data to long format
-data_long <- r_clean %>%
-  pivot_longer(cols = starts_with("apocrita"):last_col(), 
-               names_to = "Taxa", 
-               values_to = "Count")
-
-
-ggplot(data_long, aes(x = Site, y = Count, fill = Taxa)) +
-  geom_bar(stat = "identity") +
-  labs(title = "Stacked Taxa Counts by Sampling Event",
-       x = "Sampling Event",
-       y = "Total Count") +
-  theme_minimal() +
-  scale_fill_viridis(discrete = TRUE, option= "plasma") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
 
 ```{r large insects}
 #create subset of data only for larger than 3mm insects
-insect_large <- r_clean %>%
+bowl_large <- bowltrap_clean %>%
   select(Site:Polleniidae) %>%
   pivot_longer(cols =  apocrita:Polleniidae,  
                names_to = "Taxa", 
                values_to = "Count") 
-```
 
-
-```{r large plots}
-# Plot the data
-#ggplot(insect_large, aes(x = Site, y = Count, fill = Taxa)) +
-#  geom_bar(stat = "identity", position = "dodge") +
-#  labs(title = "Taxa Counts by Sampling Event",
-#       x = "Taxa",
-#       y = "Count") +
-#  theme_minimal() +
-# theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-ggplot(insect_large, aes(x = Taxa, y = Count, fill = Site)) +
+ggplot(bowl_large, aes(x = Taxa, y = Count, fill = Site)) +
   geom_bar(stat = "identity") +
   labs(title = "Stacked Taxa Counts by Sampling Event",
        x = "Sampling Event",
@@ -128,39 +98,38 @@ ggplot(insect_large, aes(x = Taxa, y = Count, fill = Site)) +
   theme_minimal() +
   scale_fill_viridis(discrete = TRUE, option= "plasma") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), n.breaks =8)
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 70), n.breaks =8)
 
 
 #the platform categories are quite different than families, so let's convert these categories to something similar so we can compare
 
-plat_insect_large <- insect_large %>%
+plat_bowl_large <- bowl_large %>%
   mutate(category = case_when(
     Taxa %in% c("cantharidae", "carabidae", "curculionidae", "elateridae","mordellidae", "staphylinidae") ~ "beetle",
     Taxa %in% c("hemiptera") ~ "bug",
-    Taxa %in% c("diptera","calliphoridae","cecidomyiidae" ) ~ "fly",
+    Taxa %in% c("diptera","calliphoridae","cecidomyiidae","tachinidae","calliphoridae","Sepsidae","Ephydridae","Muscidae","Asilidae","Stratiomyidae", "Polleniidae" ) ~ "fly",
     Taxa %in% c("dasypoda","apidae") ~ "bee",
     Taxa %in% c("sarcophagidae") ~ "fly_sarco",
     Taxa %in% c("symphyta","apocrita") ~ "wasp",
+    Taxa %in% c("Empididae") ~ "fly_empi",
     TRUE ~ Taxa
   ))
 
-ggplot(plat_insect_large, aes(x = reorder(category, -Count), y = Count, fill = Site)) +
-  geom_bar(stat = "identity") +
+ggplot(plat_bowl_large, aes(x = reorder(category, -Count), y = Count, fill = Site)) +
+  geom_bar(stat = "identity",na.rm=TRUE ) +
   labs(title = "Pan traps: Stacked Taxa Counts per Site",
        x = "Taxa",
        y = "Total Count") +
   theme_minimal() +
   scale_fill_viridis(discrete = TRUE) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_y_continuous(expand = c(0, 0), limits = c(0, 100), n.breaks =8)
-
-
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 70))
 ```
 
 
 
 ```{r small insects}
-insect_small <- r_clean %>%
+bowl_small <- bowltrap_clean %>%
   select(Site:Date, small_thrip:small_staphylinidae) %>%
   
   mutate(small_diptera = coalesce(small_fly, 0) + coalesce(small_cecidomyiidae, 0)) %>%  
@@ -172,11 +141,8 @@ insect_small <- r_clean %>%
   pivot_longer(cols =  small_thrip:last_col(),  
                names_to = "Taxa",
                values_to = "Count")
-```
-
-
-```{r small plots}
-ggplot(insect_small, aes(x = Site, y = Count, fill = Taxa)) +
+#plots
+ggplot(bowl_small, aes(x = Site, y = Count, fill = Taxa)) +
   geom_bar(stat = "identity", position = "dodge") +
   labs(title = "Taxa Counts by Sampling Event",
        x = "Taxa",
@@ -184,7 +150,7 @@ ggplot(insect_small, aes(x = Site, y = Count, fill = Taxa)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-ggplot(insect_small, aes(x = Site, y = Count, fill = Taxa)) +
+ggplot(bowl_small, aes(x = Site, y = Count, fill = Taxa)) +
   geom_bar(stat = "identity") +
   labs(title = "Stacked taxa Counts by Sampling Event",
        x = "Sampling Event",
@@ -220,19 +186,21 @@ net_data <- net_data %>%
                family %in% c("Mellitidae", "Melittidae") ~ "Melittidae",
                family %in% c("Fanniidae", "Faniidae") ~ "Fanniidae",
                family %in% c("Sarcophagidae c.f.", "Sarcophagidae") ~ "Sarcophagidae",
+               family %in% c("Tenthrenidae", "Tenthredinidae") ~ "Tenthredinidae",
                TRUE ~ family))  # Keep other families unchanged
 
 head(net_data)
 ```
 
 ```{r interaction counts and plot}
-# Summarize to get the count of interactions between each plant-pollinator pair
-interaction_counts <- net_data %>%
+# Interaction counts by site ----------------------------------------------
+# Summarize to get the count of species per site
+interaction_counts_site <- net_data %>%
   # Group by SITE and standardized family name (fam), then count interactions
   group_by(site, family) %>%
   summarize(interaction_count = n(), .groups = 'drop') #summarize the data
   
-ggplot(interaction_counts, aes(x = site, y = interaction_count, fill = family)) +
+ggplot(interaction_counts_site, aes(x = site, y = interaction_count, fill = family)) +
   geom_bar(stat = "identity") +
   labs(title = "Stacked Species Counts by Sampling Event",
        x = "Sampling Event",
@@ -241,8 +209,15 @@ ggplot(interaction_counts, aes(x = site, y = interaction_count, fill = family)) 
   scale_fill_viridis(discrete = TRUE) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+# Interaction counts by plant species ---------------------------------------------- 
+# Summarize to get the count of interaction between insect and plant species
+interaction_counts_plants <- net_data %>%
+  # Group by SITE and standardized family name (fam), then count interactions
+  group_by(plant_species, family) %>%
+  summarize(interaction_count = n(), .groups = 'drop')
+  
 # plot the data according to plant species
-ggplot(interaction_counts, aes(x = reorder(site, interaction_count), y = interaction_count, fill = family)) +
+ggplot(interaction_counts_plants, aes(x = reorder(plant_species, interaction_count), y = interaction_count, fill = family)) +
   geom_bar(stat = "identity") +
   labs(title = "Stacked Species Counts by flower species",
        x = "Site",
@@ -251,15 +226,15 @@ ggplot(interaction_counts, aes(x = reorder(site, interaction_count), y = interac
   scale_fill_viridis(discrete = TRUE) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   coord_flip()
-  
+rm(interaction_counts_plants)
 ```
 
 ```{r transect plot}
 # Create a frequency table for pol_ID
-fam_counts <- table(interaction_counts$family)
+fam_counts <- table(interaction_counts_site$family)
 
 # Convert the table to a dataframe
-fam_counts_df <- as.data.frame(table(interaction_counts$family))
+fam_counts_df <- as.data.frame(table(interaction_counts_site$family))
 colnames(fam_counts_df) <- c("fam_ID", "frequency")
 
 # Create the bar plot
@@ -272,86 +247,114 @@ ggplot(fam_counts_df, aes(x = fam_ID, y = frequency, width=.7)) +
     y = "Frequency"
   ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  coord_flip() 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 
-sum(fam_counts_df$Frequency);length(fam_counts_df$fam_ID);levels(as.factor(interaction_counts$family))
+sum(fam_counts_df$Frequency);length(fam_counts_df$fam_ID);levels(as.factor(interaction_counts_site$family))
+rm(fam_counts, fam_counts_df,interaction_counts_site)
 ```
 
 
-## iNext
-```{r}
-#Saturation curves and diversity metrics using iNEXT
-library(iNEXT)
-library(ggplot2) # helps with graphs
-library(fossil) # helps with creating site-by-species-matrix for use with iNEXT 
-library(readxl) 
+### iNext - rarefaction curves
 
-str(net_data) #check the structure of the data
+#### Site type
 
-length(net_data$final_ID) 
-# 1579 
-
-net_data <- net_data %>%
-  filter(plant_species != "no info") #remove rows with no info in the plant_species column  
-
-cleaned_data <- net_data %>%
-  filter(!is.na(family), !is.na(site), !is.na(total_interaction))
-
-# Step 2: Group and summarize
-grouped_data <- cleaned_data %>%
-  group_by(family, site) %>%
-  summarize(total_interactions = sum(total_interaction), .groups = "drop")
-
-# Step 3: Reshape into a matrix
-interaction_matrix <- grouped_data %>%
-  pivot_wider(names_from = site, values_from = total_interactions, values_fill = 0)
-
-# View the resulting matrix
-print(interaction_matrix)
-
-set.seed(2022)
-iNEXT_output_insects <- iNEXT(interaction_matrix, q = 0, datatype = 'abundance')
-
-```
-
-
-
-```{r}
-net_data=as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
+```{r rarefaction curves for site_type}
+net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
 
 net_data<-subset(net_data, net_data[8]!="") #remove rows with empty values in the 'family' column
 
-matrix_butterflies <- create.matrix(x = net_data,
+matrix_netting_type <- create.matrix(x = net_data,
                                 tax.name = 'family',
                                 locality = 'site_type',
                                 abund = TRUE,
                                 abund.col = 'total_interaction')
 ##Check your work
-sum(matrix_butterflies)
-sum(net_data$total_interaction)
-
+identical(sum(matrix_netting_type),sum(net_data$total_interaction))
+#both have 2427 interactions
 
 # Convert to data.frame for use with iNEXT
-matrix_butterflies <- as.data.frame(matrix_butterflies)
+matrix_netting_type <- as.data.frame(matrix_netting_type)
 
 
-# ~ Diversity by number of individuals --------------------------------------
+# ~ Diversity by number of individuals
 
 # Compute and visualize butterfly diversity by number of individuals.
 
 # iNEXT focuses on three measures of Hill numbers of order q: species richness
-# (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and
-# Simpson diversity (q = 2, the inverse of Simpson concentration).
+# (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and Simpson diversity (q = 2, the inverse of Simpson concentration).
 # Source: https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html
-set.seed(2022)
-iNEXT_output_insects <- iNEXT(matrix_butterflies,  q = c(0,1,2), datatype = 'abundance')
-# Have a look at the output of iNext. It gives diversity estimates per meadow.
+set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_netting_type,  q = c(0,1,2), datatype = 'abundance')
+# Have a look at the output of iNext. It gives diversity estimates per meadow type.
 # This are specifically the diversity estimates with their confidence intervals:
-iNEXT_output_insects ##Do you see the $ symbols? Add the $ symbol to the end of the object to access those data from the output
 iNEXT_output_insects$AsyEst 
 # Can also plot the results
 ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
+```
+#### Sites
 
+```{r rarefaction curves for sites}
+net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
+
+net_data<-subset(net_data, net_data[8]!="") #remove rows with empty values in the 'family' column
+
+matrix_netting_site <- create.matrix(x = net_data,
+                                tax.name = 'family',
+                                locality = 'site',
+                                abund = TRUE,
+                                abund.col = 'total_interaction')
+##Check your work
+identical(sum(matrix_netting_site),sum(net_data$total_interaction))
+#both have 2427 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_netting_site <- as.data.frame(matrix_netting_site)
+
+
+# ~ Diversity by number of individuals
+
+# Compute and visualize diversity by number of individuals.
+
+# iNEXT focuses on three measures of Hill numbers of order q: species richness
+# (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and Simpson diversity (q = 2, the inverse of Simpson concentration).
+# Source: https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html
+set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_site,  q = c(0,1,2), datatype = 'abundance')
+# Have a look at the output of iNext. It gives diversity estimates per site.
+# This are specifically the diversity estimates with their confidence intervals:
+iNEXT_output_insects$AsyEst 
+# Can also plot the results
+ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
 ```
 
+#### Transects 
+```{r rarefaction curves for transect number}
+net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
+
+net_data<-subset(net_data, net_data[8]!="") #remove rows with empty values in the 'family' column
+
+matrix_netting_transect <- create.matrix(x = net_data,
+                                tax.name = 'family',
+                                locality = 'transect',
+                                abund = TRUE,
+                                abund.col = 'total_interaction')
+##Check your work
+identical(sum(matrix_netting_transect),sum(net_data$total_interaction))
+#both have 2427 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_netting_transect <- as.data.frame(matrix_netting_transect)
+
+
+# ~ Diversity by number of individuals
+
+# Compute and visualize diversity by number of individuals.
+
+# iNEXT focuses on three measures of Hill numbers of order q: species richness
+# (q = 0), Shannon diversity (q = 1, the exponential of Shannon entropy) and Simpson diversity (q = 2, the inverse of Simpson concentration).
+# Source: https://cran.r-project.org/web/packages/iNEXT/vignettes/Introduction.html
+set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_transect,  q = c(0,1,2), datatype = 'abundance')
+# Have a look at the output of iNext. It gives diversity estimates per site.
+# This are specifically the diversity estimates with their confidence intervals:
+iNEXT_output_insects$AsyEst 
+# Can also plot the results
+ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
+```
