@@ -1,0 +1,80 @@
+
+### pybioclip
+# https://imageomics.github.io/pybioclip/python-tutorial/
+
+# make sure to run env_bioclip\Scripts\activate this in the bash terminal before running this
+## Predict species classification
+from bioclip import TreeOfLifeClassifier, Rank
+
+# Create the classifier instance
+classifier = TreeOfLifeClassifier()
+
+# Predict species classification for the image
+predictions = classifier.predict("2024-07-24_16-15-16-941965_ID7187_crop.jpg", Rank.SPECIES)
+
+
+
+# Print each prediction
+for prediction in predictions:
+    print(prediction["species"], "-", prediction["score"])
+#
+# ------------------------------------------
+import os
+import random
+import shutil
+from bioclip import TreeOfLifeClassifier, Rank
+
+# Paths
+main_folder = "C:/Users/Almas/bioclip_test/test_subfolder"  # Replace with the path to your main folder
+output_folder = "BioClip_testrun"
+
+# Create the output folder if it doesn't exist
+os.makedirs(output_folder, exist_ok=True)
+
+# Step 1: Traverse subfolders and randomly select images
+for root, dirs, files in os.walk(main_folder):
+    image_files = [f for f in files if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+    
+    # Randomly select up to 5 images
+    selected_images = random.sample(image_files, min(len(image_files), 5))
+    
+    for image in selected_images:
+        src_path = os.path.join(root, image)
+        dest_path = os.path.join(output_folder, image)
+        shutil.copy(src_path, dest_path)
+
+# Step 2: Initialize the classifier
+classifier = TreeOfLifeClassifier()
+
+# Step 3: Classify images and organize by species
+for image_file in os.listdir(output_folder):
+    image_path = os.path.join(output_folder, image_file)
+
+    if not os.path.isfile(image_path):
+        continue
+
+    # Predict species classification
+    predictions = classifier.predict(image_path, Rank.SPECIES)
+
+    if not predictions:
+        print(f"No predictions for {image_file}")
+        continue
+
+    # Get the species with the highest score
+    best_prediction = max(predictions, key=lambda x: x["score"])
+    species_name = best_prediction["species"].replace(" ", "_")  # Replace spaces with underscores for folder names
+    prediction_score = best_prediction["score"]
+
+    # Determine the folder based on the prediction score
+    if prediction_score < 0.6:
+        species_folder = os.path.join(output_folder, "uncertain_<0.6")
+    else:
+        species_folder = os.path.join(output_folder, species_name)
+
+    # Create the target folder if it doesn't exist
+    os.makedirs(species_folder, exist_ok=True)
+
+    # Move the image to the appropriate folder
+    shutil.move(image_path, os.path.join(species_folder, image_file))
+
+print("Processing complete. Images have been classified and organized.")
