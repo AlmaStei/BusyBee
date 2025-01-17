@@ -72,9 +72,10 @@ bowltrap_clean <- bowltrap_clean %>%
   select(-thrips,-small_) %>%  # Optionally remove the original thrips column
   
   #sum bombus and bees
-  mutate(symphyta = coalesce(symphyta, 0) + coalesce(tenthredinidae,0)) %>% 
-  mutate(apocrita = coalesce(apocrita, 0) + coalesce(proctotrupidae ,0)) %>%
-  select(-proctotrupidae, -tenthredinidae, -spider, -cicadellidae)
+  #mutate(symphyta = coalesce(symphyta, 0) + coalesce(tenthredinidae,0)) %>% 
+  #mutate(apocrita = coalesce(apocrita, 0) + coalesce(proctotrupidae ,0)) %>%
+  #select(-proctotrupidae,-tenthredinidae)%>%
+  select(-spider, -cicadellidae)
 
 ```
 
@@ -192,12 +193,10 @@ set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_type,  q = c(0,1,2), da
 # This are specifically the diversity estimates with their confidence intervals:
 # iNEXT_output_insects$AsyEst 
 
-# Plot the results
-ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
-
-#save the plot
-rarefaction_bowl_sitetype <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
-  ggtitle("Pan traps: rarefaction curves per site type") 
+#Plot the results and save the plot
+(rarefaction_bowl_sitetype <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Pan traps: rarefaction curves per site type")+
+  labs(y= "Family diversity"))
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_sitetype.png")
 
 rm(matrix_bowl_type, rarefaction_bowl_sitetype) #remove the matrix and plot to clear up memory
@@ -221,12 +220,11 @@ set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_site,  q = c(0,1,2), da
 # This are specifically the diversity estimates with their confidence intervals:
 # iNEXT_output_insects$AsyEst
 
-# Plot the results
-ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
-
-# Save the plot
-rarefaction_bowl_site <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
-  ggtitle("Pan traps: rarefaction curves per site")
+# Plot the results and save the plot
+(rarefaction_bowl_site <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage', facet.var = "Order.q") +
+  scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+ # Assign custom shapes
+  ggtitle("Pan traps: rarefaction curves per site")+
+  labs(y= "Family diversity"))
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_site.png")
 
 rm(matrix_bowl_site, rarefaction_bowl_site) #remove the matrix and plot to clear up memory
@@ -250,12 +248,10 @@ set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_transect,  q = c(0,1,2)
 # This are specifically the diversity estimates with their confidence intervals:
 # iNEXT_output_insects$AsyEst
 
-# Can also plot the results
-ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
-
-# save the plot
-rarefaction_bowl_transect <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q") +
-  ggtitle("Pan traps: rarefaction curves per transects")
+# plot the results and save the plot
+(rarefaction_bowl_transect <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q") +
+  ggtitle("Pan traps: rarefaction curves per transects")+
+  labs(y= "Family diversity"))
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_transect.png")
 
 rm(matrix_bowl_transect, rarefaction_bowl_transect) #remove the matrix and plot to clear up memory
@@ -277,29 +273,27 @@ set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_bowl_color,  q = c(0,1,2), d
 #set seed for reproducibility, iNEXT include all three indices of diversity
 # iNEXT_output_insects$AsyEst # AsyEst gives the diversity estimates with their confidence intervals
 
-#plot the results
-ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q") 
-
-#save the plot
-rarefaction_bowl_color <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
-  ggtitle("Pan traps: rarefaction curves per bowl color")
+# Plot the results and save the plot
+(rarefaction_bowl_color <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Pan traps: rarefaction curves per bowl color")+
+  labs(y= "Family diversity"))
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_color.png")
 
 rm(matrix_bowl_color, rarefaction_bowl_color) #remove the matrix and plot to clear up memory
 ```
 
 ## Transect netting
-include=FALSE
 
 ```{r load transect data,include=FALSE}
 #load data
  #Read google sheets data into R
-net_data <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=2) #sheet 2 has the interaction data
+net_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=2) #sheet 2 has the interaction data
 ```
 
 ```{r clean transect data}
-net_data <- net_data %>%
-  select(site = Site, transect = Transect, final_ID = final_ID, plant_species=plant_species, field_ID=pollinator_field_ID, observed =observed, collected=collected, family=Family) #select columns of interest
+net_data <- net_data_load %>%
+  select(site = Site, transect = Transect, final_ID = final_ID, plant_species=plant_species, field_ID=pollinator_field_ID, observed =observed, collected=collected, family=Family, genus= genus, species=final_species) #select columns of interest
+
 
 net_data <- net_data %>%
         mutate(site_type = case_when( #adding site_type column
@@ -317,10 +311,51 @@ net_data <- net_data %>%
                family %in% c("Fanniidae", "Faniidae") ~ "Fanniidae",
                family %in% c("Sarcophagidae c.f.", "Sarcophagidae") ~ "Sarcophagidae",
                family %in% c("Tenthrenidae", "Tenthredinidae") ~ "Tenthredinidae",
-               TRUE ~ family))  # Keep other families unchanged
+               TRUE ~ family)) %>% # Keep other families unchanged
+        filter(!is.na(family)) %>% #remove rows with empty values in the 'family' column
+        filter(family!="other") %>% #remove rows with the value "other" in the 'family' column
+        filter(site!="") %>%#remove rows with empty values in the 'site' column
+  
+        # Create a new column that defines the lowest taxonomic level available
+        mutate(lowest_taxa = case_when(
+               !is.na(species) ~ species, # Species level
+               !is.na(genus) ~ paste("Genus:", genus), # Genus level
+               TRUE ~ paste("Family:", family)))%>% # Family level
+  
+        # Standardize the lowest_taxa column to unify textual variations
+        mutate(lowest_taxa= case_when(
+               lowest_taxa %in% c("Genus: aff. Syrphus", "Genus: Syrphus") ~ "Genus: Syrphus",
+               lowest_taxa %in% c("Genus: aff. Eupeodes", "Genus: Eupeodes") ~ "Genus: Eupeodes",
+               lowest_taxa %in% c("fabriciana adippe") ~ "Fabriciana adippe",
+               TRUE ~ lowest_taxa)) # Keep other lowest_taxa unchanged
+          
+               
+#sort(levels(as.factor(net_data$family)))
 ```
 
 ```{r interaction counts and plot}
+# ~ lowest taxonomic level available ----------------------------------------------
+interaction_counts_site_low <- net_data %>%
+  # Group by site and lowest taxonomic level, then count interactions
+  group_by(site, lowest_taxa) %>%
+  summarize(interaction_count = n(), .groups = 'drop') # Summarize the data
+
+ggplot(interaction_counts_site_low, aes(x = site, y = interaction_count, fill = lowest_taxa)) +
+  geom_bar(stat = "identity",colour="white") +
+  labs(title = "Stacked lowest_taxa Counts by Sampling Event",
+       x = "Sampling Event",
+       y = "Total Count") +
+  theme_minimal() +
+  scale_fill_viridis(discrete = TRUE,guide = guide_legend(ncol = 3)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ 
+  #theme(legend.position = "none")+
+  theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+        legend.key.height = unit(0.5, 'cm'), #change legend key height
+        legend.key.width = unit(0.5, 'cm'), #change legend key width
+        legend.title = element_text(size=12), #change legend title font size
+        legend.text = element_text(size=8)) #change legend text font size
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 # Interaction counts by site ----------------------------------------------
 # Summarize to get the count of species per site
 interaction_counts_site <- net_data %>%
@@ -405,12 +440,11 @@ set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_netting_type,  q = c(0,1,2),
 
 # this are specifically the diversity estimates with their confidence intervals:
 # iNEXT_output_insects$AsyEst 
-# Can also plot the results
-ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
 
-#save the plot
-rarefaction_netting_sitetype <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
-  ggtitle("Netting: rarefaction curves per site type")
+# Plot the results and save the plot
+(rarefaction_netting_sitetype <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per site type")+
+  labs(y= "Family diversity"))
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_sitetype.png")
 
 rm(matrix_netting_type, rarefaction_netting_sitetype)
@@ -434,12 +468,10 @@ set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_site,  q = c(0,1,2)
 # this are specifically the diversity estimates with their confidence intervals:
 # iNEXT_output_insects$AsyEst 
 
-# Plot the results
-ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
-
-#save the plot
-rarefaction_netting_site <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
-  ggtitle("Netting: rarefaction curves per site")
+# Plot the results and save the plot
+(rarefaction_netting_site <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per site")+
+  labs(y= "Family diversity"))
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_site.png")
 
 rm(matrix_netting_site, rarefaction_netting_site) #remove the matrix and plot to clear up memory
@@ -463,17 +495,50 @@ set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_transect,  q = c(0,
 # This are specifically the diversity estimates with their confidence intervals:
 # iNEXT_output_insects$AsyEst 
 
-# plot the results
-ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")
-
-#save the plot
-rarefaction_netting_transect <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
-  ggtitle("Netting: rarefaction curves per transects")
+# plot the results and save the plot
+(rarefaction_netting_transect <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per transects")+
+  labs(y= "Family diversity"))
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_transect.png")
 
 rm(matrix_netting_transect, rarefaction_netting_transect) #remove the matrix and plot to clear up memory 
 ```
+```{r rarefaction curves for transect netting lowest taxa (lt)}
+# rarefaction curves for site_type_lt ---------------------------------------------
+net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
+
+net_data<-subset(net_data, net_data[13]!="") #remove rows with empty values in the 'family' column
+
+matrix_netting_type <- create.matrix(x = net_data,
+                                tax.name = 'lowest_taxa',
+                                locality = 'site_type',
+                                abund = TRUE,
+                                abund.col = 'total_interaction')
+##Check your work
+identical(sum(matrix_netting_type),sum(net_data$total_interaction))
+#both have 2427 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_netting_type <- as.data.frame(matrix_netting_type)
+
+# Run iNEXT to get the diversity estimates per SITE_TYPE
+set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_netting_type,  q = c(0,1,2), datatype = 'abundance')#set seed for reproducibility, iNEXT include all three indices of diversity
+
+# this are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst 
+
+# Plot result and save the plot
+(rarefaction_netting_sitetype_lt <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per site type")+
+  labs(y= "Lowest taxa diversity"))
+
+  ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_sitetype_lt.png")
+
+#rm(matrix_netting_type, rarefaction_netting_sitetype)
+```
+
 ```{r}
 rm(iNEXT_output_insects,bowl_large2)
 ```
+
 
