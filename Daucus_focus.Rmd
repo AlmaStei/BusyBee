@@ -1,0 +1,124 @@
+---
+title: "Daucus_focus"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(here)
+library(tidyverse)
+library(readxl)
+
+library(cowplot)
+```
+
+
+# Goal:
+
+The goal of this script is to extract all relevant data focusing on _Daucus carota_ from the netting data and the flower cam data, and then hopefully be able to compare the diversity that was captured by the two different methods. 
+
+
+# load data 
+```{r load_data, message=FALSE}
+load(here("../data/20250120_netdata.RData"))
+load(here("../data/20250117_flower_cams.RData"))
+```
+
+# extraction of all relevant data
+- after manually checking the data from the 30th of July 2024, I noticed that the 70 waps that can be found in the cam data are artificial = the picture is actually a dried _Trifolium pratense_ flower in the background.    
+![so-called "wasps"](C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/2024-07-30_12-05-17-024681_ID842_crop.jpg)
+
+```{r}
+# netting data
+daucus_net <- net_data %>% 
+  filter(plant_species == "Daucus carota")
+
+# flower cam data
+daucus_cam <- flower_cams_save %>% 
+  filter(flower_sp == "dau_car")%>%
+  #remove rows that have both daucus_cam$date=="2024-07-30"&daucus_cam$top1=="wasp"
+  filter(!(date=="2024-07-30"&top1=="wasp"))
+
+# removing original large datasets from the environment
+rm(net_data, flower_cams_save)
+```
+
+
+# Comparison of the two methods
+```{r}
+#unifying the formats
+colnames(daucus_net)
+colnames(daucus_cam)
+
+daucus_cam2 <- daucus_cam %>%
+  select(date, site, site_type, top1)
+
+daucus_net2 <- daucus_net %>%
+  select(date, site, site_type, family,total_interaction)
+
+#comparison barplots 
+# reorder(plant_species, interaction_count)
+(N1 <- daucus_net2 %>% 
+  ggplot(aes(x = site_type, fill = family))+
+  geom_bar(position = "stack")+
+  labs(title = "Netting data",
+       x = "site type",
+       y = "total interactions")+
+  theme_minimal()+
+  scale_y_continuous(limits = c(0,400))+
+  #custom color palette with the colors of the families
+  scale_fill_manual(values = c("Andrenidae" = "plum2","Colletidae"= "plum2","Halictidae"       = "plum2",
+                               "Formicidae" = "lightsteelblue",
+                               "Cantharidae"= "orangered4", "Mordellidae"= "orangered4","Oedemeridae"="orangered4",
+                               "Coccinellidae"    = "orangered3",
+                               "Microlepidoptera" = "goldenrod",
+                                "Ichneumonidae"    = "gold1","Sphecidae"= "gold1","Tenthredinidae"= "gold1","Tiphiidae"= "gold1","Vespidae"= "gold1",
+                               "Syrphidae"        = "khaki2",
+                               "Sarcophagidae"  = "khaki4",
+                               "Anthomyiidae" = "khaki3","Bibionidae" = "khaki3","Calliphoridae" = "khaki3",
+                               "Conopidae"= "khaki3", "Fanniidae"= "khaki3", "Muscidae"= "khaki3","Polleniidae"= "khaki3",
+                               "Scathophagidae"   = "khaki3","Scatopsoidea"= "khaki3", "Sciaridae"= "khaki3",
+                               "Sepsidae"         = "khaki3","Stratiomyidae"   = "khaki3","Tabanidae" = "khaki3", "Tachinidae"= "khaki3"),
+                    guide = guide_legend(ncol = 1))+
+          theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+        legend.key.height = unit(0.5, 'cm'), #change legend key height
+        legend.key.width = unit(0.5, 'cm'), #change legend key width
+        legend.title = element_text(size=12), #change legend title font size
+        legend.text = element_text(size=8))) #change legend text font size
+
+(C1 <- daucus_cam2 %>%
+  ggplot(aes(x = site_type, fill = top1))+
+  geom_bar(position = "stack")+
+  labs(title = "Flower cam data",
+       x = "site type",
+       y = "total interactions")+
+  theme_minimal()+
+  #same y-axis limits for both plots 0-400
+  scale_y_continuous(limits = c(0,400))+
+  #custom color palette with the colors of the families
+  scale_fill_manual(values = c("beetle" = "orangered4", 
+                               "beetle_cocci" = "orangered3",
+                               "fly_sarco" = "khaki4",
+                               "hfly_eupeo"="khaki2",
+                               "lepi" = "goldenrod",
+                               "wasp"="gold1",
+                               "other" = "lightgrey"),
+                    guide = guide_legend(ncol = 1))+
+      theme(legend.key.size = unit(0.5, 'cm'), #change legend key size
+        legend.key.height = unit(0.5, 'cm'), #change legend key height
+        legend.key.width = unit(0.5, 'cm'), #change legend key width
+        legend.title = element_text(size=12), #change legend title font size
+        legend.text = element_text(size=8))) #change legend text font size
+    
+
+levels(as.factor(daucus_net2$family)); levels(as.factor(daucus_cam2$top1))
+
+#PANEL PLOT
+(panel_plot <- plot_grid(N1, C1, ncol = 2))
+
+N1;C1
+```
+
