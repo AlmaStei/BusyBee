@@ -1,0 +1,192 @@
+---
+title: "trad_comparison"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+## libraries
+```{r}
+library(tidyverse)
+library(stringr)
+library(vegan)
+```
+
+## data
+```{r}
+load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250120_netdata.RData")
+load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250128_full_trap.RData")
+```
+
+
+## data preparation
+```{r}
+bowltrap <- bowltrap_clean %>% 
+  #select all columns except "small_"
+  select(Site:acalyptrate, -Color) %>%
+  #pivot into long format
+  pivot_longer(cols =  apidae:acalyptrate,  
+               names_to = "Family", 
+               values_to = "Count") %>%
+  #remove all rows that have a 0 "count" value
+  filter(Count != 0) %>%
+  #remove rows that have null values in the "Family" column
+  filter(!is.na(Family)) %>%
+   # change every family name to first letter uppercase to have uniformity
+  mutate(Family = str_to_title(Family)) %>%
+  #add column "Method" with value "Bowltrap"
+  mutate(Method = "Bowltrap")
+
+netting <- net_data %>% 
+  #select the six columns in common with the bowltrap data
+  select(Site=site, Transect=transect, Date = date, Family=family, Count=total_interaction) %>%
+  # change every family name to first letter uppercase to have uniformity
+  mutate(Family = str_to_title(Family)) %>%
+  #remove rows that have null values in the "Family" column
+  filter(!is.na(Family)) %>%
+  #combine rows with the same site, transect, date and family and sum up the "Count" values
+  group_by(Site, Transect, Date, Family) %>%
+  summarise(Count = sum(Count)) %>%
+  #add column "Method" with value "Netting"
+  mutate(Method = "Netting")
+
+#combine the two datasets
+full_data <- rbind(bowltrap, netting)
+rm(bowltrap_clean, net_data)
+```
+
+
+# NMDS analysis for family composition between the sites
+
+```{r}
+# Create a community matrix
+community_matrix <- full_data %>%
+  group_by(Site, Family) %>%
+  summarize(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site") # Convert 'Site' column to row names
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result <- metaMDS(community_matrix, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result)
+```
+
+
+
+```{r}
+# Extract site scores for plotting
+site_scores <- as.data.frame(scores(nmds_result, display = "sites"))
+site_scores$Site <- rownames(site_scores)
+
+# Create a scatterplot
+ggplot(site_scores, aes(x = NMDS1, y = NMDS2, label = Site)) +
+  geom_point(size = 3, color = "blue") +
+  geom_text(vjust = -0.5, size = 4) +
+  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2")
+
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores <- site_scores %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange")
+
+# Plot with customized colors
+ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+```
+
+```{r}
+# Create a community matrix with Site and Transect combined
+community_matrix2 <- full_data %>%
+  mutate(Site_Meth = paste(Site, Method, sep = "_")) %>% # Combine Site and Method
+  group_by(Site_Meth, Family) %>%
+  summarize(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site_Meth") # Use combined Site_Transect as row names
+
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result2 <- metaMDS(community_matrix2, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result2)
+```
+
+
+```{r}
+# Extract site scores for plotting
+site_scores2 <- as.data.frame(scores(nmds_result2, display = "sites"))
+site_scores2$Site <- rownames(site_scores2)
+
+# Create a scatterplot
+ggplot(site_scores2, aes(x = NMDS1, y = NMDS2, label = Site)) +
+  geom_point(size = 3, color = "blue") +
+  geom_text(vjust = -0.5, size = 4) +
+  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2")
+
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores2 <- site_scores2 %>%
+  #if the site names begins with "WED_", "KOT_", "WDG_", "BUH_" then it is a "Young Restored" site, otherwise it is a "Reference" site
+  mutate(Site_Type = ifelse(str_detect(Site, "WED_|KOT_|WDG_|BUH_"), "Young Restored", "Reference")) %>%
+  #if the site names ends with "_Bowltrap" then it is a "Bowltrap" site, otherwise it is a "Netting" site
+  mutate(Method = ifelse(str_detect(Site, "_Bowltrap"), "Bowltrap", "Netting"))%>%
+  #only keep first 3 letters of the site name
+  mutate(Site = str_sub(Site, 1, 3))
+
+
+# Custom color palette
+custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange")
+custom_shapes <- c("Bowltrap" = 1, "Netting" = 18) # 16 = solid circle, 17 = triangle
+
+# Plot with customized colors and shapes for Method
+ggplot(site_scores2, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site, shape = Method)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 3) +  # Adjust text position
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  scale_shape_manual(values = custom_shapes) + # Apply custom shapes
+  geom_polygon(data = site_scores2 %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #geom_polygon(data = site_scores2 %>% 
+  #               group_by(Site) %>%
+  #               slice(chull(NMDS1, NMDS2)), 
+  #             aes(group = Site, fill = Site), 
+  #             alpha = 0.3,show.legend = FALSE,color = "white") + # Add convex hull  
+  
+  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type",
+       shape = "Method") # Update legend title
+```
+
