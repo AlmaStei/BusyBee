@@ -7,10 +7,10 @@ output: html_document
 
  
 Orinial Author:  Maximilian Sittinger (https://orcid.org/0000-0002-4096-8556)
-Modifications Author: Alma Steireif
+Modifications: Alma Steireif
 
 This R script does the following:
- - process and plot data from 3 Insect Detect camera traps, which were deployed above platforms in 9 different meadows in Sachsen-Anhalt, Germany from July to August 2024
+ - process and plot data from 8 Insect Detect camera traps, which were deployed above platforms in 9 different meadows in Sachsen-Anhalt, Germany from July to August 2024
  
  
 
@@ -53,7 +53,7 @@ platform_cams <- bind_rows(
 rm(camtrap36, camtrap37, camtrap38) # Remove individual cameras dataframes
 ```
 
-```{r site assignment}
+```{r site assignment platform}
 #associate experiment date with site
 platform_cams <- platform_cams %>%
   mutate(location = case_when(
@@ -70,7 +70,7 @@ platform_cams <- platform_cams %>%
   ))
 ```
 
-```{r transect assignment}
+```{r transect assignment platform}
 platform_cams <- platform_cams %>%
   mutate(transect = case_when(
     grepl("seppi-cam36", cam_ID) & grepl("WED", location) ~ "3",  #cam36, WED, T3
@@ -107,9 +107,10 @@ platform_cams <- platform_cams %>%
   ))
 ```
  
+
  
  
-```{r load recording logs}
+```{r load recording logs platform}
 # Import record logs which contain start and end time of each recording, as well as the total minutes recorded per session, the number of crops and IDs 
 
 camtrap36_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam36/record_log.csv", col_names=T) |> mutate(
@@ -139,7 +140,7 @@ camtrap38_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam38/record_
 ```
 
 
-```{r combine recording logs}
+```{r combine recording logs platform}
 #bind the three camera recording logs together and remove the individual dataframes
 camtrap_logs_rec <- bind_rows(camtrap36_logs_rec, camtrap37_logs_rec, camtrap38_logs_rec)
 #rm(camtrap36_logs_rec, camtrap37_logs_rec, camtrap38_logs_rec)
@@ -147,7 +148,7 @@ camtrap_logs_rec <- bind_rows(camtrap36_logs_rec, camtrap37_logs_rec, camtrap38_
  
 # 3 Platform data summary
 
-```{r data summary}
+```{r data summary platform}
 
 # Total recording time of all camera traps
 sum(camtrap_logs_rec$rec_time_min) / 60
@@ -237,7 +238,7 @@ Sys.getlocale()
 
 ## 5 Platform plotting
 
-```{r recording duration per session}
+```{r recording duration per session platform}
 #visualize the recording duration per session
 ggplot(camtrap_logs_rec, aes(x = cam_ID, y = rec_time_min/60, #divide by 60 to get hours
                              fill=rec_time_min/60)) + #fill the bars with the total hours recorded
@@ -252,7 +253,7 @@ ggplot(camtrap_logs_rec, aes(x = cam_ID, y = rec_time_min/60, #divide by 60 to g
 ```
 
 
-```{r unique IDs per class}
+```{r unique IDs per class platform}
 # Generate color palette to plot the same color for each month respectively,
 # even if the number of months the camera traps were active differs
 viridis_9 <- viridis_pal()(9)
@@ -310,7 +311,7 @@ platform_cams |>
 ### Time difference between tracking IDs 
 Calculate minimum difference between end_time and start_time of the 5 previous tracking IDs of the same predicted class, grouped by camtrap, date, recording interval.
 
-```{r time difference between tracked IDs}
+```{r time difference between tracked IDs platform}
 
 timediff <- platform_cams |> 
   filter(str_detect(top1, "none", negate = TRUE)) |>
@@ -345,7 +346,7 @@ timediff |>
 
 ```
 
-```{r visit duration per class}
+```{r visit duration per class plot platform}
 #plot of average visit duration (duration_s) per top1 class
 insect_platform_cams <- platform_cams |>
   filter(str_detect(top1, "none", negate = TRUE))|>
@@ -388,14 +389,13 @@ flower_cams <- bind_rows(
   camtrap32,
   camtrap33,
   camtrap34,
-  camtrap35
-)
+  camtrap35)
 
 rm(camtrap31, camtrap32, camtrap33, camtrap34, camtrap35) # Remove individual cameras dataframes
 ```
 
 
-```{r site assignment}
+```{r site assignment flowercam}
 flower_cams <- flower_cams %>%
 mutate(location = case_when(
     grepl("2024-07-11", start_time) ~ "WED",  # Match the 11th July to Wedringen
@@ -468,7 +468,7 @@ flower_cams <- flower_cams |>
 
 ```
 
-```{r load flower recording logs}
+```{r load flower recording logs flowercam}
 
 camtrap31_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam31/record_log.csv", col_names=T) |> mutate(
     # Extract date and time components from rec_start and rec_end
@@ -506,14 +506,12 @@ camtrap35_logs_rec <-  read_csv("C:/Users/Almas/Desktop/Alma/seppi-cam35/record_
 
 
 flower_logs_rec <- bind_rows(camtrap31_logs_rec, camtrap32_logs_rec, camtrap33_logs_rec, camtrap34_logs_rec, camtrap35_logs_rec)
-
-
-
+rm(camtrap31_logs_rec, camtrap32_logs_rec, camtrap33_logs_rec, camtrap34_logs_rec, camtrap35_logs_rec)
 ```
 
 ## 6 Flower camera data summary
 
-```{r data summary}
+```{r data summary flowercam}
 # Total recording time of all camera traps
 sum(flower_logs_rec$rec_time_min) / 60
 # ~251.6585h
@@ -573,9 +571,9 @@ flower_cams |>
 
 table(flower_cams$top1)
 ```
-## 7 Flower camera plotting
 
-```{r recording duration per session}
+## 7 Flower camera plotting
+```{r recording duration per session flowercam}
 #visualize the recording duration per session
 ggplot(flower_logs_rec, aes(x = cam_ID, y = rec_time_min/60, #divide by 60 to get hours
                              fill=rec_time_min/60)) + #fill the bars with the total hours recorded
@@ -588,11 +586,11 @@ ggplot(flower_logs_rec, aes(x = cam_ID, y = rec_time_min/60, #divide by 60 to ge
   theme_minimal()+
   scale_fill_viridis(direction = -1) #reverse the viridis color scale
 ```
-```{r unique IDs per class}
+
+```{r unique IDs per class flowercam}
 # Generate color palette to plot the same color for each site respectively,
 # even if the number of months the camera traps were active differs
-viridis_9 <- viridis_pal()(9) #numnber of sites
-
+viridis_9 <- viridis_pal()(9) #number of sites
 
 (ct31 <- flower_cams |>
   filter(str_detect(cam_ID, "cam31")) |>
@@ -652,7 +650,7 @@ flower_cams |>
 
 ```
 
-```{r visit duration per class}
+```{r visit duration per class flowercam}
 #plot of average visit duration (duration_s) per top1 class
 insect_flower_cams <- flower_cams |>
   filter(str_detect(top1, "none", negate = TRUE))|>
@@ -680,3 +678,19 @@ ggplot(insect_flower_cams, aes(x = top1, y = mean_duration, fill = top1)) +
 
 ```
 
+### saving dataframe for further analysis
+```{r save dataframes}
+current_date <- format(Sys.Date(), "%Y%m%d")
+
+# save flower_cams 
+#remove all none_ categories
+flower_cams_save <- flower_cams |>
+  filter(str_detect(top1, "none", negate = TRUE)) |>
+  mutate(site_type = case_when( #adding site_type column
+                location %in% c("WED", "KOT", "WDG", "BUH") ~ "young_restored", #young restored sites
+                location %in% c("STP", "JEP", "DES", "HLI", "WUP") ~ "reference", #reference sites
+                TRUE ~ NA_character_))  |> # Default case, if needed
+  rename("site" = "location") #rename location to site
+#save flower_cams as RData file
+save(flower_cams_save, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date,"_flower_cams.RData"))
+```

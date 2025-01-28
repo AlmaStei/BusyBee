@@ -8,10 +8,12 @@ output: html_document
 
 ```{r, include=FALSE}
 library(tidyverse)
-library(readxl)
 library(viridis)
 library(stringr)
+
 library(googlesheets4)
+library(readxl)
+library(writexl)
 
 library(igraph)
 library(ggraph)
@@ -19,6 +21,7 @@ library(tidygraph)
 
 library(iNEXT)
 library(fossil) # helps with creating site-by-species-matrix for use with iNEXT 
+
 ```
 
 
@@ -26,25 +29,23 @@ library(fossil) # helps with creating site-by-species-matrix for use with iNEXT
 ## Pan traps
 ```{r load and clean data}
 # read one sheet from an excel file
-df <-readxl::read_excel("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/data_field/Labels_pantraps_clean.csv.xlsx", sheet = "Labels_pantraps_clean",range = "A1:AS138")
+df <-readxl::read_excel("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/data_field/Labels_pantraps_clean.csv.xlsx", sheet = "Labels_pantraps_clean",range = "A1:AR138")
 
 bowltrap_clean <- df %>%
   # Remove rows where 'ID_date' contains '_missing'
   filter(!str_detect(ID_date, "_missing")) %>%
   select(SITE = ID_date, 
          small = notes,
-         thrips = less_1mm,
-         apocrita:Polleniidae) %>% #select site names, notes and all the taxa columns
-  mutate(spider = if_else(is.na(spider), 0, spider))%>% # remove NAs from spider column
+         thrips = less_1mm, #all very small thrips were counted in the "less than 1 mm" column
+         apidae:acalyptrate) %>% #select sites' names, notes and all the taxa columns
+  #transform full site names from this format "WED_2_Yellow_11.07.2024" into separate columns for site, transect, color and date 
   separate(SITE, 
-           into = c("Site", "Transect", "Color", "Date"), #separate site names into site, transect, color and date 
+           into = c("Site", "Transect", "Color", "Date"), 
            sep = "_", 
            remove = FALSE)%>% #keep original column
-    mutate(
-    Date = as.Date(Date, format = "%d.%m.%Y") #format date
-  )
-
-rm(df)
+    mutate(Date = as.Date(Date, format = "%d.%m.%Y")) #format date
+  
+rm(df) #remove the larger original dataframe to clear up memory
 ```
 
 ```{r clean data}
@@ -69,21 +70,27 @@ bowltrap_clean <- bowltrap_clean %>%
 
   # Sum thrips and small_thrip
   mutate(small_thrip = coalesce(small_thrip, 0) + coalesce(thrips, 0)) %>%  
-  select(-thrips,-small_) %>%  # Optionally remove the original thrips column
+  select(-thrips,-small_) %>%  # remove the original thrips column
   
   #sum bombus and bees
   #mutate(symphyta = coalesce(symphyta, 0) + coalesce(tenthredinidae,0)) %>% 
   #mutate(apocrita = coalesce(apocrita, 0) + coalesce(proctotrupidae ,0)) %>%
   #select(-proctotrupidae,-tenthredinidae)%>%
-  select(-spider, -cicadellidae)
+  select(-spider, -cicadellidae, -hemiptera) #remove columns that are not taken into consideration in this study
+```
 
+```{r save long format data}
+# Save the data in long format
+#current_date <- format(Sys.Date(), "%Y%m%d")
+# save a RData file
+#save(bowltrap_clean, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_full_trap.RData"))
 ```
 
 ```{r large insects}
 #create subset of data only for larger than 3mm insects
 bowl_large <- bowltrap_clean %>%
-  select(Site:Polleniidae) %>%
-  pivot_longer(cols =  apocrita:Polleniidae,  
+  select(Site:acalyptrate) %>%
+  pivot_longer(cols =  apidae:acalyptrate,  
                names_to = "Taxa", 
                values_to = "Count") 
 
@@ -104,7 +111,7 @@ plat_bowl_large <- bowl_large %>%
   mutate(category = case_when(
     Taxa %in% c("cantharidae", "carabidae", "curculionidae", "elateridae","mordellidae", "staphylinidae") ~ "beetle",
     Taxa %in% c("hemiptera") ~ "bug",
-    Taxa %in% c("diptera","calliphoridae","cecidomyiidae","tachinidae","calliphoridae","Sepsidae","Ephydridae","Muscidae","Asilidae","Stratiomyidae", "Polleniidae" ) ~ "fly",
+    Taxa %in% c("diptera","calliphoridae","cecidomyiidae","tachinidae","calliphoridae","Sepsidae","Ephydridae","Muscidae","Asilidae","Stratiomyidae", "polleniidae","acalyptrate" ) ~ "fly",
     Taxa %in% c("dasypoda","apidae") ~ "bee",
     Taxa %in% c("sarcophagidae") ~ "fly_sarco",
     Taxa %in% c("symphyta","apocrita") ~ "wasp",
@@ -292,7 +299,7 @@ net_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A3
 
 ```{r clean transect data}
 net_data <- net_data_load %>%
-  select(site = Site, transect = Transect, final_ID = final_ID, plant_species=plant_species, field_ID=pollinator_field_ID, observed =observed, collected=collected, family=Family, genus= genus, species=final_species) #select columns of interest
+  select(date=date, site = Site, transect = Transect, final_ID = final_ID, plant_species=plant_species, field_ID=pollinator_field_ID, observed =observed, collected=collected, family=Family, genus= genus, species=final_species) #select columns of interest
 
 
 net_data <- net_data %>%
@@ -327,10 +334,9 @@ net_data <- net_data %>%
                lowest_taxa %in% c("Genus: aff. Syrphus", "Genus: Syrphus") ~ "Genus: Syrphus",
                lowest_taxa %in% c("Genus: aff. Eupeodes", "Genus: Eupeodes") ~ "Genus: Eupeodes",
                lowest_taxa %in% c("fabriciana adippe") ~ "Fabriciana adippe",
-               TRUE ~ lowest_taxa)) # Keep other lowest_taxa unchanged
-          
-               
-#sort(levels(as.factor(net_data$family)))
+               TRUE ~ lowest_taxa)) %>% # Keep other lowest_taxa unchanged
+        #remove  rows that have no info in plant_species 
+        filter(!(plant_species=="no info"))
 ```
 
 ```{r interaction counts and plot}
@@ -534,11 +540,25 @@ set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_netting_type,  q = c(0,1,2),
 
   ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_sitetype_lt.png")
 
-#rm(matrix_netting_type, rarefaction_netting_sitetype)
+
+rm(matrix_netting_type, rarefaction_netting_sitetype_lt)
 ```
 
 ```{r}
 rm(iNEXT_output_insects,bowl_large2)
 ```
 
+```{r saving dataframes}
+# net_data ---------------------------------------------
+# save a RData file
+save(net_data, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_netdata.RData"))
+#Save as excel file
+#write_xlsx(net_data, path = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_netdata.xlsx"))
+
+# bowl_large ---------------------------------------------
+# save a RData file
+#save(bowl_large, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_bowl_large.RData"))
+#Save as excel file
+#write_xlsx(bowl_large, path = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_bowl_large.xlsx"))
+```
 
