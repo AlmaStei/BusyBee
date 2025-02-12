@@ -24,7 +24,7 @@ The goal of this script is to extract all relevant data focusing on _Daucus caro
 # load data 
 ```{r load_data, message=FALSE}
 load(here("../data/20250120_netdata.RData"))
-load(here("../data/20250117_flower_cams.RData"))
+load(here("../data/20250130_flower_cams.RData"))
 ```
 
 # extraction of all relevant data

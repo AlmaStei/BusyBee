@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ## libraries
-```{r}
+```{r, include=FALSE}
 library(tidyverse)
 library(stringr)
 library(vegan)
@@ -15,7 +15,7 @@ library(vegan)
 ## data
 ```{r}
 load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250120_netdata.RData")
-load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250128_full_trap.RData")
+load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250203_full_bowltrap.RData")
 ```
 
 
@@ -23,30 +23,38 @@ load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250128_ful
 ```{r}
 bowltrap <- bowltrap_clean %>% 
   #select all columns except "small_"
-  select(Site:acalyptrate, -Color) %>%
+  select(Site:acalyptrate, -Color, -Site_type) %>%
   #pivot into long format
   pivot_longer(cols =  apidae:acalyptrate,  
                names_to = "Family", 
                values_to = "Count") %>%
+  
   #remove all rows that have a 0 "count" value
   filter(Count != 0) %>%
+  
   #remove rows that have null values in the "Family" column
   filter(!is.na(Family)) %>%
+  
    # change every family name to first letter uppercase to have uniformity
   mutate(Family = str_to_title(Family)) %>%
+  
   #add column "Method" with value "Bowltrap"
   mutate(Method = "Bowltrap")
 
 netting <- net_data %>% 
   #select the six columns in common with the bowltrap data
   select(Site=site, Transect=transect, Date = date, Family=family, Count=total_interaction) %>%
+  
   # change every family name to first letter uppercase to have uniformity
   mutate(Family = str_to_title(Family)) %>%
+  
   #remove rows that have null values in the "Family" column
   filter(!is.na(Family)) %>%
+  
   #combine rows with the same site, transect, date and family and sum up the "Count" values
   group_by(Site, Transect, Date, Family) %>%
   summarise(Count = sum(Count)) %>%
+  
   #add column "Method" with value "Netting"
   mutate(Method = "Netting")
 

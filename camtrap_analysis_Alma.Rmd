@@ -6,7 +6,7 @@ output: html_document
 ---
 
  
-Orinial Author:  Maximilian Sittinger (https://orcid.org/0000-0002-4096-8556)
+Original Author:  Maximilian Sittinger (https://orcid.org/0000-0002-4096-8556)
 Modifications: Alma Steireif
 
 This R script does the following:
@@ -693,4 +693,16 @@ flower_cams_save <- flower_cams |>
   rename("site" = "location") #rename location to site
 #save flower_cams as RData file
 save(flower_cams_save, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date,"_flower_cams.RData"))
+
+# save platform_cams
+#remove all none_ categories
+platform_cams_save <- platform_cams |>
+  filter(str_detect(top1, "none", negate = TRUE)) |>
+  mutate(site_type = case_when( #adding site_type column
+                location %in% c("WED", "KOT", "WDG", "BUH") ~ "young_restored", #young restored sites
+                location %in% c("STP", "JEP", "DES", "HLI", "WUP") ~ "reference", #reference sites
+                TRUE ~ NA_character_))  |> # Default case, if needed
+  rename("site" = "location") #rename location to site
+#save platform_cams as RData file
+save(platform_cams_save, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date,"_platform_cams.RData"))
 ```

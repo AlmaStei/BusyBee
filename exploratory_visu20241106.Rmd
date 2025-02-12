@@ -43,7 +43,13 @@ bowltrap_clean <- df %>%
            into = c("Site", "Transect", "Color", "Date"), 
            sep = "_", 
            remove = FALSE)%>% #keep original column
-    mutate(Date = as.Date(Date, format = "%d.%m.%Y")) #format date
+  mutate(Date = as.Date(Date, format = "%d.%m.%Y"))%>% #format date
+  #add column with the type of site
+  mutate(Site_type = case_when( #adding site_type column
+                Site %in% c("WED", "KOT", "WDG", "BUH") ~ "young_restored", #young restored sites
+                Site %in% c("STP", "JEP", "DES", "HLI", "WUP") ~ "reference", #reference sites
+                TRUE ~ NA_character_))%>%# Default case, if needed
+  relocate(Site_type, .after = Site)  # Move "Site_type" right after "Site"
   
 rm(df) #remove the larger original dataframe to clear up memory
 ```
@@ -83,7 +89,7 @@ bowltrap_clean <- bowltrap_clean %>%
 # Save the data in long format
 #current_date <- format(Sys.Date(), "%Y%m%d")
 # save a RData file
-#save(bowltrap_clean, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_full_trap.RData"))
+#save(bowltrap_clean, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_full_bowltrap.RData"))
 ```
 
 ```{r large insects}
@@ -103,7 +109,9 @@ ggplot(bowl_large, aes(x = Taxa, y = Count, fill = Site)) +
   scale_fill_viridis(discrete = TRUE, option= "plasma") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   scale_y_continuous(expand = c(0, 0), limits = c(0, 70), n.breaks =8)
+```
 
+```{r comparison platform}
 
 #the platform categories are quite different than families, so let's convert these categories to something similar so we can compare
 
@@ -172,13 +180,6 @@ ggplot(bowl_small, aes(x = Site, y = Count, fill = Taxa)) +
 
 ```{r rarefaction curves for pan traps}
 bowl_large2 <- as.data.frame(bowl_large) #make 'dat' into a data frame that can be read by create.matrix
-
-bowl_large2 <- bowl_large2 %>%
-        mutate(Site_type = case_when( #adding site_type column
-                Site %in% c("WED", "KOT", "WDG", "BUH") ~ "young_restored", #young restored sites
-                Site %in% c("STP", "JEP", "DES", "HLI", "WUP") ~ "reference", #reference sites
-                TRUE ~ NA_character_)) # Default case, if needed
-
 bowl_large2 <-subset(bowl_large2, bowl_large2[6]!=0) #remove rows with empty values in the 'family' column
 
 #rarefaction curves for site_type ---------------------------------------------
