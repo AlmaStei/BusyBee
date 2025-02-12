@@ -1,0 +1,256 @@
+---
+title: "plant_diversity"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Set up 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(googlesheets4)
+library(tidyverse)
+library(viridis)
+
+library(iNEXT)
+library(fossil)
+
+library(stringr)
+library(vegan)
+
+plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 2 has the plant data
+
+```
+
+# Data preparation
+```{r data cleaning}
+plants <- plant_data_load %>%
+  select(1:7)
+head(plants)
+```
+
+
+### Flower cover estimates: (Braun-Blanquet cover abundance scale)
+- r = rare (1-3 individuals), cover up to 0.5% of the plot [0.1-0.5%]   
+- +  = 3-5 individuals, cover up to 1% of the plot [0.5-1%]   
+- 1 = many individuals (6 to 50 individuals), cover up to 5% of the plot [1-5%]   
+- 2 = a lot (>50 individuals), cover up between 5 and 25% of the plot [5-25%]   
+- 3 = very abundant, cover up to 50% of the plot [25-50%]   
+- 4 = dominant, cover up to 75% of the plot [50-75%]   
+- 5 = very dominant, cover up to 100% of the plot [75-100%]  
+
+```{r braun-blanquet}
+plants <- plants %>%
+  # Rename columns for consistency
+  rename(
+    Site_type = Age,  # Change "Age" to "Site_type" for standardization
+    Plant_sp = `plant species`, 
+    Cover_percentage = `cover (%)`
+  ) %>%
+  
+  # Data cleaning and conversion
+  mutate(
+    Cover_percentage = as.character(Cover_percentage),  # Convert to character to handle "NA"/"NULL"
+    
+    # Convert "NULL" to 0, and "NA" to actual NA
+    Cover_percentage = case_when(
+      Cover_percentage == "NULL" ~ "0",  # Replace "NULL" with "0"
+      Cover_percentage == "NA" ~ NA_character_,  # Replace "NA" with actual NA
+      TRUE ~ Cover_percentage  # Keep other values as they are
+    ),
+    
+    # Convert cover percentage back to numeric
+    Cover_percentage = as.numeric(Cover_percentage),
+    
+    # Assign Braun-Blanquet (BB) scale based on cover percentage
+    BB = case_when(
+      Cover_percentage <= 0.5 | is.na(Cover_percentage) ~ "r",   # Rare (0.1-0.5%)
+      Cover_percentage > 0.5 & Cover_percentage <= 1 ~ "+",      # Few individuals (0.5-1%)
+      Cover_percentage > 1 & Cover_percentage <= 5 ~ "1",       # Many individuals (1-5%)
+      Cover_percentage > 5 & Cover_percentage <= 25 ~ "2",      # A lot (5-25%)
+      Cover_percentage > 25 & Cover_percentage <= 50 ~ "3",     # Very abundant (25-50%)
+      Cover_percentage > 50 & Cover_percentage <= 75 ~ "4",     # Dominant (50-75%)
+      Cover_percentage > 75 ~ "5"                               # Very dominant (75-100%)
+    ),
+    
+    # Adjust Cover_percentage for "r" and "+" categories (assigning default mid-values)
+    Cover_percentage = case_when(
+      BB == "r" ~ 0.3,   # Assign 0.3% cover for rare species
+      BB == "+" ~ 0.75,  # Assign 0.75% cover for "+" species
+      TRUE ~ Cover_percentage  # Keep original values for other categories
+    )
+  )
+
+```
+
+```{r braun-blanquet plot}
+#barplot of coverage per Site
+ggplot(plants, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Plant Species Coverage",
+    x = "Site",
+    y = "Cover Percentage (%)",
+    fill = "Braun-Blanquet Scale"
+  )+
+  #remove legend
+  theme(legend.position = "none")+
+  # adding black outline to bars
+  geom_bar(stat = "identity", color = "black")+
+  #viridis color palette
+  scale_fill_viridis(discrete = TRUE)
+```
+
+
+## Richness calculation
+```{r}
+richness <- plants %>%
+  group_by(Site, Site_type) %>%
+  summarise(Species_Richness = n_distinct(Plant_sp))
+
+# point plot richness
+ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Plant Species Richness",
+    x = "Site",
+    y = "Number of Species",
+    color = "Site Type")
+```
+
+
+## Hill number calculation
+```{r}
+
+plants1 <- as.data.frame(plants)
+
+# Presence Absence transformation of Cover_percentage
+plants1$Cover_percentage[plants$Cover_percentage > 0] <- 1
+
+
+#summarize coverage data
+plants_sum <- plants1 %>%
+  group_by(Site, Site_type, Plant_sp, transect) %>%
+  summarise(Cover_percentage = sum(Cover_percentage))
+
+
+matrix_plant <- create.matrix(x = plants1,
+                                tax.name = 'Plant_sp',
+                                locality = 'Site',
+                                abund = TRUE,
+                                abund.col = 'Cover_percentage')
+##Check your work
+identical(sum(matrix_plant),sum(plants1$Cover_percentage))
+#both have 657 observations
+
+# Convert to data.frame for use with iNEXT
+matrix_plant <- as.data.frame(matrix_plant)
+
+#run iNEXT to get the diversity estimates per SITE_TYPE
+set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,  q = c(0), datatype = 'abundance') #set seed for reproducibility, iNEXT include all three indices of diversity
+
+# This are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst 
+
+#Plot the results and save the plot
+(rarefaction_plant_sites <- ggiNEXT(iNEXT_output_plants, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Plants: Rarefaction curves per site")+
+  labs(y= "Species diversity"))
+#ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_sitetype.png")
+
+#rm(matrix_bowl_type, rarefaction_bowl_sitetype) #remove the matrix and plot to clear up memory
+
+```
+
+
+## NMDS 
+```{r}
+# NMDS analysis for plant species composition between the sites
+
+# Create a community matrix
+community_matrix <- plants %>%
+  group_by(Site, Plant_sp) %>%
+  summarize(Cover_percentage = sum(Cover_percentage), .groups = "drop") %>%
+  pivot_wider(names_from = Plant_sp, values_from = Cover_percentage, values_fill = 0) %>%
+  column_to_rownames(var = "Site") # Convert 'Site' column to row names
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result <- metaMDS(community_matrix, distance = "bray", k = 2, trymax = 100)
+
+# Check NMDS stress (should be < 0.2 for a good fit)
+nmds_result$stress
+
+# View results
+print(nmds_result)
+
+# Plot NMDS results
+# Extract site scores for plotting
+site_scores <- as.data.frame(scores(nmds_result, display = "sites"))
+site_scores$Site <- rownames(site_scores)
+
+# Create a scatterplot
+ggplot(site_scores, aes(x = NMDS1, y = NMDS2, label = Site)) +
+  geom_point(size = 3, color = "blue") +
+  geom_text(vjust = -0.5, size = 4) +
+  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2")
+
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores <- site_scores %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange")
+
+# Plot with customized colors
+ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  theme_minimal() +
+  labs(title = "NMDS of Plant Species Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+
+``` 
+
+## PERMANOVA
+```{r}
+# PERMANOVA to test for differences in plant species composition between restored and reference sites
+permanova_result <- adonis(community_matrix ~ Site_Type, data = site_scores, permutations = 999)
+#glance at 
+permanova_result$aov.tab
+```
+
+
+1. R² Value (Effect Size)
+
+    R² = 0.16375 (16.4% of the variation in species composition is explained by Site_Type)
+    83.6% of the variation is due to other factors (unexplained residual variation)
+
+2. F-Model Value (Test Statistic)
+
+    F = 1.3707
+        Higher F-values indicate stronger group differences.
+        Here, the effect is weak to moderate.
+
+3. p-value (Significance Test)
+
+    p = 0.181 (not significant at α = 0.05)
+        p > 0.05 → No strong evidence that plant communities significantly differ between restored and reference sites.
+        There is a 16.4% effect, but it could be due to chance (not statistically significant).
