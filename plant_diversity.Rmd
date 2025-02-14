@@ -15,9 +15,6 @@ library(viridis)
 library(iNEXT)
 library(fossil)
 
-library(stringr)
-library(vegan)
-
 plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 2 has the plant data
 
 ```
@@ -40,48 +37,60 @@ head(plants)
 - 5 = very dominant, cover up to 100% of the plot [75-100%]  
 
 ```{r braun-blanquet}
+#colname change, consistency in str for cover_percentage
 plants <- plants %>%
   # Rename columns for consistency
   rename(
     Site_type = Age,  # Change "Age" to "Site_type" for standardization
     Plant_sp = `plant species`, 
-    Cover_percentage = `cover (%)`
-  ) %>%
-  
-  # Data cleaning and conversion
-  mutate(
-    Cover_percentage = as.character(Cover_percentage),  # Convert to character to handle "NA"/"NULL"
+    Cover_percentage = `cover (%)`, 
+    Transect= transect
+  )%>%
+  #convert cover_percentage to character
+  mutate(Cover_percentage = as.character(Cover_percentage)) %>%
+  #transform "NA" to NA
+  mutate(Cover_percentage = ifelse(Cover_percentage == "NA", NA, Cover_percentage))
     
-    # Convert "NULL" to 0, and "NA" to actual NA
-    Cover_percentage = case_when(
-      Cover_percentage == "NULL" ~ "0",  # Replace "NULL" with "0"
-      Cover_percentage == "NA" ~ NA_character_,  # Replace "NA" with actual NA
-      TRUE ~ Cover_percentage  # Keep other values as they are
-    ),
-    
-    # Convert cover percentage back to numeric
-    Cover_percentage = as.numeric(Cover_percentage),
-    
-    # Assign Braun-Blanquet (BB) scale based on cover percentage
-    BB = case_when(
-      Cover_percentage <= 0.5 | is.na(Cover_percentage) ~ "r",   # Rare (0.1-0.5%)
-      Cover_percentage > 0.5 & Cover_percentage <= 1 ~ "+",      # Few individuals (0.5-1%)
-      Cover_percentage > 1 & Cover_percentage <= 5 ~ "1",       # Many individuals (1-5%)
-      Cover_percentage > 5 & Cover_percentage <= 25 ~ "2",      # A lot (5-25%)
-      Cover_percentage > 25 & Cover_percentage <= 50 ~ "3",     # Very abundant (25-50%)
-      Cover_percentage > 50 & Cover_percentage <= 75 ~ "4",     # Dominant (50-75%)
-      Cover_percentage > 75 ~ "5"                               # Very dominant (75-100%)
-    ),
-    
-    # Adjust Cover_percentage for "r" and "+" categories (assigning default mid-values)
-    Cover_percentage = case_when(
-      BB == "r" ~ 0.3,   # Assign 0.3% cover for rare species
-      BB == "+" ~ 0.75,  # Assign 0.75% cover for "+" species
-      TRUE ~ Cover_percentage  # Keep original values for other categories
-    )
-  )
+#create a new column for BB scale and fill it
+plants3 <- plants %>%
+  #New column for BB scale where only "r", "+", 0 and NA are moved for now
+  mutate(BB=case_when(
+    Cover_percentage == "r" ~ "r",
+    Cover_percentage == "+" ~ "+",
+    Cover_percentage == "0" ~ "0",
+    is.na(Cover_percentage) ~ NA_character_,
+    #rest is empty for now
+    TRUE ~ "")) %>%
+  #remove "r", "+", 0 from Cover_percentage
+  mutate(Cover_percentage = case_when(
+    Cover_percentage == "r" ~ NA_character_,
+    Cover_percentage == "+" ~ NA_character_,
+    Cover_percentage == "0" ~ NA_character_,
+    TRUE ~ Cover_percentage)) %>%
+  #convert Cover_percentage to numeric
+  mutate(Cover_percentage = as.numeric(Cover_percentage)) %>%
+  #fill in the empty BB values based on BB scale
+  mutate(BB = case_when(
+    BB=="" & Cover_percentage <= 0.5 ~ "r",
+    BB=="" & Cover_percentage < 1 ~ "+",
+    BB=="" & Cover_percentage < 5 ~ "1",
+    BB=="" & Cover_percentage < 25 ~ "2",
+    BB=="" & Cover_percentage < 50 ~ "3",
+    BB=="" & Cover_percentage < 75 ~ "4",
+    TRUE ~ BB))
 
+# fill in the NA values in Cover_percentage based on BB scale
+plants3 <- plants3 %>%
+  mutate(Cover_percentage = case_when(
+    is.na(Cover_percentage) & BB == "r" ~ 0.3,
+    is.na(Cover_percentage) & BB == "+" ~ 0.75,
+    TRUE ~ Cover_percentage))%>%
+  #BB as factor
+  mutate(BB = factor(BB, levels = c("r", "+", "1", "2", "3", "4", "5")))
+  
+#rm(plant_data_load)
 ```
+
 
 ```{r braun-blanquet plot}
 #barplot of coverage per Site
@@ -118,53 +127,223 @@ ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
   labs(
     title = "Plant Species Richness",
     x = "Site",
-    y = "Number of Species",
+    y = "Number of Flower Species",
     color = "Site Type")
 ```
 
 
-## Hill number calculation
-```{r}
+## 1. Hill number calculation (not pooled)
 
-plants1 <- as.data.frame(plants)
+*Species-by-sampling-unit matrix (like a checklist for each subplot)*
 
+- Convert the flower cover percentage cover data to presence-absence data per plot (1 = present, 0 = absent). There were 5 transects per site, and each transect had three plots. - Replace NA values in the Cover_percentage column with 1 (presence), because since the species was written down, it means that it was present in the plot, but the cover % was forgotten/not written down properly. 
+- Remove the "no flowers" rows in the Plant_sp column, as they do not contribute to species richness.
+- Convert it to matrix format for iNEXT analysis
+- Add top row with the total number of species per site in order to use  datatype = `'incidence_freq'`` 
+
+- $AsyEst lists the observed diversity, asymptotic estimates, estimated bootstrap s.e. and 95% (default) confidence intervals for Hill numbers of order q = 0, 1, and 2. Theestimated asymptotes are calculated via the functions ChaoRichness() for q=0, ChaoShannon() for q=1 and ChaoSimpson() for q=2; see Chao et al. (2014) for the formulas of these asymptotic estimators. [https://drive.google.com/file/d/1Z9T6xMD7IOSo1SqyF2BQou7Fez5evlhj/view] 
+ 
+```{r preparing for iNEXT}
 # Presence Absence transformation of Cover_percentage
-plants1$Cover_percentage[plants$Cover_percentage > 0] <- 1
+plants1 <- plants3 %>%
+  #remove irrelevant column
+  select(-notes) %>% 
+  #transform plot column into factor
+  mutate(plot = factor(plot))%>%
+  #new presence/absence column
+  mutate(Presence_Absence = ifelse(Cover_percentage > 0, 1, 0))%>%
+  #rm NA in Site
+  filter(!is.na(Site))%>%
+  #remove "no flowers" rows in Plant_sp col
+  filter(Plant_sp != "no flowers")%>%
+  #Replace Na rows in Presence_Absence with 1 (presence)
+  mutate(Presence_Absence = ifelse(is.na(Presence_Absence), 1, Presence_Absence))
 
 
-#summarize coverage data
-plants_sum <- plants1 %>%
-  group_by(Site, Site_type, Plant_sp, transect) %>%
-  summarise(Cover_percentage = sum(Cover_percentage))
+plants1 <- as.data.frame(plants1)
 
-
+# Create a matrix for iNEXT
 matrix_plant <- create.matrix(x = plants1,
                                 tax.name = 'Plant_sp',
                                 locality = 'Site',
                                 abund = TRUE,
-                                abund.col = 'Cover_percentage')
-##Check your work
-identical(sum(matrix_plant),sum(plants1$Cover_percentage))
-#both have 657 observations
+                                abund.col = 'Presence_Absence')
+#Check your work
+identical(sum(matrix_plant),sum(plants1$Presence_Absence))
+#both have 646 observations
 
 # Convert to data.frame for use with iNEXT
 matrix_plant <- as.data.frame(matrix_plant)
 
-#run iNEXT to get the diversity estimates per SITE_TYPE
-set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,  q = c(0), datatype = 'abundance') #set seed for reproducibility, iNEXT include all three indices of diversity
+# Assign column names (site names)
+colnames(matrix_plant) <- c("BUH", "DES", "HLI", "JEP", "KOT", "STP", "WDG", "WED", "WUP")
 
-# This are specifically the diversity estimates with their confidence intervals:
-# iNEXT_output_insects$AsyEst 
+# Assign row names (species names) = unique and ordered plant species from Plant_sp column
+rownames(matrix_plant) <- plants1$Plant_sp %>% unique() %>% sort()
+
+# Define the number of sampling units per site 
+total_units <- rep(15, ncol(matrix_plant))  # 15 plots per site
+
+# Add as a new first row in the matrix
+matrix_plant <- rbind(Total_units = total_units, matrix_plant)
+
+# Print the updated matrix
+head(matrix_plant)
+```
+
+```{r Hill number calculation}
+#run iNEXT to get the diversity estimates per SITE_TYPE
+set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,   q=c(0), datatype = 'incidence_freq') #set seed for reproducibility, iNEXT include all three indices of diversity
+
+# This are specifically the asymptotic diversity estimates with their confidence intervals: 
+# iNEXT_output_plants$AsyEst 
+#UCL = Upper Confidence Limit
+#LCL = Lower Confidence Limit
+
+
+#define custom colors for plotting
+custom_colors <- c(
+  #reference sites
+  "DES" = "#FFCC00",  # Yellow
+  "HLI" = "#FF9900",  # Dark Orange
+  "JEP" = "#FF6600",  # Deep Orange
+  "STP" = "#B53737FF",  # Dark Orange
+  "WUP" = "#5E0000FF",  # Red-Orange
+  # restored sites
+  "BUH" = "#006400",  # Dark Green
+  "KOT" = "#5aae61",  # Medium Green
+  "WDG" = "#67a9cf",  # Light Blue
+  "WED" = "#4682B4"   # Steel Blue
+)
+
+#pastel palette for confidence intervals
+pastel_colors <- c(
+  # reference sites 
+  "DES" = "#FDF3B9",  # Pale Yellow
+  "HLI" = "#F6D6AD",  # Light Peach
+  "JEP" = "#F4C095",  # Pastel Orange
+  "STP" = "#F7CAC9",  # Soft Coral
+  "WUP" = "#EDA9ABFF",  # 
+  #restored sites 
+  "BUH" = "#A8D5BA",  # Pastel Green
+  "KOT" = "#B8E0D2",  # Pastel Teal
+  "WDG" = "#A7C7E7",  # Light Blue
+  "WED" = "#89ABE3"   # Soft Periwinkle
+)
+
+# bicolor palette
+bicolor_palette <- c(
+  "DES" = "darkorange",  
+  "HLI" = "darkorange",  
+  "JEP" = "darkorange",  
+  "STP" = "darkorange",
+  "WUP" = "darkorange",
+  "BUH" = "steelblue",  
+  "KOT" = "steelblue",  
+  "WDG" = "steelblue",  
+  "WED" = "steelblue" 
+)
+
+bicolor_bg <- c(
+  "DES" = "lightyellow",  
+  "HLI" = "lightyellow",  
+  "JEP" = "lightyellow",  
+  "STP" = "lightyellow",
+  "WUP" = "lightyellow",
+  "BUH" = "lightblue1",  
+  "KOT" = "lightblue1",  
+  "WDG" = "lightblue1",  
+  "WED" = "lightblue1" 
+)
 
 #Plot the results and save the plot
 (rarefaction_plant_sites <- ggiNEXT(iNEXT_output_plants, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
   ggtitle("Plants: Rarefaction curves per site")+
-  labs(y= "Species diversity"))
-#ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_bowl_sitetype.png")
+  labs(y= "Flower species diversity", x="Number of plots")+
+    scale_color_manual(values = custom_colors) + # Assign custom colors to sites (curves)
+    scale_fill_manual(values = pastel_colors) + # Assign custom colors to sites (confidence intervals)
+    scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+  # Assign different shapes for each site
+    theme_minimal()+
+    theme(legend.position = "bottom")
+  )
+#ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_plant_sites_q123.png")
 
-#rm(matrix_bowl_type, rarefaction_bowl_sitetype) #remove the matrix and plot to clear up memory
+#rm(plants1,iNEXT_output_plants, matrix_plant) #remove the matrix and plot to clear up memory
 
 ```
+
+## 2. Hill number calculation (pooled)
+- this time we are pooling all reference sites and all restored sites together to calculate the Hill numbers.
+- The pooled analysis allows us to compare the overall diversity between the two groups of sites.
+
+```{r}
+#prepare a dataframe for pooled analysis
+pooled <- plants3 %>%
+  #remove irrelevant column
+  select(-notes) %>% 
+  #new presence/absence column
+  mutate(Presence_Absence = ifelse(Cover_percentage > 0, 1, 0))%>%
+  #rm NA in Site
+  filter(!is.na(Site))%>%
+  #remove "no flowers" rows in Plant_sp col
+  filter(Plant_sp != "no flowers")%>%
+  #Replace Na rows in Presence_Absence with 1 (presence)
+  mutate(Presence_Absence = ifelse(is.na(Presence_Absence), 1, Presence_Absence))%>%
+  #summarize the data by Site_type
+  group_by(Site_type, Plant_sp) %>%
+  summarize(Presence_Absence = sum(Presence_Absence))%>%
+  #rename rows named "1-5 y" to "Young Restored"
+  mutate(Site_type = ifelse(Site_type == "1-5 y", "Young Restored", Site_type))
+
+# Create a matrix for iNEXT
+pooled <- as.data.frame(pooled)
+matrix_pooled <- create.matrix(x = pooled,
+                                tax.name = 'Plant_sp',
+                                locality = 'Site_type',
+                                abund = TRUE,
+                                abund.col = 'Presence_Absence')
+
+#check your work
+identical(sum(matrix_pooled),sum(pooled$Presence_Absence))
+#they both have 652 observations
+
+# Convert to data.frame for use with iNEXT
+matrix_pooled <- as.data.frame(matrix_pooled)
+
+# Assign column names (site_type names)
+colnames(matrix_pooled) <- c("Reference", "Young Restored")
+
+# Assign row names (species names) = unique and ordered plant species from Plant_sp column
+rownames(matrix_pooled) <- pooled$Plant_sp %>% unique() %>% sort()
+
+# Define the number of sampling units per site
+total_units_pooled <- c(75,60)  # ref: 5 sites * 15 plots = 75 plots, restored: 4 sites * 15 plots = 60 plots
+
+# Add as a new first row in the matrix
+matrix_pooled <- rbind(Total_units = total_units_pooled, matrix_pooled)
+
+# Print the updated matrix
+head(matrix_pooled)
+```
+```{r}
+#run iNEXT to get the diversity estimates for the pooled data
+set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,   q=c(0,1,2), datatype = 'incidence_freq') #set seed for reproducibility
+
+#Plot the results and save the plot
+(rarefaction_plant_pooled <- ggiNEXT(iNEXT_output_pooled, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Plants: Rarefaction curves for pooled data")+
+  labs(y= "Flower species diversity", x="Number of plots")+
+    #scale_color_manual(values = bicolor_palette) + # Assign custom colors to sites (curves)
+    #scale_fill_manual(values = bicolor_bg) + # Assign custom colors to sites (confidence intervals)
+    #scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+  # Assign different shapes for each site
+    theme_minimal()+
+    theme(legend.position = "bottom")
+  )
+
+```
+  
+  
+
 
 
 ## NMDS 
@@ -172,18 +351,25 @@ set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,  q = c(0), datatype = 
 # NMDS analysis for plant species composition between the sites
 
 # Create a community matrix
-community_matrix <- plants %>%
+community_matrix <- plants3 %>%
+  #remove NA in Site
+  filter(!is.na(Site)) %>%
+  #remove "no flowers" rows in Plant_sp col
+  filter(Plant_sp != "no flowers") %>%
+  #remove NA rows in Cover_percentage
+  filter(!is.na(Cover_percentage)) %>%
   group_by(Site, Plant_sp) %>%
   summarize(Cover_percentage = sum(Cover_percentage), .groups = "drop") %>%
   pivot_wider(names_from = Plant_sp, values_from = Cover_percentage, values_fill = 0) %>%
   column_to_rownames(var = "Site") # Convert 'Site' column to row names
 
+sum(is.na(community_matrix)) # Check for missing values
+#transform into matrix
+community_matrix <- as.matrix(community_matrix)
+
 # Perform NMDS using Bray-Curtis distance
 set.seed(123)
 nmds_result <- metaMDS(community_matrix, distance = "bray", k = 2, trymax = 100)
-
-# Check NMDS stress (should be < 0.2 for a good fit)
-nmds_result$stress
 
 # View results
 print(nmds_result)
@@ -230,11 +416,19 @@ ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) 
 ``` 
 
 ## PERMANOVA
+A PERMANOVA test allows us to determine whether plant species composition significantly differs between restored and reference sites. The test is based on a distance matrix (Bray-Curtis distance) calculated from the plant community matrix. It calculates the proportion of variance explained by the Site_Type variable and tests its significance using permutation tests. 
+
+[https://en.wikipedia.org/wiki/Permutational_analysis_of_variance]
+Permutational multivariate analysis of variance (PERMANOVA), is a non-parametric multivariate statistical permutation test. PERMANOVA is used to compare groups of objects and *test the null hypothesis that the centroids and dispersion of the groups as defined by measure space are equivalent for all groups*. A rejection of the null hypothesis means that either the centroid and/or the spread of the objects is different between the groups. 
 ```{r}
 # PERMANOVA to test for differences in plant species composition between restored and reference sites
 permanova_result <- adonis(community_matrix ~ Site_Type, data = site_scores, permutations = 999)
-#glance at 
+
+
+#glance at results
 permanova_result$aov.tab
+
+rm(community_matrix, site_scores,nmds_result) #remove the matrix and plot to clear up memory
 ```
 
 
@@ -254,3 +448,102 @@ permanova_result$aov.tab
     p = 0.181 (not significant at α = 0.05)
         p > 0.05 → No strong evidence that plant communities significantly differ between restored and reference sites.
         There is a 16.4% effect, but it could be due to chance (not statistically significant).
+
+
+## aggregate plant data and interaction data
+```{r}
+flower_cover_summary <- plants3 %>%
+  group_by(Site, Transect, Plant_sp) %>%
+  summarise(avg_flower_cover = mean(Cover_percentage, na.rm = TRUE)) %>%
+  #remove "no flower" rows in Plant_sp col
+  filter(Plant_sp != "no flowers")
+
+# Load pollinator interaction data
+load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250120_netdata.RData")
+pol <- net_data %>%
+  select(Site=site, Transect=transect, Plant_sp = plant_species, total_interaction)%>%
+  group_by(Site, Transect, Plant_sp) %>%
+  summarise(total_interaction = sum(total_interaction, na.rm = TRUE)) 
+
+combined_data <- left_join(flower_cover_summary, pol, 
+                            by = c("Site", "Transect", "Plant_sp")) #left_join to keep all plant species from flower_cover_summary
+#replace introduced NA values with 0
+combined_data$total_interaction[is.na(combined_data$total_interaction)] <- 0
+```
+
+```{r}
+summary(combined_data)
+
+#compare total plant species in plants3 and pol
+length(unique(plants3$Plant_sp)) # 70
+length(unique(pol$Plant_sp)) # 40
+
+sum(is.na(combined_data$avg_flower_cover))  # Count missing flower cover values = 6
+sum(is.na(combined_data$total_interaction))  # Count missing interaction values = 0
+
+# Remove rows with missing flower cover values
+combined_data <- combined_data %>%
+  filter(!is.na(avg_flower_cover))
+```
+
+```{r}
+#remove all rows with 0 interactions
+combined_data <- combined_data %>%
+  filter(total_interaction > 0)
+
+## Relationship between flower abundance (cover %) and pollinator interactions ----------------------------
+# Flower Cover Distribution
+ggplot(combined_data, aes(x = avg_flower_cover)) +
+  geom_histogram(binwidth = 1, fill = "blue", alpha = 0.5) +
+  labs(title = "Average Distribution of Flower Cover (%) per transect", x = "Flower Cover (%)", y = "Count") +
+  theme_minimal()+
+  #add more units on the x-axis
+  scale_x_continuous(breaks = seq(0, 100, by = 5))
+ggplot(plants3, aes(x = Cover_percentage)) +
+  geom_histogram(binwidth = 1, fill = "blue", alpha = 0.5) +
+  labs(title = "Distribution of Flower Cover (%) per plot", x = "Flower Cover (%)", y = "Count") +
+  theme_minimal()+
+  #add more units on the x-axis
+  scale_x_continuous(breaks = seq(0, 100, by = 5))
+
+# Pollinator Interaction Distribution
+ggplot(combined_data, aes(x = total_interaction)) +
+  geom_histogram(binwidth = 2, fill = "red", alpha = 0.5) +
+  labs(title = "Distribution of Pollinator Interactions per Flower Species", x = "Number of Interactions", y = "Count") +
+  theme_minimal()
+
+
+ggplot(combined_data, aes(x = avg_flower_cover, y = total_interaction)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, color = "blue") +
+  labs(title = "Flower Cover vs. Pollinator Interactions",
+       x = "Average Flower Cover (%)",
+       y = "Number of Pollinator Interactions") +
+  theme_minimal()+
+  ylim(0, 60)+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Transect))+
+  scale_color_viridis(discrete = TRUE)
+  
+  #remove legend
+  #theme(legend.position = "none")
+
+cor_test <- cor.test(combined_data$avg_flower_cover, combined_data$total_interaction)
+print(cor_test)
+
+## Species-Specific Analysis ---------------------------- 
+
+ggplot(combined_data, aes(x = reorder(Plant_sp, avg_flower_cover), y = avg_flower_cover)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Flower Cover by Species", x = "Flower Species", y = "Average Flower Cover (%)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#boxplot of total_interaction vs plant_sp using reorder()
+ggplot(combined_data, aes(x = reorder(Plant_sp, total_interaction, FUN = median), y = total_interaction)) +
+  geom_boxplot(fill = "lightcoral") +
+  labs(title = "Pollinator Interactions by Species", x = "Flower Species", y = "Total Interactions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  #y limit at 100
+  ylim(0, 50)
+```
+
