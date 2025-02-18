@@ -5,7 +5,7 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
-# Set up 
+# 1. Set up 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(googlesheets4) #package to read google sheets
@@ -22,9 +22,9 @@ library(TNRS) # Resolve plant taxonomic names
 plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 3 has the plant data
 ```
 
-# Data preparation
-
-```{r selecting columns}
+# 2. Data preparation
+## 2.1. Selecting columns & cleaning 
+```{r selecting columns & cleaning}
 plants <- plant_data_load %>%
   select(1:7) %>%
   
@@ -40,8 +40,8 @@ plants <- plant_data_load %>%
 
 head(plants)
 ```
-## Standardize plant names
-```{r}
+## 2.2. Standardize plant names
+```{r standardize plant names TNRS}
 colnames(plants)
 #next step requires internet connection
 out_rom<- TNRS(taxonomic_names = plants$Plant_sp) # indicating where the scientific names to verify are
@@ -50,10 +50,13 @@ head(out_rom[,2:7])
 to_correct <-out_rom %>% filter(Name_score < 1)
 print(to_correct);length(to_correct$Name_score) #print the names that need to be corrected, in this case we have 0
 #plants$plant<-gsub("previous name","correct name", plants$Plant_species) #replace the previous name with the correct name in a new column
+
+#removing variables that are not needed for the next steps
+rm(out_rom, to_correct)
 ```
 
 
-### Flower cover estimates: (Braun-Blanquet cover abundance scale)
+## 2.3. Fixing Flower cover estimates (Braun-Blanquet cover abundance scale)
 - r = rare (1-3 individuals), cover up to 0.5% of the plot [0.1-0.5%]   
 - +  = 3-5 individuals, cover up to 1% of the plot [0.5-1%]   
 - 1 = many individuals (6 to 50 individuals), cover up to 5% of the plot [1-5%]   
@@ -63,7 +66,7 @@ print(to_correct);length(to_correct$Name_score) #print the names that need to be
 - 5 = very dominant, cover up to 100% of the plot [75-100%]  
 
 ```{r braun-blanquet}
-#consistency in str for cover_percentage
+#consistency in structure for cover_percentage
 plants <- plants %>%
   #convert cover_percentage to character
   mutate(Cover_percentage = as.character(Cover_percentage)) %>%
@@ -107,7 +110,7 @@ plants3 <- plants3 %>%
   #BB as factor
   mutate(BB = factor(BB, levels = c("r", "+", "1", "2", "3", "4", "5")))
   
-#rm(plant_data_load)
+rm(plant_data_load)
 head(plants3)
 ```
 
@@ -131,9 +134,9 @@ ggplot(plants3, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
   #viridis color palette
   scale_fill_viridis(discrete = TRUE)
 ```
+# 3. Analysis
 
-
-## Richness calculation
+## A. Richness calculation
 ```{r}
 richness <- plants3 %>%
   group_by(Site, Site_type) %>%
@@ -152,7 +155,7 @@ ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
 ```
 
 
-## 1. Hill number calculation (not pooled)
+## B.1. Hill number calculation (not pooled)
 
 *Species-by-sampling-unit matrix (like a checklist for each subplot)*
 
@@ -175,7 +178,6 @@ plants1 <- plants3 %>%
   filter(!is.na(Site))%>%
   #Replace Na rows in Presence_Absence with 1 (presence)
   mutate(Presence_Absence = ifelse(is.na(Presence_Absence), 1, Presence_Absence))
-
 
 plants1 <- as.data.frame(plants1)
 
@@ -289,7 +291,7 @@ bicolor_bg <- c(
 
 ```
 
-## 2. Hill number calculation (pooled)
+## B.2. Hill number calculation (pooled)
 - this time we are pooling all reference sites and all restored sites together to calculate the Hill numbers.
 - The pooled analysis allows us to compare the overall diversity between the two groups of sites.
 
@@ -338,7 +340,7 @@ matrix_pooled <- rbind(Total_units = total_units_pooled, matrix_pooled)
 # Print the updated matrix
 head(matrix_pooled)
 ```
-```{r}
+```{r }
 #run iNEXT to get the diversity estimates for the pooled data
 set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,   q=c(0,1,2), datatype = 'incidence_freq') #set seed for reproducibility
 
@@ -359,7 +361,7 @@ set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,   q=c(0,1,2), datatyp
 
 
 
-## NMDS 
+## C. NMDS 
 ```{r}
 # NMDS analysis for plant species composition between the sites
 
@@ -428,7 +430,7 @@ ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) 
 
 ``` 
 
-## PERMANOVA
+## D. PERMANOVA
 A PERMANOVA test allows us to determine whether plant species composition significantly differs between restored and reference sites. The test is based on a distance matrix (Bray-Curtis distance) calculated from the plant community matrix. It calculates the proportion of variance explained by the Site_Type variable and tests its significance using permutation tests. 
 
 [https://en.wikipedia.org/wiki/Permutational_analysis_of_variance]
@@ -463,7 +465,7 @@ rm(community_matrix, site_scores,nmds_result) #remove the matrix and plot to cle
         There is a 16.4% effect, but it could be due to chance (not statistically significant).
 
 
-## aggregate plant data and interaction data
+## E. Aggregate plant data and interaction data
 ```{r}
 flower_cover_summary <- plants3 %>%
   group_by(Site, Transect, Plant_sp) %>%
@@ -478,13 +480,24 @@ pol <- net_data %>%
   group_by(Site, Transect, Plant_sp) %>%
   summarise(total_interaction = sum(total_interaction, na.rm = TRUE)) 
 
-combined_data <- left_join(flower_cover_summary, pol, 
-                            by = c("Site", "Transect", "Plant_sp")) #left_join to keep all plant species from flower_cover_summary
+#transform flower_cover_summary$avg_flower_cover==NaN to -1 to keep track of these missing values after joining
+flower_cover_summary$avg_flower_cover[is.na(flower_cover_summary$avg_flower_cover)] <- -1
+
+combined_data <- full_join(flower_cover_summary, 
+                           pol, 
+                           by = c("Site", "Transect", "Plant_sp")) # to keep all plant species from both flower_cover_summary and pol
+
 #replace introduced NA values with 0
 combined_data$total_interaction[is.na(combined_data$total_interaction)] <- 0
+combined_data$avg_flower_cover[is.na(combined_data$avg_flower_cover)] <- 0
+
+#transform flower_cover_summary$avg_flower_cover==-1 back to NA
+combined_data$avg_flower_cover[combined_data$avg_flower_cover == -1] <- NA
+
+length(unique(combined_data$Plant_sp)) # 74
 ```
 
-```{r}
+```{r checking combined data}
 summary(combined_data)
 
 #compare total plant species in plants3 and pol
@@ -499,7 +512,7 @@ combined_data <- combined_data %>%
   filter(!is.na(avg_flower_cover))
 ```
 
-```{r}
+```{r visualizing combined data}
 #remove all rows with 0 interactions
 #combined_data <- combined_data %>%
 #  filter(total_interaction > 0)
@@ -508,10 +521,11 @@ combined_data <- combined_data %>%
 # Flower Cover Distribution
 ggplot(combined_data, aes(x = avg_flower_cover)) +
   geom_histogram(binwidth = 1, fill = "blue", alpha = 0.5) +
-  labs(title = "Average Distribution of Flower Cover (%) per transect", x = "Flower Cover (%)", y = "Count") +
+  labs(title = "Distribution of Average Flower Cover (%) per transect", x = "Flower Cover (%)", y = "Count") +
   theme_minimal()+
   #add more units on the x-axis
   scale_x_continuous(breaks = seq(0, 100, by = 5))
+
 ggplot(plants3, aes(x = Cover_percentage)) +
   geom_histogram(binwidth = 1, fill = "blue", alpha = 0.5) +
   labs(title = "Distribution of Flower Cover (%) per plot", x = "Flower Cover (%)", y = "Count") +
@@ -529,17 +543,17 @@ ggplot(combined_data, aes(x = total_interaction)) +
 ggplot(combined_data, aes(x = avg_flower_cover, y = total_interaction)) +
   geom_point(alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
-  labs(title = "Flower Cover vs. Pollinator Interactions",
+  labs(title = "Flower Cover vs. Pollinator Interactions (1 point = 1 transect)",
        x = "Average Flower Cover (%)",
        y = "Number of Pollinator Interactions") +
   theme_minimal()+
   ylim(0, 60)+
   #adding colors to the point according to Site
   geom_point(aes(color = Plant_sp))+
-  scale_color_viridis(discrete = TRUE)
+  scale_color_viridis(discrete = TRUE)+
   
   #remove legend
-  #theme(legend.position = "none")
+  theme(legend.position = "none")
 
 cor_test <- cor.test(combined_data$avg_flower_cover, combined_data$total_interaction)
 print(cor_test)
@@ -554,7 +568,7 @@ ggplot(combined_data, aes(x = reorder(Plant_sp, avg_flower_cover), y = avg_flowe
 #boxplot of total_interaction vs plant_sp using reorder()
 ggplot(combined_data, aes(x = reorder(Plant_sp, total_interaction, FUN = median), y = total_interaction)) +
   geom_boxplot(fill = "lightcoral") +
-  labs(title = "Pollinator Interactions by Species", x = "Flower Species", y = "Total Interactions") +
+  labs(title = "Pollinator Interactions by Species (1 point per transect)", x = "Flower Species", y = "Total Interactions") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   #y limit at 100
   ylim(0, 50)
@@ -574,3 +588,107 @@ ggplot(combined_data, aes(x = reorder(Plant_sp, total_interaction), y = total_in
   theme(legend.position = "none")
 ```
 
+# 4. Network Metrics
+```{r packages}
+library(bootstrapnet)
+library (devtools)
+library(cli)
+library(bootstrapnet)
+
+library(bipartite)
+library(magrittr)
+library(readxl)
+```
+
+```{r read data}
+# Prepare data into plant-pollinator matrices and store them in a list.
+colnames(net_data)
+net_data <- net_data %>%
+  #change lowest_taxa to "Family: Coccinellidae" for all rows where Family column is Coccinellidae
+  mutate(lowest_taxa = ifelse(family == "Coccinellidae", "Family: Coccinellidae", lowest_taxa)) %>%
+  select(site, site_type, transect, plant_species, lowest_taxa, total_interaction) %>%
+  rename(Site = site, Site_type=site_type, Transect = transect, Plant_sp = plant_species, Lowest_taxa = lowest_taxa, Total_interaction = total_interaction)
+  
+# Prepare data into plant-pollinator matrices and store them in a list.
+list_of_webs <- frame2webs(dframe = net_data,
+                           varnames = c('Plant_sp',   # column with lower trophic level (plants)
+                                        'Lowest_taxa',  # column with higher trophic level (butterflies)
+                                        'Site_type',     # column with the type of meadow on which interactions were observed
+                                        'Total_interaction')) # column with number of times an interaction was observed
+```
+
+### Network plots
+
+The matrix plot shows where the interactions plant-insects are and if using square="interaction" can also show how strong interactions are using levels of gray (white means no interaction). 
+
+
+```{r network plots}
+# Bipartite interaction plot for reference sites
+plotweb(list_of_webs$reference,
+        method = "cca",
+        labsize = 1.5,
+        text.rot = 90,
+        y.width.low = 0.01,
+        y.width.high = 0.01,
+        arrow = "no",
+        high.y = 1.2,
+        low.y = 0.6)+
+  title("Bipartite Interaction Plot for Reference Sites")
+
+# Bipartite interaction plot for restored sites
+plotweb(list_of_webs$young_restored,
+        method = "cca",
+        labsize = 1.5,
+        text.rot = 90,
+        y.width.low = 0.01,
+        y.width.high = 0.01,
+        arrow = "no",
+        high.y = 1.2,
+        low.y = 0.6)+
+  title("Bipartite Interaction Plot for Restored Sites")
+
+```
+
+### Network Metrics
+
+- H2 
+  + is a network-level measure of specialization. It ranges between 0 (no specialization) and 1 (complete specialization).More specifically, H2' is a measure of discrimination, i.e. calculated in comparison to no specialization. [https://www.rdocumentation.org/packages/bipartite/versions/2.19/topics/networklevel]
+  + characterizes the degree of specialization or partitioning among two parties in the entire network, H2 is not affected by network size or sampling intensity [https://bmcecol.biomedcentral.com/articles/10.1186/1472-6785-6-9]
+
+```{r network metrics}
+# H2 --------------------------------------------------
+# Reference sites
+# print message: "Calculating network metrics for reference sites..."
+print("H2 reference sites:");
+networklevel(web = list_of_webs$reference, index = "H2")
+
+# Restored sites
+print("H2 restored sites:");
+networklevel(web = list_of_webs$young_restored, index = "H2")
+
+
+# Nestedness --------------------------------------------------
+
+# Reference sites
+print("Nestedness reference sites:");
+set.seed(2024);
+networklevel(web = list_of_webs$reference, index = "nestedness")
+
+# Restored sites
+print("Nestedness restored sites:");
+set.seed(2024);
+networklevel(web = list_of_webs$young_restored, index = "nestedness")
+
+# All network indices -----------------------------------------
+
+# Compute all the network indices for reference sites.
+print("Reference sites:");
+set.seed(2024);
+networklevel(web = list_of_webs$reference, index = "ALLBUTDD") # or do not specify index at all
+
+# Compute all the network indices for restored sites.
+print("Restored sites:");
+set.seed(2024);
+networklevel(web = list_of_webs$young_restored, index = "ALLBUTDD") # or do not specify index at all
+
+```
