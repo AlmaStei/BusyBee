@@ -8,22 +8,48 @@ output: html_document
 # Set up 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(googlesheets4)
-library(tidyverse)
-library(viridis)
+library(googlesheets4) #package to read google sheets
+library(tidyverse) 
+library(viridis) #color palette
 
-library(iNEXT)
-library(fossil)
+library(iNEXT) #package to run rarefaction curves
+library(fossil) 
 
-plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 2 has the plant data
+library(vegan)#package to run metaNMDS
 
+library(TNRS) # Resolve plant taxonomic names
+
+plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 3 has the plant data
 ```
 
 # Data preparation
-```{r data cleaning}
+
+```{r selecting columns}
 plants <- plant_data_load %>%
-  select(1:7)
+  select(1:7) %>%
+  
+  # Rename columns for consistency
+  rename(Site_type = Age,  # Change "Age" to "Site_type" for standardization with other scripts
+    Plant_sp = `plant species`, 
+    Cover_percentage = `cover (%)`, 
+    Transect= transect,
+    Plot=plot) %>%
+  
+  select(-notes)%>% #remove notes column
+  filter(Plant_sp != "no flowers") #remove "no flowers" rows in Plant_sp col
+
 head(plants)
+```
+## Standardize plant names
+```{r}
+colnames(plants)
+#next step requires internet connection
+out_rom<- TNRS(taxonomic_names = plants$Plant_sp) # indicating where the scientific names to verify are
+head(out_rom[,2:7])
+
+to_correct <-out_rom %>% filter(Name_score < 1)
+print(to_correct);length(to_correct$Name_score) #print the names that need to be corrected, in this case we have 0
+#plants$plant<-gsub("previous name","correct name", plants$Plant_species) #replace the previous name with the correct name in a new column
 ```
 
 
@@ -37,15 +63,8 @@ head(plants)
 - 5 = very dominant, cover up to 100% of the plot [75-100%]  
 
 ```{r braun-blanquet}
-#colname change, consistency in str for cover_percentage
+#consistency in str for cover_percentage
 plants <- plants %>%
-  # Rename columns for consistency
-  rename(
-    Site_type = Age,  # Change "Age" to "Site_type" for standardization
-    Plant_sp = `plant species`, 
-    Cover_percentage = `cover (%)`, 
-    Transect= transect
-  )%>%
   #convert cover_percentage to character
   mutate(Cover_percentage = as.character(Cover_percentage)) %>%
   #transform "NA" to NA
@@ -89,12 +108,13 @@ plants3 <- plants3 %>%
   mutate(BB = factor(BB, levels = c("r", "+", "1", "2", "3", "4", "5")))
   
 #rm(plant_data_load)
+head(plants3)
 ```
 
 
 ```{r braun-blanquet plot}
 #barplot of coverage per Site
-ggplot(plants, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
+ggplot(plants3, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
   geom_bar(stat = "identity") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
@@ -115,7 +135,7 @@ ggplot(plants, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
 
 ## Richness calculation
 ```{r}
-richness <- plants %>%
+richness <- plants3 %>%
   group_by(Site, Site_type) %>%
   summarise(Species_Richness = n_distinct(Plant_sp))
 
@@ -136,7 +156,8 @@ ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
 
 *Species-by-sampling-unit matrix (like a checklist for each subplot)*
 
-- Convert the flower cover percentage cover data to presence-absence data per plot (1 = present, 0 = absent). There were 5 transects per site, and each transect had three plots. - Replace NA values in the Cover_percentage column with 1 (presence), because since the species was written down, it means that it was present in the plot, but the cover % was forgotten/not written down properly. 
+- Convert the flower cover percentage cover data to presence-absence data per plot (1 = present, 0 = absent). There were 5 transects per site, and each transect had three plots. 
+- Replace NA values in the Cover_percentage column with 1 (presence), because since the species was written down, it means that it was present in the plot, but the cover % was forgotten/not written down properly. 
 - Remove the "no flowers" rows in the Plant_sp column, as they do not contribute to species richness.
 - Convert it to matrix format for iNEXT analysis
 - Add top row with the total number of species per site in order to use  datatype = `'incidence_freq'`` 
@@ -146,16 +167,12 @@ ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
 ```{r preparing for iNEXT}
 # Presence Absence transformation of Cover_percentage
 plants1 <- plants3 %>%
-  #remove irrelevant column
-  select(-notes) %>% 
   #transform plot column into factor
-  mutate(plot = factor(plot))%>%
+  mutate(Plot = factor(Plot))%>%
   #new presence/absence column
   mutate(Presence_Absence = ifelse(Cover_percentage > 0, 1, 0))%>%
   #rm NA in Site
   filter(!is.na(Site))%>%
-  #remove "no flowers" rows in Plant_sp col
-  filter(Plant_sp != "no flowers")%>%
   #Replace Na rows in Presence_Absence with 1 (presence)
   mutate(Presence_Absence = ifelse(is.na(Presence_Absence), 1, Presence_Absence))
 
@@ -279,14 +296,10 @@ bicolor_bg <- c(
 ```{r}
 #prepare a dataframe for pooled analysis
 pooled <- plants3 %>%
-  #remove irrelevant column
-  select(-notes) %>% 
   #new presence/absence column
   mutate(Presence_Absence = ifelse(Cover_percentage > 0, 1, 0))%>%
   #rm NA in Site
   filter(!is.na(Site))%>%
-  #remove "no flowers" rows in Plant_sp col
-  filter(Plant_sp != "no flowers")%>%
   #Replace Na rows in Presence_Absence with 1 (presence)
   mutate(Presence_Absence = ifelse(is.na(Presence_Absence), 1, Presence_Absence))%>%
   #summarize the data by Site_type
@@ -422,11 +435,11 @@ A PERMANOVA test allows us to determine whether plant species composition signif
 Permutational multivariate analysis of variance (PERMANOVA), is a non-parametric multivariate statistical permutation test. PERMANOVA is used to compare groups of objects and *test the null hypothesis that the centroids and dispersion of the groups as defined by measure space are equivalent for all groups*. A rejection of the null hypothesis means that either the centroid and/or the spread of the objects is different between the groups. 
 ```{r}
 # PERMANOVA to test for differences in plant species composition between restored and reference sites
-permanova_result <- adonis(community_matrix ~ Site_Type, data = site_scores, permutations = 999)
+permanova_result <- adonis2(community_matrix ~ Site_Type, data = site_scores, permutations = 999)
 
 
 #glance at results
-permanova_result$aov.tab
+permanova_result$aov.ta
 
 rm(community_matrix, site_scores,nmds_result) #remove the matrix and plot to clear up memory
 ```
@@ -488,8 +501,8 @@ combined_data <- combined_data %>%
 
 ```{r}
 #remove all rows with 0 interactions
-combined_data <- combined_data %>%
-  filter(total_interaction > 0)
+#combined_data <- combined_data %>%
+#  filter(total_interaction > 0)
 
 ## Relationship between flower abundance (cover %) and pollinator interactions ----------------------------
 # Flower Cover Distribution
@@ -522,7 +535,7 @@ ggplot(combined_data, aes(x = avg_flower_cover, y = total_interaction)) +
   theme_minimal()+
   ylim(0, 60)+
   #adding colors to the point according to Site
-  geom_point(aes(color = Transect))+
+  geom_point(aes(color = Plant_sp))+
   scale_color_viridis(discrete = TRUE)
   
   #remove legend
@@ -545,5 +558,19 @@ ggplot(combined_data, aes(x = reorder(Plant_sp, total_interaction, FUN = median)
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   #y limit at 100
   ylim(0, 50)
+
+#barplot of total_interaction per plant species
+ggplot(combined_data, aes(x = reorder(Plant_sp, total_interaction), y = total_interaction)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Total Pollinator Interactions per Flower Species",
+    x = "Flower Species",
+    y = "Total Interactions",
+    fill = "Plant Species"
+  )+
+  #remove legend
+  theme(legend.position = "none")
 ```
 
