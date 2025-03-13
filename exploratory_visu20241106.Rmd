@@ -5,6 +5,15 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+Author: Alma Steireif
+Date: `r Sys.Date()`
+
+### Description
+
+The goal of this script is to load and clean the data from the pan traps and transect netting, and to create exploratory visualizations of the data.
+
+For this study, we are only interested in the insect families that are pollinators. We will focus on these families: Coleoptera, Diptera, Hymenoptera and Lepidoptera. For the pan traps, only insects that are larger than 3mm will be considered.
+
 
 ```{r, include=FALSE}
 library(tidyverse)
@@ -27,6 +36,19 @@ library(fossil) # helps with creating site-by-species-matrix for use with iNEXT
 
 
 ## Pan traps
+
+Steps: 
+
+1. load from excel file
+2. remove rows with missing field labels
+3. separate the site name into columns for site, transect, color and date
+4. format the date column
+5. add a column with the type of site (young restored or reference)
+6. clean the 'small' column by removing prefixes and splitting counts and insect names
+7. pivot the data into wide format
+8. sum thrips and small thrips -> during the lab processing of the samples the column "less than 1 mm" was used to count solely thrips that were smaller than 1 mm. This column was then renamed to "thrips" and the counts were added to the "small_thrip" column.
+9. removing columns from families that are not taken into consideration in this study. 
+
 ```{r load and clean data}
 # read one sheet from an excel file
 df <-readxl::read_excel("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/data_field/Labels_pantraps_clean.csv.xlsx", sheet = "Labels_pantraps_clean",range = "A1:AR138")
@@ -51,27 +73,23 @@ bowltrap_clean <- df %>%
                 TRUE ~ NA_character_))%>%# Default case, if needed
   relocate(Site_type, .after = Site)  # Move "Site_type" right after "Site"
   
-rm(df) #remove the larger original dataframe to clear up memory
-```
-
-```{r clean data}
-# Step 1: Clean and process the `small` column
+# Clean and process the `small` column
 bowltrap_clean <- bowltrap_clean %>%
   mutate(small = str_remove(small, "small: ")) %>%  # Remove "small: " prefix
   mutate(small = str_replace_all(small, "none", "")) %>%  # Replace "none" with an empty string
   separate_rows(small, sep = ", ") %>%  # Split rows into individual entries
   
-  # Step 2: Split counts and insect names
+  # Split counts and insect names
   separate(small, into = c("count", "insect"), sep = " ", extra = "merge", fill = "right") %>%
   
-  # Step 3: Handle invalid `count` values
+  # Handle invalid `count` values
   mutate(
     count = as.numeric(count),  # Convert `count` to numeric
     insect = ifelse(is.na(count), NA, insect)  # Remove `insect` if `count` is invalid
   ) %>%
   filter(!is.na(count) & !is.na(insect)) %>%  # Remove rows with invalid counts or insects
   
-  # Step 4: Pivot into wide format
+  # Pivot into wide format
   pivot_wider(names_from = insect, values_from = count, values_fill = 0, names_prefix = "small_") %>%
 
   # Sum thrips and small_thrip
@@ -83,14 +101,31 @@ bowltrap_clean <- bowltrap_clean %>%
   #mutate(apocrita = coalesce(apocrita, 0) + coalesce(proctotrupidae ,0)) %>%
   #select(-proctotrupidae,-tenthredinidae)%>%
   select(-spider, -cicadellidae, -hemiptera) #remove columns that are not taken into consideration in this study
+
+rm(df) #remove the larger original dataframe to clear up memory
 ```
 
-```{r save long format data}
-# Save the data in long format
-#current_date <- format(Sys.Date(), "%Y%m%d")
-# save a RData file
-#save(bowltrap_clean, file = paste0("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/", current_date, "_full_bowltrap.RData"))
+```{r save wide format data into csv}}
+# remove all columns that start with "small_"
+bowltrap_clean_save <- bowltrap_clean %>% 
+  select(-starts_with("small_"))%>%
+  # Combine "Site" and "Transect" into a new column
+  mutate(Site_Tn = paste(Site, Transect, sep = "_")) %>%
+  #remove SITE column
+  select(-SITE) %>%
+  #group rows that have the same Site_Tn value,
+  group_by(Site_Tn, Site, Transect,Site_type,Date, ) %>%
+  #sum up the counts for each taxa column [,6:30]
+  summarise(across(apidae:acalyptrate, sum)) %>%
+  #ungroup the data
+  ungroup()
+
+#save the data in wide format
+write.csv(bowltrap_clean_save, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/bowltrap_clean.csv", row.names = FALSE)
+
+rm(bowltrap_clean_save) #remove the dataframe to clear up memory
 ```
+
 
 ```{r large insects}
 #create subset of data only for larger than 3mm insects
@@ -324,21 +359,79 @@ net_data <- net_data %>%
         filter(family!="other") %>% #remove rows with the value "other" in the 'family' column
         filter(site!="") %>%#remove rows with empty values in the 'site' column
   
-        # Create a new column that defines the lowest taxonomic level available
-        mutate(lowest_taxa = case_when(
-               !is.na(species) ~ species, # Species level
-               !is.na(genus) ~ paste("Genus:", genus), # Genus level
-               TRUE ~ paste("Family:", family)))%>% # Family level
+  # Standardize the genus column to unify textual variations
+        mutate(genus= case_when(
+               genus %in% c("aff. Syrphus", "Syrphus") ~ "Syrphus",
+               genus %in% c("aff. Eupeodes", "Eupeodes") ~ "Eupeodes",
+               TRUE ~ genus)) %>% # Keep other lowest_taxa unchanged
   
-        # Standardize the lowest_taxa column to unify textual variations
-        mutate(lowest_taxa= case_when(
-               lowest_taxa %in% c("Genus: aff. Syrphus", "Genus: Syrphus") ~ "Genus: Syrphus",
-               lowest_taxa %in% c("Genus: aff. Eupeodes", "Genus: Eupeodes") ~ "Genus: Eupeodes",
-               lowest_taxa %in% c("fabriciana adippe") ~ "Fabriciana adippe",
-               TRUE ~ lowest_taxa)) %>% # Keep other lowest_taxa unchanged
+        # Create a new column that defines the lowest taxonomic level available composed of all taxonomic levels available
+       mutate(
+         species = gsub(" ", "_", trimws(species)),  # Replace spaces in species names
+         genus = trimws(genus),
+         family = trimws(family),
+         lowest_taxa = case_when( species != "" ~ paste(family, species, sep = "_"),  # Use family_species if species is available
+                                  genus != "" ~ paste(family, genus, sep = "_"),      # Use family_genus if only genus is available
+                                  TRUE ~ family)) %>%                                # Keep just family if no genus or species
+        
         #remove  rows that have no info in plant_species 
         filter(!(plant_species=="no info"))
 ```
+
+```{r save cleaned data into csv}
+
+### FAMILY LEVEL
+
+#select columns of interest and create new column that contains the site_transect_plant_species
+net_data_save_fam <- net_data %>%
+  select(site,  site_type, transect, date, plant_species, total_interaction, family)%>%
+  #create new column that contains the site_transect_plant_species
+  mutate(Site_Tn_plantsp = paste(site, transect, plant_species, sep = "_")) %>%
+  #add _ where spaces are in the Site_Tn_plantsp column
+  mutate(Site_Tn_plantsp = gsub(" ", "_", Site_Tn_plantsp))%>%
+  
+  ## PIVOT STEPS
+  #remove empty rows in the 'family' column
+  filter(!is.na(family)) %>%
+  
+  # pivot wider - taking family for headers and total_interaction for values, and site_transect_plant_species as rows
+  pivot_wider(
+    names_from = family, 
+    values_from = total_interaction, 
+    values_fill = list(total_interaction = 0),  # Fill missing values with 0
+    values_fn = list(total_interaction = sum)  # Sum values when there are duplicates
+  ) 
+
+#save the data in wide format
+write.csv(net_data_save_fam, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_family.csv", row.names = FALSE)
+
+
+### TAXA LEVEL
+
+net_data_save_low <- net_data %>%
+  select(date, site, transect, site_type, plant_species, total_interaction, lowest_taxa)%>%
+  #create new column that contains the site_transect_plant_species
+  mutate(Site_Tn_plantsp = paste(site, transect, plant_species, sep = "_")) %>%
+  #add _ where spaces are in the Site_Tn_plantsp column
+  mutate(Site_Tn_plantsp = gsub(" ", "_", Site_Tn_plantsp))%>%
+  
+  ## PIVOT STEPS
+  # pivot wider - taking lowest_taxa for headers and total_interaction for values, and site_transect_plant_species as rows
+  pivot_wider(
+    names_from = lowest_taxa, 
+    values_from = total_interaction, 
+    values_fill = list(total_interaction = 0),  # Fill missing values with 0
+    values_fn = list(total_interaction = sum)  # Sum values when there are duplicates
+  )
+
+# save the data in wide format
+write.csv(net_data_save_low, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_taxa.csv", row.names = FALSE)
+
+rm(net_data_save_fam, net_data_save_low) #remove the data frames to clear up memory
+```
+
+
+
 
 ```{r interaction counts and plot}
 # ~ lowest taxonomic level available ----------------------------------------------
