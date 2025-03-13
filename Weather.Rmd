@@ -1,0 +1,134 @@
+---
+title: "Weather"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Author: Alma Steireif
+Date: `r Sys.Date()`
+
+### Description: 
+The goal of this script is to extract the relevant weather data (Summer 2024) from 3 stations of the Deutscher Wetterdienst (DWD) that are the closest to the 9 experimental sites. 
+
+| Stations_id | von_datum  | bis_datum | Stationshoehe | geoBreite | geoLaenge | Stationsname | Bundesland     |
+|-------------|------------|-----------|---------------|-----------|-----------|--------------|----------------|
+| 00722       | 18960101   | 20230725  | 1135          | 51.7986   | 10.6183   | Brocken      | Sachsen-Anhalt |
+| 03126       | 18810101   | 20230725  | 79            | 52.1029   | 11.5827   | Magdeburg    | Sachsen-Anhalt |
+| 02932       | 19340101   | 20230725  | 131           | 51.4347   | 12.2396   | Leipzig/Halle| Sachsen        |
+
+The data of the stations is provided in the following format:
+
+|column name  | description                                 | uom                 | type            | format |
+|-------------|---------------------------------------------|---------------------|-----------------|--------|
+| STATIONS_ID | Station ID                                  | VARCHAR2            |                 |        |
+| MESS_DATUM  | reference date                              | NUMBER              | YYYYMMDD        |        |
+| QN_3        | quality level of the following columns      | NUMBER              | numerical code  |        |
+| FX          | daily maximum of windgust                   | m/s                 | NUMBER          | 9990.0 |
+| FM          | daily mean of wind velocity                 | m/s                 | NUMBER          | 9990.0 |
+| QN_4        | quality level of the following columns      | NUMBER              | numerical code  |        |
+| RSK         | daily precipitation height                  | mm                  | NUMBER          | 9990.0 |
+| RSKF        | precipitation form                          | numerical code      | NUMBER          |        |
+| SDK         | daily sunshine duration                     | h                   | NUMBER          | 9990.0 |
+| SHK_TAG     | daily snow depth                            | cm                  | NUMBER          | 9990.0 |
+| NM          | daily mean of cloud cover                   | 1/8                 | NUMBER          | 9990.0 |
+| VPM         | daily mean of vapor pressure                | hPa                 | NUMBER          | 9990.0 |
+| PM          | daily mean of pressure                      | hPa                 | NUMBER          | 9990.0 |
+| TMK         | daily mean of temperature                   | °C                  | NUMBER          | 9990.0 |
+| UPM         | daily mean of relative humidity             | %                   | NUMBER          | 9990.0 |
+| TXK         | daily maximum of temperature at 2 m height  | °C                  | NUMBER          | 9990.0 |
+| TNK         | daily minimum of temperature at 2m height   | °C                  | NUMBER          | 9990.0 |
+| TGK         | daily min. of air temp. at 5 cm above ground| °C                  | NUMBER          | 9990.0 |
+
+The data is provided by the Deutscher Wetterdienst (DWD) and can be accessed via the following links:
+https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/recent/
+https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/historical/
+https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/daily/kl/DESCRIPTION_obsgermany-climate-daily-kl_en.pdf
+
+An approximation of the distance between the stations and the experimental sites was calulated using the "measure distance" function in Google Earth The distances are as follows:
+
+| Site's name | dist. to Brocken (km)  | dist. to Magdeburg (km) | dist. to Leipzig/Halle (km) | collection dates |
+|-------------|------------------------|-------------------------|-----------------------------|------------------|
+|  BUH        | 24                     | 68                      | 130                         | 13-Aug-24        |
+|  HLI        | 58                     | 66                      | 64                          | 24-Jul-24        |
+|  WDG        | 78                     | 20                      | 107                         | 30-Jul-24        |
+|  WED        | 79                     | 22                      | 105                         | 11-Jul-24        |
+|  KOT        | 93                     | 47                      | 41                          | 20-Jul-24        |
+|  DES        | 121                    | 63                      | 44                          | 21-Jul-24        |
+|  STP        | 98                     | 40                      | 51                          | 14-Jul-24        |
+|  WUP        | 91                     | 38                      | 50                          | 29-Jul-24        |
+|  JEP        | 122                    | 52                      | 117                         | 18-Jul-24        |
+
+
+
+For BUH and HLI, the Brocken station is the closest, for WDG, WED, STP, WUP, and JEP the Magdeburg station is the closest, and for KOT and DES the Leipzig/Halle station is the closest.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(viridis)
+```
+
+```{r data loading}
+# load Brocken 
+brocken <- read.table("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/Weather/00722_Brocken/produkt_klima_tag_20230910_20250312_00722.txt", sep = ";", header = TRUE, dec = ",", na.strings = "-999.0")
+
+#load Magdeburg
+magdeburg <- read.table("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/Weather/03126_Magdeburg/produkt_klima_tag_20230910_20250312_03126.txt", sep = ";", header = TRUE, dec = ",", na.strings = "-999.0")
+
+#load Leipzig/Halle
+leipzig <- read.table("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/Weather/02932_Leipzig/produkt_klima_tag_20230910_20250312_02932.txt", sep = ";", header = TRUE, dec = ",", na.strings = "-999.0")
+```
+
+### Dates
+
+```{r date selection}
+# select the relevant dates from the loaded data frames
+
+brocken_dates <- brocken %>% filter(MESS_DATUM %in% c(20240724, 20240813)) 
+leipzig_dates <- leipzig %>% filter(MESS_DATUM %in% c(20240720, 20240721)) 
+magdeburg_dates <- magdeburg %>% filter(MESS_DATUM %in% c(20240730, 20240711, 20240714, 20240729, 20240718))
+
+#rm(brocken, leipzig, magdeburg)
+```
+
+### Data Cleaning
+
+```{r data cleaning}
+# create station column for each data frame
+brocken_dates$STATION <- "Brocken"
+leipzig_dates$STATION <- "Leipzig_Halle"
+magdeburg_dates$STATION <- "Magdeburg"
+
+# create Site column for each data frame and then fill with the site names depending on the dates
+brocken_dates$SITE <- NA
+leipzig_dates$SITE <- NA
+magdeburg_dates$SITE <- NA
+
+#brocken
+brocken_dates <- brocken_dates %>% 
+  # when MESS_DATUM is 20240813 then the site is BUH, otherwise HLI
+  mutate(SITE = ifelse(MESS_DATUM == 20240813, "BUH", "HLI"))
+  
+#leipzig
+leipzig_dates <- leipzig_dates %>% 
+  # when MESS_DATUM is 20240720 then the site is KOT, when MESS_DATUM is 20240721 then the site is DES
+  mutate(SITE = ifelse(MESS_DATUM == 20240720, "KOT", "DES"))
+
+#magdeburg
+magdeburg_dates <- magdeburg_dates %>% 
+  mutate(SITE = case_when(
+    MESS_DATUM == 20240730 ~ "WDG",   #when MESS_DATUM is 20240730 then the site is WDG, 
+    MESS_DATUM == 20240711 ~ "WED",   #when MESS_DATUM is 20240711 then the site is WED, 
+    MESS_DATUM == 20240714 ~ "STP",   #when MESS_DATUM is 20240714 then the site is STP, 
+    MESS_DATUM == 20240729 ~ "WUP",   #when MESS_DATUM is 20240729 then the site is WUP, 
+    MESS_DATUM == 20240718 ~ "JEP"    #when MESS_DATUM is 20240718 then the site is JEP
+  ))
+
+# put the station  and site column as the first columns
+brocken_dates <- brocken_dates %>% select(SITE, STATION, everything())
+leipzig_dates <- leipzig_dates %>% select(SITE, STATION, everything())
+magdeburg_dates <- magdeburg_dates %>% select(SITE, STATION, everything())
+```  
+
