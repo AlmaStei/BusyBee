@@ -90,10 +90,12 @@ brocken_dates <- brocken %>% filter(MESS_DATUM %in% c(20240724, 20240813))
 leipzig_dates <- leipzig %>% filter(MESS_DATUM %in% c(20240720, 20240721)) 
 magdeburg_dates <- magdeburg %>% filter(MESS_DATUM %in% c(20240730, 20240711, 20240714, 20240729, 20240718))
 
-#rm(brocken, leipzig, magdeburg)
+rm(brocken, leipzig, magdeburg)
 ```
 
-### Data Cleaning
+### Add columns for station and site names
+
+Since each site was sampled only on a unique date, we can assign the site names to the data frames based on the dates.
 
 ```{r data cleaning}
 # create station column for each data frame
@@ -125,10 +127,38 @@ magdeburg_dates <- magdeburg_dates %>%
     MESS_DATUM == 20240729 ~ "WUP",   #when MESS_DATUM is 20240729 then the site is WUP, 
     MESS_DATUM == 20240718 ~ "JEP"    #when MESS_DATUM is 20240718 then the site is JEP
   ))
-
-# put the station  and site column as the first columns
-brocken_dates <- brocken_dates %>% select(SITE, STATION, everything())
-leipzig_dates <- leipzig_dates %>% select(SITE, STATION, everything())
-magdeburg_dates <- magdeburg_dates %>% select(SITE, STATION, everything())
 ```  
+### Combine the data frames
 
+```{r}
+# combine the data frames
+weather_data <- bind_rows(brocken_dates, leipzig_dates, magdeburg_dates)
+
+#add column with approximated distances to stations using case_when
+weather_data <- weather_data %>% 
+  mutate(DISTANCE = case_when(
+    SITE == "BUH" ~ 24, 
+    SITE == "HLI" ~ 58, 
+    SITE == "WDG" ~ 20, 
+    SITE == "WED" ~ 22, 
+    SITE == "KOT" ~ 41, 
+    SITE == "DES" ~ 44, 
+    SITE == "STP" ~ 40, 
+    SITE == "WUP" ~ 38, 
+    SITE == "JEP" ~ 52
+  ))
+
+#remove irrelevant columns like: daily snow depth
+weather_data <- weather_data %>% select(-SHK_TAG)
+```
+
+```{r sort columns}
+# put the station and site column as the first columns
+weather_data <- weather_data %>% select(SITE, STATION, DISTANCE, everything())
+```
+
+### Save the data
+
+```{r}
+write.csv(weather_data, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/weather_data.csv", row.names = FALSE)
+```

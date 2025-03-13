@@ -1,0 +1,151 @@
+---
+title: "Landscape"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+Author: Alma Steireif
+Date: `r Sys.Date()`
+
+### Description
+
+The goal of this script is to create a .csv file that contains the landscape data extracted from CORINE 2018 and ESA WorldCover V2 2021 around the 9 study sites. 
+
+Data was accessed from the Copernicus Land Monitoring Service (CLMS) and the European Space Agency (ESA).
+- CORINE 2018 : https://land.copernicus.eu/en/products/corine-land-cover/clc2018#download
+- WorldCover V2 2021: https://esa-worldcover.org/en
+
+The data was then processed in QGIS to extract the surface in square meters covered by each land cover class in 1km buffers around the study sites. The data was then exported as .csv files. 
+
+```{r setup, include=FALSE}
+library(tidyverse)
+```
+
+### load data
+
+```{r}
+# load CORINE from "C:\Users\Almas\Desktop\UNI_LEIPSI\Thesis\Thesis_Rproject\Landscape\corine_area_by_buffer.csv"
+corine <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/Landscape/corine_area_by_buffer.csv")
+
+#load WorldCover from "C:\Users\Almas\Desktop\UNI_LEIPSI\Thesis\Thesis_Rproject\Landscape\ESAWC_landcover_area_by_buffer.csv"
+worldcover <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/Landscape/ESAWC_landcover_area_by_buffer.csv")
+``` 
+
+
+### Data cleaning
+
+#### CORINE
+
+The landcover classes are coded as numbers in the data. For now we are keping the codes as they are, and adding a prefix "CORINE" to the landcover class names.
+
+| Code | Landcover class |
+|------|-----------------|
+| 1    | Continuous urban fabric |
+| 2    | Discontinuous urban fabric |
+| 3    | Industrial or commercial units |
+| 11   | Sports and leisure facilities |
+| 12   | Non-irrigated arable land |
+| 18   | Pastures |
+| 23   | Broad-leaved forest |
+| 24   | Coniferous forest |
+| 26   | Natural grasslands |
+| 29   | Transitional woodland-shrub |
+| 35   | Inland marshes |
+
+The data is in a long format, with each row representing a land cover class in a buffer around a study site. We will pivot the data to a wide format, with each row representing a study site and each column representing a land cover class. 
+
+```{r CORINE}
+#rename "Buffer" to "Site"
+colnames(corine)[1] <- "Site"
+
+#rename the rows in LandCover equal to 1,2 and3 with 01,02 and 03
+corine$LandCover <- ifelse(corine$LandCover < 10, paste0("0", corine$LandCover), corine$LandCover)
+
+#rename the rows in LandCover with the prefix CORINE
+corine$LandCover <- paste("CORINE", corine$LandCover, sep = "_")
+
+# pivot the data to wide format
+corine_wide <- corine %>% 
+  pivot_wider(names_from = LandCover, values_from = Area_m2)%>%
+  #replace NA with 0
+  replace(is.na(.), 0)
+```
+
+#### ESA WorldCover
+
+The landcover classes are also coded as numbers in the data. We will add a prefix "ESAWC" to the landcover class names and transform the data to wide format.
+
+| Code | Landcover class |
+|------|-----------------|
+| 10   | Tree Cover |
+| 30   | Grassland |
+| 40   | Cropland |
+| 50   | Built-up |
+| 60   | Bare / Sparse vegetation |
+| 80   | Permanent Water Bodies |
+| 90   | Wetlands |
+
+
+```{r ESAWC}
+#rename "Buffer" to "Site"
+colnames(worldcover)[1] <- "Site"
+
+#rename the rows in LandCover with the prefix ESAWC
+worldcover$LandCover <- paste("ESAWC", worldcover$LandCover, sep = "_")
+
+# pivot the data to wide format
+worldcover_wide <- worldcover %>% 
+  pivot_wider(names_from = LandCover, values_from = Area_m2)%>%
+  #replace NA with 0
+  replace(is.na(.), 0)
+```
+
+### Combine both landcover data
+
+```{r combine}
+# combine the two data frames
+landscape_data <- corine_wide %>% 
+  left_join(worldcover_wide, by = "Site") 
+```
+
+### Save the data
+
+```{r}
+write.csv(landscape_data, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/landscape_data.csv", row.names = FALSE)
+```
+
+### Vizualise the data
+
+```{r}
+#vector conatinaing the CORINE legend for the pie chart with the landcover classes names
+CORINE_legend <- c("Continuous urban fabric", "Discontinuous urban fabric", "Industrial or commercial units", "Sports and leisure facilities", "Non-irrigated arable land", "Pastures", "Broad-leaved forest", "Coniferous forest", "Natural grasslands", "Transitional woodland-shrub", "Inland marshes")
+
+#plot the data in a pie chart for CORINE only with custom legend
+corine_wide %>%
+  gather(key = "LandCover", value = "Area_m2", -Site) %>%
+  ggplot(aes(x = "", y = Area_m2, fill = LandCover)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  facet_wrap(~Site) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  scale_fill_manual(values = c("CORINE_01" = "#FA6900FF", "CORINE_02" = "#F38630FF", "CORINE_03" = "#BE3428FF", "CORINE_11" = "#8785B2FF", "CORINE_12" = "#D6CFB7FF", "CORINE_18" = "#a3b18a", "CORINE_23" = "#121510FF", "CORINE_24" = "#006400", "CORINE_26" = "#6D8325FF", "CORINE_29" = "#647D4BFF", "CORINE_35" = "#7FC7AFFF"), labels = CORINE_legend) +
+  labs(title = "2021 CORINE Landcover in 1km buffers around study sites")
+
+#vector conatinaing the ESAWC legend for the pie chart with the landcover classes names
+ESAWC_legend <- c("Tree Cover", "Grassland", "Cropland", "Built-up", "Bare / Sparse vegetation", "Permanent Water Bodies", "Wetlands")
+
+#plot the data in a pie chart for ESAWC only with legend
+worldcover_wide %>%
+  gather(key = "LandCover", value = "Area_m2", -Site) %>%
+  ggplot(aes(x = "", y = Area_m2, fill = LandCover)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  facet_wrap(~Site) +
+  theme_void() +
+  theme(legend.position = "bottom") +
+  scale_fill_manual(values = c("ESAWC_10" = "#121510FF", "ESAWC_30" = "#6D8325FF", "ESAWC_40" = "#D6CFB7FF", "ESAWC_50" = "#BD5630FF", "ESAWC_60" = "brown", "ESAWC_80" = "#3FB8AFFF", "ESAWC_90" = "#7FC7AFFF"), labels = ESAWC_legend) +
+  labs(title = "2018 ESAWC Landcover in 1km buffers around study sites")
+```
