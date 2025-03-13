@@ -198,3 +198,68 @@ ggplot(site_scores2, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site, 
        shape = "Method") # Update legend title
 ```
 
+## again, but removing outliers in pan traps
+
+- in two bowls in Dessau, there were >10 individuals of a single family (Mordellidae), which is very likely skewing the results.
+- let's see what happens if we remove these two bowls 
+```{r}
+# Remove the two bowls with >10 individuals of Mordellidae using the bowltrap method
+#if count is less than 10, keep the row, otherwise remove it
+full_data_clean <- full_data %>%
+  filter(!(Site == "DES" & Method == "Bowltrap" & Family == "Mordellidae" & Count > 10)) 
+
+# Create a community matrix with Site and Transect combined
+community_matrix3 <- full_data_clean %>%
+  group_by(Site, Family) %>%
+  summarize(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site") # Convert 'Site' column to row names
+  
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result3 <- metaMDS(community_matrix3, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result3)
+
+# Extract site scores for plotting
+site_scores3 <- as.data.frame(scores(nmds_result3, display = "sites"))
+site_scores3$Site <- rownames(site_scores3)
+
+# Create a scatterplot
+ggplot(site_scores3, aes(x = NMDS1, y = NMDS2, label = Site)) +
+  geom_point(size = 3, color = "blue") +
+  geom_text(vjust = -0.5, size = 4) +
+  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2")
+
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores3 <- site_scores3 %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange")
+
+# Plot with customized colors
+ggplot(site_scores3, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores3 %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+
+```
+

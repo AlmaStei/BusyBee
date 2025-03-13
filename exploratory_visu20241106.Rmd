@@ -510,6 +510,11 @@ ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefac
 
 rm(matrix_netting_transect, rarefaction_netting_transect) #remove the matrix and plot to clear up memory 
 ```
+
+### Rarefaction curves for lowest taxa
+
+- since not all insects were identified to the same level, but we still want to get as much diversity information as we can, we will use the lowest taxonomic level available for each insect.
+
 ```{r rarefaction curves for transect netting lowest taxa (lt)}
 # rarefaction curves for site_type_lt ---------------------------------------------
 net_data <- as.data.frame(net_data) #make 'dat' into a data frame that can be read by create.matrix
@@ -540,10 +545,40 @@ set.seed(2022);iNEXT_output_insects <- iNEXT(matrix_netting_type,  q = c(0,1,2),
   labs(y= "Lowest taxa diversity"))
 
   ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_sitetype_lt.png")
+  
+# rarefaction curves for sites ----------------------------------------------
+matrix_netting_site_lt <- create.matrix(x = net_data,
+                                tax.name = 'lowest_taxa',
+                                locality = 'site',
+                                abund = TRUE,
+                                abund.col = 'total_interaction')
+##Check your work
+identical(sum(matrix_netting_site_lt),sum(net_data$total_interaction))
+#both have 2427 interactions
+
+# Convert to data.frame for use with iNEXT
+matrix_netting_site_lt <- as.data.frame(matrix_netting_site_lt)
+
+# Run iNEXT to get the diversity estimates per SITE 
+set.seed(2022); iNEXT_output_insects <- iNEXT(matrix_netting_site_lt,  q = c(0,1,2), datatype = 'abundance') #set seed for reproducibility, iNEXT include all three indices of diversity
+
+# this are specifically the diversity estimates with their confidence intervals:
+# iNEXT_output_insects$AsyEst 
+
+# Plot the results and save the plot
+(rarefaction_netting_site_lt <- ggiNEXT(iNEXT_output_insects, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+  ggtitle("Netting: rarefaction curves per site")+
+  labs(y= "Lowest taxa diversity"))
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_netting_site_lt.png")
+
+rm(matrix_netting_site, rarefaction_netting_site) #remove the matrix and plot to clear up memory
+
 
 
 rm(matrix_netting_type, rarefaction_netting_sitetype_lt)
 ```
+
+
 
 ```{r}
 rm(iNEXT_output_insects,bowl_large2)

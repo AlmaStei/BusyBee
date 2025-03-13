@@ -22,6 +22,66 @@ library(TNRS) # Resolve plant taxonomic names
 plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 3 has the plant data
 ```
 
+```{r custom colors}
+
+#define custom colors for plotting
+custom_colors <- c(
+  #reference sites
+  "DES" = "#FFCC00",  # Yellow
+  "HLI" = "#FF9900",  # Dark Orange
+  "JEP" = "#FF6600",  # Deep Orange
+  "STP" = "#B53737FF",  # Dark Orange
+  "WUP" = "#5E0000FF",  # Red-Orange
+  # restored sites
+  "BUH" = "#006400",  # Dark Green
+  "KOT" = "#5aae61",  # Medium Green
+  "WDG" = "#67a9cf",  # Light Blue
+  "WED" = "#4682B4"   # Steel Blue
+)
+
+#pastel palette for confidence intervals
+pastel_colors <- c(
+  # reference sites 
+  "DES" = "#FDF3B9",  # Pale Yellow
+  "HLI" = "#F6D6AD",  # Light Peach
+  "JEP" = "#F4C095",  # Pastel Orange
+  "STP" = "#F7CAC9",  # Soft Coral
+  "WUP" = "#EDA9ABFF",  # 
+  #restored sites 
+  "BUH" = "#A8D5BA",  # Pastel Green
+  "KOT" = "#B8E0D2",  # Pastel Teal
+  "WDG" = "#A7C7E7",  # Light Blue
+  "WED" = "#89ABE3"   # Soft Periwinkle
+)
+
+# bicolor palette
+bicolor_palette <- c(
+  "DES" = "darkorange",  
+  "HLI" = "darkorange",  
+  "JEP" = "darkorange",  
+  "STP" = "darkorange",
+  "WUP" = "darkorange",
+  "BUH" = "steelblue",  
+  "KOT" = "steelblue",  
+  "WDG" = "steelblue",  
+  "WED" = "steelblue" 
+)
+
+bicolor_bg <- c(
+  "DES" = "lightyellow",  
+  "HLI" = "lightyellow",  
+  "JEP" = "lightyellow",  
+  "STP" = "lightyellow",
+  "WUP" = "lightyellow",
+  "BUH" = "lightblue1",  
+  "KOT" = "lightblue1",  
+  "WDG" = "lightblue1",  
+  "WED" = "lightblue1" 
+)
+
+```
+
+
 # 2. Data preparation
 ## 2.1. Selecting columns & cleaning 
 ```{r selecting columns & cleaning}
@@ -36,7 +96,10 @@ plants <- plant_data_load %>%
     Plot=plot) %>%
   
   select(-notes)%>% #remove notes column
-  filter(Plant_sp != "no flowers") #remove "no flowers" rows in Plant_sp col
+  filter(Plant_sp != "no flowers")%>% #remove "no flowers" rows in Plant_sp col
+
+  #rm NA in Site
+  filter(!is.na(Site))
 
 head(plants)
 ```
@@ -110,7 +173,7 @@ plants3 <- plants3 %>%
   #BB as factor
   mutate(BB = factor(BB, levels = c("r", "+", "1", "2", "3", "4", "5")))
   
-rm(plant_data_load)
+rm(plant_data_load, plants)
 head(plants3)
 ```
 
@@ -155,7 +218,7 @@ ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
 ```
 
 
-## B.1. Hill number calculation (not pooled)
+## B.1. Hill number calculation (not pooled) - presence/absence at plot level 
 
 *Species-by-sampling-unit matrix (like a checklist for each subplot)*
 
@@ -174,8 +237,6 @@ plants1 <- plants3 %>%
   mutate(Plot = factor(Plot))%>%
   #new presence/absence column
   mutate(Presence_Absence = ifelse(Cover_percentage > 0, 1, 0))%>%
-  #rm NA in Site
-  filter(!is.na(Site))%>%
   #Replace Na rows in Presence_Absence with 1 (presence)
   mutate(Presence_Absence = ifelse(is.na(Presence_Absence), 1, Presence_Absence))
 
@@ -212,96 +273,45 @@ head(matrix_plant)
 
 ```{r Hill number calculation}
 #run iNEXT to get the diversity estimates per SITE_TYPE
-set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,   q=c(0), datatype = 'incidence_freq') #set seed for reproducibility, iNEXT include all three indices of diversity
+set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,
+                                            q=c(0), 
+                                            datatype = 'incidence_freq') #set seed for reproducibility, iNEXT include all three indices of diversity
 
 # This are specifically the asymptotic diversity estimates with their confidence intervals: 
 # iNEXT_output_plants$AsyEst 
 #UCL = Upper Confidence Limit
 #LCL = Lower Confidence Limit
 
-
-#define custom colors for plotting
-custom_colors <- c(
-  #reference sites
-  "DES" = "#FFCC00",  # Yellow
-  "HLI" = "#FF9900",  # Dark Orange
-  "JEP" = "#FF6600",  # Deep Orange
-  "STP" = "#B53737FF",  # Dark Orange
-  "WUP" = "#5E0000FF",  # Red-Orange
-  # restored sites
-  "BUH" = "#006400",  # Dark Green
-  "KOT" = "#5aae61",  # Medium Green
-  "WDG" = "#67a9cf",  # Light Blue
-  "WED" = "#4682B4"   # Steel Blue
-)
-
-#pastel palette for confidence intervals
-pastel_colors <- c(
-  # reference sites 
-  "DES" = "#FDF3B9",  # Pale Yellow
-  "HLI" = "#F6D6AD",  # Light Peach
-  "JEP" = "#F4C095",  # Pastel Orange
-  "STP" = "#F7CAC9",  # Soft Coral
-  "WUP" = "#EDA9ABFF",  # 
-  #restored sites 
-  "BUH" = "#A8D5BA",  # Pastel Green
-  "KOT" = "#B8E0D2",  # Pastel Teal
-  "WDG" = "#A7C7E7",  # Light Blue
-  "WED" = "#89ABE3"   # Soft Periwinkle
-)
-
-# bicolor palette
-bicolor_palette <- c(
-  "DES" = "darkorange",  
-  "HLI" = "darkorange",  
-  "JEP" = "darkorange",  
-  "STP" = "darkorange",
-  "WUP" = "darkorange",
-  "BUH" = "steelblue",  
-  "KOT" = "steelblue",  
-  "WDG" = "steelblue",  
-  "WED" = "steelblue" 
-)
-
-bicolor_bg <- c(
-  "DES" = "lightyellow",  
-  "HLI" = "lightyellow",  
-  "JEP" = "lightyellow",  
-  "STP" = "lightyellow",
-  "WUP" = "lightyellow",
-  "BUH" = "lightblue1",  
-  "KOT" = "lightblue1",  
-  "WDG" = "lightblue1",  
-  "WED" = "lightblue1" 
-)
-
 #Plot the results and save the plot
-(rarefaction_plant_sites <- ggiNEXT(iNEXT_output_plants, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+(rarefaction_plant_sites <- ggiNEXT(iNEXT_output_plants, 
+                                    type = 1, 
+                                    color.var = 'Assemblage',
+                                    facet.var="Order.q")+
   ggtitle("Plants: Rarefaction curves per site")+
   labs(y= "Flower species diversity", x="Number of plots")+
+    #color options: custom_colors, pastel_colors and bicolor_palette, bicolor_bg
     scale_color_manual(values = custom_colors) + # Assign custom colors to sites (curves)
     scale_fill_manual(values = pastel_colors) + # Assign custom colors to sites (confidence intervals)
     scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+  # Assign different shapes for each site
     theme_minimal()+
     theme(legend.position = "bottom")
   )
+
 #ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_plant_sites_q123.png")
 
 #rm(plants1,iNEXT_output_plants, matrix_plant) #remove the matrix and plot to clear up memory
 
 ```
 
-## B.2. Hill number calculation (pooled)
+## B.2. Hill number calculation (pooled) - presence/absence at plot level
 - this time we are pooling all reference sites and all restored sites together to calculate the Hill numbers.
 - The pooled analysis allows us to compare the overall diversity between the two groups of sites.
 
-```{r}
+```{r preparing pooled data for iNEXT}
 #prepare a dataframe for pooled analysis
 pooled <- plants3 %>%
   #new presence/absence column
   mutate(Presence_Absence = ifelse(Cover_percentage > 0, 1, 0))%>%
-  #rm NA in Site
-  filter(!is.na(Site))%>%
   #Replace Na rows in Presence_Absence with 1 (presence)
   mutate(Presence_Absence = ifelse(is.na(Presence_Absence), 1, Presence_Absence))%>%
   #summarize the data by Site_type
@@ -340,12 +350,19 @@ matrix_pooled <- rbind(Total_units = total_units_pooled, matrix_pooled)
 # Print the updated matrix
 head(matrix_pooled)
 ```
-```{r }
+
+
+```{r  }
 #run iNEXT to get the diversity estimates for the pooled data
-set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,   q=c(0,1,2), datatype = 'incidence_freq') #set seed for reproducibility
+set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,   
+                                            q=c(0,1,2), 
+                                            datatype = 'incidence_freq') #set seed for reproducibility
 
 #Plot the results and save the plot
-(rarefaction_plant_pooled <- ggiNEXT(iNEXT_output_pooled, type = 1, color.var = 'Assemblage',facet.var="Order.q")+
+(rarefaction_plant_pooled <- ggiNEXT(iNEXT_output_pooled, 
+                                     type = 1, 
+                                     color.var = 'Assemblage',
+                                     facet.var="Order.q")+
   ggtitle("Plants: Rarefaction curves for pooled data")+
   labs(y= "Flower species diversity", x="Number of plots")+
     #scale_color_manual(values = bicolor_palette) + # Assign custom colors to sites (curves)
@@ -357,7 +374,102 @@ set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,   q=c(0,1,2), datatyp
 
 ```
   
-  
+## B.3. Hill number calculation (cover %)
+- This time we are using the cover percentage data to calculate the Hill numbers.
+- The cover percentage data provides more information about the abundance of each species in the community, which can be used to calculate diversity indices that consider species abundance.
+- We will use `data_type='raw_indicidence'`. (although it is only used with 0 and 1
+
+```{r incidence_raw}
+plantsx <- as.data.frame(plants3)
+
+plantsx <- plantsx %>%
+  filter(!is.na(Cover_percentage)) #remove rows with NA in Cover_percentage
+
+# 9 sites: BUH, DES, HLI, JEP, KOT, STP, WDG, WED, WUP, that have to be transformed into matrices separately
+
+#create one new matrix per site
+matrix_cover_BUH <- create.matrix(x = plantsx[plantsx$Site == 'BUH',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_DES <- create.matrix(x = plantsx[plantsx$Site == 'DES',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_HLI <- create.matrix(x = plantsx[plantsx$Site == 'HLI',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_JEP <- create.matrix(x = plantsx[plantsx$Site == 'JEP',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_KOT <- create.matrix(x = plantsx[plantsx$Site == 'KOT',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_STP <- create.matrix(x = plantsx[plantsx$Site == 'STP',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_WDG <- create.matrix(x = plantsx[plantsx$Site == 'WDG',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_WED <- create.matrix(x = plantsx[plantsx$Site == 'WED',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+matrix_cover_WUP <- create.matrix(x = plantsx[plantsx$Site == 'WUP',],
+                                  tax.name = 'Plant_sp',
+                                  locality = 'Transect',
+                                  abund = TRUE,
+                                  abund.col = 'Cover_percentage')
+
+
+list_matrices_sites <- list('BUH'=matrix_cover_BUH, 
+                            'DES'=matrix_cover_DES, 
+                            'HLI'= matrix_cover_HLI, 
+                            'JEP'=matrix_cover_JEP, 
+                            'KOT' =matrix_cover_KOT,
+                            'STP'=matrix_cover_STP,
+                            'WDG'=matrix_cover_WDG,
+                            'WED'=matrix_cover_WED,
+                            'WUP'=matrix_cover_WUP)
+                      
+
+#run iNEXT to get the diversity estimates for the cover percentage data
+set.seed(2022);iNEXT_output_cover_raw <- iNEXT(list_matrices_sites,   
+                                          q=c(0), 
+                                          datatype = 'incidence_raw') #set seed for 
+
+#plotting
+ggiNEXT (iNEXT_output_cover_raw, type = 1, color.var = 'Assemblage', facet.var="Order.q")+
+  ggtitle("Plants: Rarefaction curves for cover percentage data")+
+  labs(y= "Flower species diversity", x="Number of plots")+
+    scale_color_manual(values = custom_colors) + # Assign custom colors to sites (curves)
+    scale_fill_manual(values = pastel_colors) + # Assign custom colors to sites (confidence intervals)
+    scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+  # Assign different shapes for each site
+    theme_minimal()+
+    theme(legend.position = "bottom")
+
+```
 
 
 
@@ -367,8 +479,6 @@ set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,   q=c(0,1,2), datatyp
 
 # Create a community matrix
 community_matrix <- plants3 %>%
-  #remove NA in Site
-  filter(!is.na(Site)) %>%
   #remove "no flowers" rows in Plant_sp col
   filter(Plant_sp != "no flowers") %>%
   #remove NA rows in Cover_percentage
@@ -441,7 +551,7 @@ permanova_result <- adonis2(community_matrix ~ Site_Type, data = site_scores, pe
 
 
 #glance at results
-permanova_result$aov.ta
+permanova_result
 
 rm(community_matrix, site_scores,nmds_result) #remove the matrix and plot to clear up memory
 ```
@@ -449,20 +559,20 @@ rm(community_matrix, site_scores,nmds_result) #remove the matrix and plot to cle
 
 1. R² Value (Effect Size)
 
-    R² = 0.16375 (16.4% of the variation in species composition is explained by Site_Type)
-    83.6% of the variation is due to other factors (unexplained residual variation)
+    R² = 0.1672 (16.7% of the variation in species composition is explained by Site_Type)
+    83.3% of the variation is due to other factors (unexplained residual variation)
 
 2. F-Model Value (Test Statistic)
 
-    F = 1.3707
+    F = 1.4053
         Higher F-values indicate stronger group differences.
         Here, the effect is weak to moderate.
 
 3. p-value (Significance Test)
 
-    p = 0.181 (not significant at α = 0.05)
+    p = 0.144(not significant at α = 0.05)
         p > 0.05 → No strong evidence that plant communities significantly differ between restored and reference sites.
-        There is a 16.4% effect, but it could be due to chance (not statistically significant).
+        There is a 14.4% effect, but it could be due to chance (not statistically significant).
 
 
 ## E. Aggregate plant data and interaction data
@@ -692,3 +802,84 @@ set.seed(2024);
 networklevel(web = list_of_webs$young_restored, index = "ALLBUTDD") # or do not specify index at all
 
 ```
+```{r bootstrap for network metrics} 
+bootstraps_con = list_of_webs %>%
+  lapply(web_matrix_to_df) %>%
+  boot_networklevel(col_lower = "lower",
+                    col_higher = "higher",
+                    level = "both",
+                    index = "H2",
+                    start = 10,
+                    step = 10,
+                    n_boot = 100,
+                    n_cpu = 2)
+
+gg_networklevel(bootstraps_con)
+  
+```
+
+
+
+### NMDS for netted lowest_taxa pollinators
+```{r}
+# Create a community matrix for pollinators
+community_matrix_pollinators <- net_data %>%
+  select(Site,Site_type, Transect, Lowest_taxa, Total_interaction) %>%
+  group_by(Site, Lowest_taxa) %>%
+  summarise(Total_interaction = sum(Total_interaction, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = Lowest_taxa, values_from = Total_interaction, values_fill = 0) %>%
+  column_to_rownames(var = "Site") # Convert 'Site' column to row names
+
+
+sum(is.na(community_matrix_pollinators)) # Check for missing values
+#transform into matrix
+community_matrix_pollinators <- as.matrix(community_matrix_pollinators)
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123);
+nmds_result_pol <- metaMDS(community_matrix_pollinators, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_pol)
+
+# Plot NMDS results
+# Extract site scores for plotting
+site_scores_pol <- as.data.frame(scores(nmds_result_pol, display = "sites"))
+site_scores_pol$Site <- rownames(site_scores_pol)
+
+# Create a scatterplot
+ggplot(site_scores_pol, aes(x = NMDS1, y = NMDS2, label = Site)) +
+  geom_point(size = 3, color = "blue") +
+  geom_text(vjust = -0.5, size = 4) +
+  theme_minimal() +
+  labs(title = "NMDS of Pollinator Lowest_taxa Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2")
+
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores_pol <- site_scores_pol %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange")
+
+# Plot with customized colors
+ggplot(site_scores_pol, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_pol %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  theme_minimal() +
+  labs(title = "NMDS of Pollinator lowest_taxa Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+
+```
+
