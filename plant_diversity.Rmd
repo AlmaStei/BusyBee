@@ -5,6 +5,19 @@ date: "`r Sys.Date()`"
 output: html_document
 ---
 
+Author: Alma Steireif
+Date: `r Sys.Date()`
+
+### Description
+
+The goal of this script is to clean and standardize plant data collected from 9 sites in Sachsen-Anhalt. 
+The resulting variables are: Site, Site_type, Plant_sp, Transect, Plot, Cover_percentage, BB (Braun-Blanquet scale).
+This is then saved as a .csv file with the cleaned plant data.
+
+One of the major fixes applied to this dataset is the transformation of a mix between cover percentage and Braun-Blanquet scale, to two consistent columns: one with percentages of flower cower and one with categories following the Braun-Blanquet scale. 
+
+After all this, we calculate plant species richness, and estimate plant species diversity using rarefaction curves. The script also performs NMDS analysis to visualize plant species composition between sites and conducts a PERMANOVA test to determine whether plant communities significantly differ between restored and reference sites. The script also aggregates plant data with pollinator interaction data to explore the relationship between flower abundance (cover %) and pollinator interactions.
+
 # 1. Set up 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -103,8 +116,12 @@ plants <- plant_data_load %>%
 
 head(plants)
 ```
+
 ## 2.2. Standardize plant names
-```{r standardize plant names TNRS}
+
+Using the Taxonomic Name Resolution Service (TNRS) to standardize plant names. The TNRS is a tool that helps to resolve and standardize taxonomic names by checking them against a database of known scientific names. This step ensures consistency in plant names and helps to avoid errors in downstream analyses. 
+
+```{r standardize plant names TNRS, eval=FALSE, include=FALSE}
 colnames(plants)
 #next step requires internet connection
 out_rom<- TNRS(taxonomic_names = plants$Plant_sp) # indicating where the scientific names to verify are
@@ -120,6 +137,8 @@ rm(out_rom, to_correct)
 
 
 ## 2.3. Fixing Flower cover estimates (Braun-Blanquet cover abundance scale)
+
+Indications written on the field sheets: 
 - r = rare (1-3 individuals), cover up to 0.5% of the plot [0.1-0.5%]   
 - +  = 3-5 individuals, cover up to 1% of the plot [0.5-1%]   
 - 1 = many individuals (6 to 50 individuals), cover up to 5% of the plot [1-5%]   
@@ -127,6 +146,16 @@ rm(out_rom, to_correct)
 - 3 = very abundant, cover up to 50% of the plot [25-50%]   
 - 4 = dominant, cover up to 75% of the plot [50-75%]   
 - 5 = very dominant, cover up to 100% of the plot [75-100%]  
+
+**Steps:**
+
+1. A new column "BB" is created for the Braun-Blanquet scale. We first fill in the values that are already in the BB scale (+, r, 0, NA).
+2. These same rows are emptied (NA) in the initial Cover_percentage column.
+3. The Cover_percentage column is converted to numeric.
+4. The empty BB values are filled based on the equivalent Cover_percentage values (as indicated above).
+5. The remaining cells in Cover_percentage are still empty (NA), and filled with the equivalent BB values (r -> 0.3%, r -> 0.75%).
+6. The BB column is converted to a factor with the levels in the correct order.
+7. The new data frame is saved as "plants3".
 
 ```{r braun-blanquet}
 #consistency in structure for cover_percentage
@@ -197,6 +226,23 @@ ggplot(plants3, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
   #viridis color palette
   scale_fill_viridis(discrete = TRUE)
 ```
+
+```{r save plants3 data}
+# Save the cleaned plant data in a wide format
+
+#create new column combining the site names, transect and plot
+plants3$Site_Tn_Pn <- paste(plants3$Site, plants3$Transect, plants3$Plot, sep = "_")
+
+# wide format filling with Cover_percentage
+plants3_wide <- plants3 %>%
+  select(-BB)%>%
+  pivot_wider(names_from = Plant_sp, values_from = Cover_percentage, values_fill = 0)
+
+# Save the wide and cleaned plant data
+write.csv(plants3_wide, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/plants3.csv", row.names = FALSE)
+rm(plants3_wide)
+```
+
 # 3. Analysis
 
 ## A. Richness calculation
@@ -222,6 +268,7 @@ ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
 
 *Species-by-sampling-unit matrix (like a checklist for each subplot)*
 
+- plants1: Presence-absence matrix for each plant species in each plot
 - Convert the flower cover percentage cover data to presence-absence data per plot (1 = present, 0 = absent). There were 5 transects per site, and each transect had three plots. 
 - Replace NA values in the Cover_percentage column with 1 (presence), because since the species was written down, it means that it was present in the plot, but the cover % was forgotten/not written down properly. 
 - Remove the "no flowers" rows in the Plant_sp column, as they do not contribute to species richness.
@@ -373,107 +420,9 @@ set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,
   )
 
 ```
-  
-## B.3. Hill number calculation (cover %)
-- This time we are using the cover percentage data to calculate the Hill numbers.
-- The cover percentage data provides more information about the abundance of each species in the community, which can be used to calculate diversity indices that consider species abundance.
-- We will use `data_type='raw_indicidence'`. (although it is only used with 0 and 1
-
-```{r incidence_raw}
-plantsx <- as.data.frame(plants3)
-
-plantsx <- plantsx %>%
-  filter(!is.na(Cover_percentage)) #remove rows with NA in Cover_percentage
-
-# 9 sites: BUH, DES, HLI, JEP, KOT, STP, WDG, WED, WUP, that have to be transformed into matrices separately
-
-#create one new matrix per site
-matrix_cover_BUH <- create.matrix(x = plantsx[plantsx$Site == 'BUH',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_DES <- create.matrix(x = plantsx[plantsx$Site == 'DES',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_HLI <- create.matrix(x = plantsx[plantsx$Site == 'HLI',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_JEP <- create.matrix(x = plantsx[plantsx$Site == 'JEP',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_KOT <- create.matrix(x = plantsx[plantsx$Site == 'KOT',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_STP <- create.matrix(x = plantsx[plantsx$Site == 'STP',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_WDG <- create.matrix(x = plantsx[plantsx$Site == 'WDG',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_WED <- create.matrix(x = plantsx[plantsx$Site == 'WED',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-matrix_cover_WUP <- create.matrix(x = plantsx[plantsx$Site == 'WUP',],
-                                  tax.name = 'Plant_sp',
-                                  locality = 'Transect',
-                                  abund = TRUE,
-                                  abund.col = 'Cover_percentage')
-
-
-list_matrices_sites <- list('BUH'=matrix_cover_BUH, 
-                            'DES'=matrix_cover_DES, 
-                            'HLI'= matrix_cover_HLI, 
-                            'JEP'=matrix_cover_JEP, 
-                            'KOT' =matrix_cover_KOT,
-                            'STP'=matrix_cover_STP,
-                            'WDG'=matrix_cover_WDG,
-                            'WED'=matrix_cover_WED,
-                            'WUP'=matrix_cover_WUP)
-                      
-
-#run iNEXT to get the diversity estimates for the cover percentage data
-set.seed(2022);iNEXT_output_cover_raw <- iNEXT(list_matrices_sites,   
-                                          q=c(0), 
-                                          datatype = 'incidence_raw') #set seed for 
-
-#plotting
-ggiNEXT (iNEXT_output_cover_raw, type = 1, color.var = 'Assemblage', facet.var="Order.q")+
-  ggtitle("Plants: Rarefaction curves for cover percentage data")+
-  labs(y= "Flower species diversity", x="Number of plots")+
-    scale_color_manual(values = custom_colors) + # Assign custom colors to sites (curves)
-    scale_fill_manual(values = pastel_colors) + # Assign custom colors to sites (confidence intervals)
-    scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+  # Assign different shapes for each site
-    theme_minimal()+
-    theme(legend.position = "bottom")
-
-```
-
-
 
 ## C. NMDS 
+
 ```{r}
 # NMDS analysis for plant species composition between the sites
 
