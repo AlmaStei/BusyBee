@@ -8,11 +8,19 @@ output: html_document
 Author: Alma Steireif
 Date: `r Sys.Date()`
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(viridis)
+library(googlesheets4)
+```
+
 ### Description: 
 The goal of this script is to extract the relevant weather data (Summer 2024) from 3 stations of the Deutscher Wetterdienst (DWD) that are the closest to the 9 experimental sites. 
 
 | Stations_id | von_datum  | bis_datum | Stationshoehe | geoBreite | geoLaenge | Stationsname | Bundesland     |
-|-------------|------------|-----------|---------------|-----------|-----------|--------------|----------------|
+|:------------|:-----------|:----------|:--------------|:----------|:----------|:-------------|:---------------|
 | 00722       | 18960101   | 20230725  | 1135          | 51.7986   | 10.6183   | Brocken      | Sachsen-Anhalt |
 | 03126       | 18810101   | 20230725  | 79            | 52.1029   | 11.5827   | Magdeburg    | Sachsen-Anhalt |
 | 02932       | 19340101   | 20230725  | 131           | 51.4347   | 12.2396   | Leipzig/Halle| Sachsen        |
@@ -20,7 +28,7 @@ The goal of this script is to extract the relevant weather data (Summer 2024) fr
 The data of the stations is provided in the following format:
 
 |column name  | description                                 | uom                 | type            | format |
-|-------------|---------------------------------------------|---------------------|-----------------|--------|
+|:------------|:--------------------------------------------|:--------------------|:----------------|:-------|
 | STATIONS_ID | Station ID                                  | VARCHAR2            |                 |        |
 | MESS_DATUM  | reference date                              | NUMBER              | YYYYMMDD        |        |
 | QN_3        | quality level of the following columns      | NUMBER              | numerical code  |        |
@@ -48,7 +56,7 @@ https://opendata.dwd.de/climate_environment/CDC/observations_germany/climate/dai
 An approximation of the distance between the stations and the experimental sites was calulated using the "measure distance" function in Google Earth The distances are as follows:
 
 | Site's name | dist. to Brocken (km)  | dist. to Magdeburg (km) | dist. to Leipzig/Halle (km) | collection dates |
-|-------------|------------------------|-------------------------|-----------------------------|------------------|
+|:------------|:-----------------------|:------------------------|:----------------------------|:-----------------|
 |  BUH        | 24                     | 68                      | 130                         | 13-Aug-24        |
 |  HLI        | 58                     | 66                      | 64                          | 24-Jul-24        |
 |  WDG        | 78                     | 20                      | 107                         | 30-Jul-24        |
@@ -62,13 +70,6 @@ An approximation of the distance between the stations and the experimental sites
 
 
 For BUH and HLI, the Brocken station is the closest, for WDG, WED, STP, WUP, and JEP the Magdeburg station is the closest, and for KOT and DES the Leipzig/Halle station is the closest.
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-
-library(tidyverse)
-library(viridis)
-```
 
 ```{r data loading}
 # load Brocken 
@@ -157,8 +158,64 @@ weather_data <- weather_data %>% select(-SHK_TAG)
 weather_data <- weather_data %>% select(SITE, STATION, DISTANCE, everything())
 ```
 
+### Data from the field work
+
+We also wrote down some weather variables during the field work (wind speed, temperature and overall weather conditions). We will add this data to the weather data frame.
+
+```{r load field data}
+#weather data from the field work 
+field_data <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=1) #sheet 1 has the meta data
+
+
+#keep only row 1 to 45, and col 1 to 11
+field_data <- field_data[1:45, 2:11]
+```
+
+```{r clean field data}
+#"Wind" column contains the unit (kmh) in each row, we will remove it and change column name to wind_kmh
+field_data <- field_data %>% 
+  mutate(Wind = gsub("kmh", "", Wind)) %>% 
+  rename(wind_kmh = Wind) %>%
+  #transform the column to numeric
+  mutate(wind_kmh = as.numeric(wind_kmh))
+
+#"Temperature" column contains the unit (°C) in each row, we will remove it and change column name to temperature_C
+field_data <- field_data %>% 
+  mutate(Temperature = gsub("°C", "", Temperature)) %>% 
+  rename(temperature_C = Temperature) %>%
+  #transform the column to numeric
+  mutate(temperature_C = as.numeric(temperature_C))
+
+#change column name "start time" to "start_time", "site three letter code" to "SITE", and "restoration type" to "restoration_type"
+field_data <- field_data %>% 
+  rename(start_time = "start time") %>%
+  rename(SITE = "site three letter code")%>%
+  rename(restoration_type = "restoration type")%>%
+  
+  #tranform transect, longitude and latittude columns to character
+  mutate(transect = as.character(transect),
+         Longitude = as.character(Longitude),
+         Latitude = as.character(Latitude))%>%
+  
+  #transform rows in start_time from "missing" to NA
+  mutate(start_time = ifelse(start_time == "missing", NA, start_time))%>%
+  #mutate to numeric
+  mutate(start_time = as.numeric(start_time))
+
+
+#create new column that combines transect and site
+field_data <- field_data %>% 
+    mutate(SITE_T = paste(transect, SITE, sep = "_"))
+
+str(field_data)
+```
+
+
 ### Save the data
 
 ```{r}
-write.csv(weather_data, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/weather_data.csv", row.names = FALSE)
+write.csv(weather_data, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/dwd_weather_data.csv", row.names = FALSE)
+write.csv(field_data, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/field_weather_data.csv", row.names = FALSE)
 ```
+
+
