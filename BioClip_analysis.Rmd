@@ -1,0 +1,168 @@
+---
+title: "BioClip_analysis"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+Author: Alma Steireif
+Date: `r Sys.Date()`
+
+### Description
+
+The goal of this script is to reformat the data obtained from the BioClip classification model. 
+
+**flower_cam**: images that were taken above flowers
+  * these are full frame pictures taken above a flower every 5 second   
+  * they have gone through an object detection model to locate insects and crop a new image around them    
+      + yolo11s model was used to detect insects    
+  * the cropped images of the insects that have gone through a classification model to determine to the *family* level    
+      + the classification tool used was pyBioClip (version: )
+      + https://imageomics.github.io/bioclip/ , https://imageomics.github.io/pybioclip/    
+      + Here's the output format of the classification model:    
+      
+| Image_Path          | Family                      | Family_Confidence                         | Classification_Category                                          |
+|:--------------------|:----------------------------|:------------------------------------------|:-----------------------------------------------------------------|
+| /path/to/image.jpg  | family predicted by bioclip | bioclip's confidence in the output class  | Category: stored only if ID belongs to one of 384 valid families |
+| /path/to/image1.jpg | Coccinellidae               | 0.9778                                    | Coccinellidae                                                    |
+| /path/to/image2.jpg | Bromeliaceae                | 0.1797                                    | other_families                                                   |
+ 
+
+**platform_cam**: images taken above platforms   
+  * these images were cropped on site by an object detector contained in the mini-computer accompanying the camera
+  * these crops have gone through two classifiers: 
+  * the first classifier is called InsectDetect, which used a YOLOv5 model to detect insects 
+      + https://maxsitt.github.io/insect-detect-docs/, https://github.com/maxsitt/insect-detect
+      + this model gives the bounding box of the insect and the confidence of the top1 class
+  * the second classifier was pyBioClip again, with the same version as above. 
+  * overall the results were combined to get this type of output: 
+  
+  | img_name | top1 | top1_prob | Family_BioClip | Family_Confidence_BioClip | Classification_Category_BioClip |
+  |:---------|:-----|:----------|:---------------|:--------------------------|:--------------------------------|
+  | img1.jpg | fly  | 0.28      | Muscidae       | 0.5115520358085632        | Muscidae                        |
+  | img2.jpg | fly_small| 0.89  | Asilidae       | 0.7667312026023865        | Asilidae                        |
+  
+  For now I will put the platform_cam data aside and focus on the flower_cam data.
+
+### Load pacakges and data
+
+```{r setup,include=FALSE}
+library(tidyverse)
+
+sessionInfo()
+```
+
+### Flower data
+
+```{r load data, message=FALSE, warning=FALSE}
+# load the flower data for each camera
+flower_cam31 <- read_csv("C:/Users/Almas/bioclip_test/BioClip_testrun/classifications_cam31.csv")
+flower_cam32 <- read_csv("C:/Users/Almas/bioclip_test/BioClip_testrun/classifications_cam32.csv")
+flower_cam33 <- read_csv("C:/Users/Almas/bioclip_test/BioClip_testrun/classifications_cam33.csv")
+flower_cam34 <- read_csv("C:/Users/Almas/bioclip_test/BioClip_testrun/classifications_cam34.csv")
+flower_cam35 <- read_csv("C:/Users/Almas/bioclip_test/BioClip_testrun/classifications_cam35.csv")
+```
+
+```{r filename information}
+#create a function that retrieves data from the filename 
+# this function will be used to create a new column with the camera number, one with the date and one with the time
+get_info <- function(data){
+  data %>%
+    mutate(cam = str_extract(Image_Path, "cam\\d{2}"),
+           date = str_extract(Image_Path, "\\d{4}-\\d{2}-\\d{2}"),
+           #the time is found after the date and an undescore: 2021-06-01_12-00-00
+           time = str_extract(Image_Path, "_(\\d{2}-\\d{2}-\\d{2})")) %>%
+    #remove underscores from the time
+    mutate(time = str_replace_all(time, "_", ""))
+}
+
+flower_cam31 <- get_info(flower_cam31)
+flower_cam32 <- get_info(flower_cam32)
+flower_cam33 <- get_info(flower_cam33)
+flower_cam34 <- get_info(flower_cam34)
+flower_cam35 <- get_info(flower_cam35)
+```
+
+
+```{r combine data}
+#combine the data from all cameras
+flower_cam <- bind_rows(flower_cam31, flower_cam32, flower_cam33, flower_cam34, flower_cam35)
+```
+
+```{r additional field data - site assignment}
+flower_cam <- flower_cam %>%
+mutate(site = case_when(
+    grepl("2024-07-11", date) ~ "WED",  # Match the 11th July to Wedringen
+    grepl("2024-07-14", date) ~ "STP",  # Match the 14th July to Steutz
+    grepl("2024-07-18", date) ~ "JEP",  # Match the 18th July to Jerichow
+    grepl("2024-07-20", date) ~ "KOT",  # Match the 20th July to Köthen
+    grepl("2024-07-21", date) ~ "DES",  # Match the 21nd July to Dessau
+    grepl("2024-07-24", date) ~ "HLI",  # Match the 24th July to Pölsfeld
+    grepl("2024-07-29", date) ~ "WUP",  # Match the 29th July to Wulfen
+    grepl("2024-07-30", date) ~ "WDG",  # Match the 30th July to Wedringen
+    grepl("2024-08-13", date) ~ "BUH",  # Match the 13th August to Bühne
+    TRUE ~ "UNKNOWN"  # Default value
+  ))
+```
+
+
+```{r additional field data - flower assignment}
+# Assign flower species to each camera trap
+flower_cam <- flower_cam |>
+  mutate(flower_sp = case_when(
+    grepl("cam31", cam) & grepl("2024-07-11", date) ~ "Knautia arvensis", #cam31, 11th July, Knautia arvensis
+    grepl("cam31", cam) & grepl("2024-07-14", date) ~ "Daucus carota", #cam31, 14th July, Daucus carota
+    grepl("cam31", cam) & grepl("2024-07-18", date) ~ "Hypericum perforatum", #cam31, 18th July, Hypericum perforatum
+    grepl("cam31", cam) & grepl("2024-07-20", date) ~ "Pastinaca sativa", #cam31, 20th July, Pastinaca sativa
+    grepl("cam31", cam) & grepl("2024-07-21", date) ~ "Daucus carota", #cam31, 21st July, Daucus carota
+    grepl("cam31", cam) & grepl("2024-07-24", date) ~ "Pastinaca sativa", #cam31, 24th July, Pastinaca sativa  
+    grepl("cam31", cam) & grepl("2024-07-29", date) ~ "Pastinaca sativa", #cam31, 29th July, Pastinaca sativa
+    grepl("cam31", cam) & grepl("2024-07-30", date) ~ "Galium album", #cam31, 30th July, Galium album
+    grepl("cam31", cam) & grepl("2024-08-13", date) ~ "Lotus corniculatus", #cam31, 13th August, Lotus corniculatus
+    
+    grepl("cam32", cam) & grepl("2024-07-11", date) ~ "Knautia arvensis", #cam32, 11th July, Knautia arvensis
+    grepl("cam32", cam) & grepl("2024-07-14", date) ~ "Crepis biennis", #cam32, 14th July, Crepis biennis
+    grepl("cam32", cam) & grepl("2024-07-18", date) ~ "Peucedanum officinale", #cam32, 18th July, Peucedanum officinale
+    grepl("cam32", cam) & grepl("2024-07-20", date) ~ "Knautia arvensis", #cam32, 20th July, Knautia arvensis
+    grepl("cam32", cam) & grepl("2024-07-21", date) ~ "Crepis biennis", #cam32, 21st July, Crepis biennis
+    grepl("cam32", cam) & grepl("2024-07-24", date) ~ "Knautia arvensis", #cam32, 24th July, Knautia arvensis
+    grepl("cam32", cam) & grepl("2024-07-29", date) ~ "Crepis biennis", #cam32, 29th July, Crepis biennis
+    grepl("cam32", cam) & grepl("2024-07-30", date) ~ "Pastinaca sativa", #cam32, 30th July, Pastinaca sativa
+    grepl("cam32", cam) & grepl("2024-08-13", date) ~ "Galium album", #cam32, 13th August, Galium album
+    
+    grepl("cam33", cam) & grepl("2024-07-11", date) ~ "Daucus carota", #cam33, 11th July, Daucus carota
+    grepl("cam33", cam) & grepl("2024-07-14", date) ~ "Trifolium repens", #cam33, 14th July, Trifolium repens
+    grepl("cam33", cam) & grepl("2024-07-18", date) ~ "Galium boreale", #cam33, 18th July, Galium boreale
+    grepl("cam33", cam) & grepl("2024-07-20", date) ~ "Crepis biennis", #cam33, 20th July, Crepis biennis
+    grepl("cam33", cam) & grepl("2024-07-21", date) ~ "Crepis biennis", #cam33, 21st July, Crepis biennis
+    grepl("cam33", cam) & grepl("2024-07-24", date) ~ "Hypericum perforatum", #cam33, 24th July, Hypericum perforatum
+    grepl("cam33", cam) & grepl("2024-07-29", date) ~ "Pastinaca sativa", #cam33, 29th July, Pastinaca sativa
+    grepl("cam33", cam) & grepl("2024-07-30", date) ~ "Centaurea jacea", #cam33, 30th July, Centaurea jacea
+    grepl("cam33", cam) & grepl("2024-08-13", date) ~ "Trifolium pratense", #cam33, 13th August, Trifolium pratense
+    
+    grepl("cam34", cam) & grepl("2024-07-11", date) ~ "Pastinaca sativa", #cam34, 11th July, Pastinaca sativa
+    grepl("cam34", cam) & grepl("2024-07-14", date) ~ "Knautia arvensis", #cam34, 14th July, Knautia arvensis
+    grepl("cam34", cam) & grepl("2024-07-18", date) ~ "Peucedanum officinale", #cam34, 18th July, Peucedanum officinale
+    grepl("cam34", cam) & grepl("2024-07-20", date) ~ "Daucus carota", #cam34, 20th July, Daucus carota
+    grepl("cam34", cam) & grepl("2024-07-21", date) ~ "Trifolium pratense", #cam34, 21st July, Trifolium pratense
+    grepl("cam34", cam) & grepl("2024-07-24", date) ~ "Trifolium pratense", #cam34, 24th July, Trifolium pratense
+    grepl("cam34", cam) & grepl("2024-07-29", date) ~ "Daucus carota", #cam34, 29th July, Daucus carota
+    grepl("cam34", cam) & grepl("2024-07-30", date) ~ "Dianthus carthusianorum", #cam34, 30th July, Dianthus carthusianorum
+    grepl("cam34", cam) & grepl("2024-08-13", date) ~ "Daucus carota", #cam34, 13th August, Daucus carota
+    
+    grepl("cam35", cam) & grepl("2024-07-11", date) ~ "Pastinaca sativa", #cam35, 11th July, Pastinaca sativa
+    grepl("cam35", cam) & grepl("2024-07-14", date) ~ "Hypericum perforatum", #cam35, 14th July, Hypericum perforatum
+    grepl("cam35", cam) & grepl("2024-07-18", date) ~ "Pastinaca sativa", #cam35, 18th July, Pastinaca sativa
+    grepl("cam35", cam) & grepl("2024-07-20", date) ~ "Crepis biennis", #cam35, 20th July, Crepis biennis
+    grepl("cam35", cam) & grepl("2024-07-21", date) ~ "Pastinaca sativa", #cam35, 21st July, Pastinaca sativa
+    grepl("cam35", cam) & grepl("2024-07-24", date) ~ "Hypericum perforatum", #cam35, 24th July, Hypericum perforatum
+    grepl("cam35", cam) & grepl("2024-07-29", date) ~ "Pastinaca sativa", #cam35, 29th July, Pastinaca sativa
+    grepl("cam35", cam) & grepl("2024-07-30", date) ~ "Daucus carota", #cam35, 30th July, Daucus carota
+    grepl("cam35", cam) & grepl("2024-08-13", date) ~ "Trifolium pratense" #cam35, 13th August, Trifolium pratense
+  ))
+```
+
+```{r save data}
+#save the data as a csv file
+write_csv(flower_cam, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/bioclip_flower_cams.csv")
+```
