@@ -41,7 +41,7 @@ worldcover <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject
 The landcover classes are coded as numbers in the data. For now we are keping the codes as they are, and adding a prefix "CORINE" to the landcover class names.
 
 | Code | Landcover class |
-|------|-----------------|
+|:-----|:----------------|
 | 1    | Continuous urban fabric |
 | 2    | Discontinuous urban fabric |
 | 3    | Industrial or commercial units |
@@ -78,7 +78,7 @@ corine_wide <- corine %>%
 The landcover classes are also coded as numbers in the data. We will add a prefix "ESAWC" to the landcover class names and transform the data to wide format.
 
 | Code | Landcover class |
-|------|-----------------|
+|:-----|:----------------|
 | 10   | Tree Cover |
 | 30   | Grassland |
 | 40   | Cropland |
