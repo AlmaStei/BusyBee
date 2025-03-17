@@ -1,0 +1,321 @@
+---
+title: "Overall_analysis_GLMM"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+      toc: TRUE
+---
+
+## 0.0. Description
+
+
+
+
+
+
+## 0.1. Setup - libraries
+
+```{r setup, include=FALSE}
+library(tidyverse) 
+library(vegan)  # For diversity indices
+library(performance)
+library(easystats)
+
+library(reshape2)
+```
+
+## 0.2. Setup - aesthetics
+
+```{r custom colors}
+#define custom colors for plotting
+saturated_pal <- c(
+  #reference sites
+  "DES" = "#FEE0B6FF",  # Yellow
+  "HLI" = "#FDB863FF",  # Dark Orange
+  "JEP" = "#E08214FF",  # Deep Orange
+  "STP" = "#B35806FF",  # Dark Orange
+  "WUP" = "#7F3B08FF",  # Red-Orange
+  # restored sites
+  "BUH" = "#93C6E1FF",  # Dark Green
+  "KOT" = "#5F93ACFF",  # Medium Green
+  "WDG" = "#2E627AFF",  # Light Blue
+  "WED" = "#00344AFF"   # Steel Blue
+)
+
+
+
+# bicolor palette
+bicolor_pal <- c(
+  "DES" = "darkorange",  
+  "HLI" = "darkorange",  
+  "JEP" = "darkorange",  
+  "STP" = "darkorange",
+  "WUP" = "darkorange",
+  "BUH" = "steelblue",  
+  "KOT" = "steelblue",  
+  "WDG" = "steelblue",  
+  "WED" = "steelblue" 
+)
+
+bicolor_bg <- c(
+  "DES" = "lightyellow",  
+  "HLI" = "lightyellow",  
+  "JEP" = "lightyellow",  
+  "STP" = "lightyellow",
+  "WUP" = "lightyellow",
+  "BUH" = "lightblue1",  
+  "KOT" = "lightblue1",  
+  "WDG" = "lightblue1",  
+  "WED" = "lightblue1" 
+)
+
+```
+
+
+
+## 0.3. Setup - data
+
+```{r load csv}
+### Environmental data ------------
+
+## landscape data from "C:\Users\Almas\Desktop\UNI_LEIPSI\Thesis\Thesis_Rproject\data\landscape_data.csv"
+landscape_data <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/landscape_data.csv")
+
+## weather data from the Deutscher Wetterdienst (DWD)
+dwd_weather <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/dwd_weather_data.csv")
+
+## weather data from the field
+field_weather <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/field_weather_data.csv")
+
+## plant data
+plants <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/plants3.csv")
+
+## extrapolated plant data
+inext_plants <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/iNext_AsyEst_plants.csv")
+
+### Traditional methods ------------
+
+## netting data for families
+net_family <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_family.csv")
+
+## netting data for lowest taxa level
+net_lowest <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_taxa.csv")
+
+## pan trap data for families
+pan_family <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/bowltrap_clean.csv")
+
+### Cameras ------------
+
+## flower camera data
+flower_camera <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/bioclip_flower_cams.csv")
+
+## platfrom camera data 
+platform_camera <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/InsectDetect_platform_cams.csv")
+```
+
+
+## 1.1. Plant diversity
+
+
+### 1.1.1. Plant Diversity Estimates from iNext
+
+
+```{r}
+colnames(plants)
+
+# change format of inext_plants -> wide format
+inext_plants_wide <- inext_plants %>%
+  #transform column names to shortened version -> easier to read
+  # Observed to obs, Estimator to est, s.e. to se, LCL to lcl, UCL to ucl
+  rename_with(~ gsub("Observed", "obs", .), contains("Observed")) %>%
+  rename_with(~ gsub("Estimator", "est", .), contains("Estimator")) %>%
+  rename_with(~ gsub("s.e.", "se", .), contains("s.e.")) %>%
+  rename_with(~ gsub("LCL", "lcl", .), contains("LCL")) %>%
+  rename_with(~ gsub("UCL", "ucl", .), contains("UCL")) %>%
+  #pivot wider to get the data in wide format
+  pivot_wider(
+    names_from = Diversity, 
+    values_from = c(obs, est, se, lcl, ucl),
+    names_glue = "{Diversity}_{.value}"  # Custom column names
+  ) %>%
+  rename_with(~ gsub(" ", "_", .), everything())%>%  # Replace spaces with underscores
+  # transform diversity colnames to shorter versions
+  # Species_richness to sp_rich, Shannon_diversity to shannon, Simpson_diversity to simpson
+  rename_with(~ gsub("Species_richness", "sp_rich", .), contains("Species_richness")) %>%
+  rename_with(~ gsub("Shannon_diversity", "shannon", .), contains("Shannon_diversity")) %>%
+  rename_with(~ gsub("Simpson_diversity", "simpson", .), contains("Simpson_diversity"))%>%
+    #renames Assemblage to Site
+  rename(Site = Assemblage)%>%
+  #reorder columns to have this order: 
+  #Site, Transect, sp_rich_obs, sp_rich_est, sp_rich_se, sp_rich_lcl, sp_rich_ucl, shannon_obs, shannon_est, shannon_se, shannon_lcl, shannon_ucl, simpson_obs, simpson_est, simpson_se, simpson_lcl, simpson_ucl
+  select(Site, sp_rich_obs, sp_rich_est, sp_rich_se, sp_rich_lcl, sp_rich_ucl, shannon_obs, shannon_est, shannon_se, shannon_lcl, shannon_ucl, simpson_obs, simpson_est, simpson_se, simpson_lcl, simpson_ucl)
+
+```
+
+```{r}
+# Calculate the Shannon Index and Species Richness for each Transect
+
+diversity_scores <- plants %>%
+  select(-Site_Tn_Pn, -BB) %>%
+  group_by(Site, Transect) %>%
+  summarise(
+    # Calculate species richness (number of species present in each Transect)
+    Species_Richness = n_distinct(Plant_sp),
+    
+    # Calculate weighted Shannon Index
+    Shannon_Index = -sum((Cover_percentage / 100) * log(Cover_percentage / 100), na.rm = TRUE),
+    .groups = 'drop'  # Ensures results are ungrouped
+  )
+
+
+ggplot(diversity_scores, aes(x = Transect, y = Shannon_Index, fill = Site)) +
+  #fill bars with Site colors
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(
+    title = "Plant Species Richness per Transect",
+    x = "Transect",
+    y = "Shannon Richness",
+    fill = "Site")+
+    scale_fill_manual(values = saturated_pal)
+
+
+ggplot(diversity_scores, aes(x = Transect, y = Species_Richness, fill = Site)) +
+  #fill bars with Site colors
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  labs(
+    title = "Plant Species Richness per Transect",
+    x = "Transect",
+    y = "Species Richness",
+    fill = "Site")+
+    scale_fill_manual(values = saturated_pal)
+
+
+# Convert to long format
+inext_plants_long <- inext_plants_wide %>%
+  pivot_longer(cols = c(sp_rich_obs, sp_rich_est), 
+               names_to = "Type", 
+               values_to = "Richness")
+
+# Plot with two bars per Site
+ggplot(inext_plants_long, aes(x = reorder(Site, -Richness), y = Richness, fill = Type)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Dodge for side-by-side bars
+  theme_minimal() +
+  labs(
+    title = "Observed vs Estimated Species Richness per Site",
+    x = "Site",
+    y = "Species Richness",
+    fill = "Richness Type"
+  ) +
+  scale_fill_manual(values = c("sp_rich_obs" =  saturated_pal, "sp_rich_est" = "gray"))  # Custom colors
+
+#plot Shannon_index per site from inext_plants_wide
+inext_plants_wide %>%
+  ggplot(aes(x = reorder(Site, shannon_obs),y = shannon_obs, fill = Site)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(
+    title = "Shannon Index per Site",
+    x = "Site",
+    y = "Shannon Index",
+    fill = "Site")+
+    scale_fill_manual(values = saturated_pal)
+```
+
+## 1.2. Plant diversity vs pollinator interactions
+
+Here we take plant diversity scores for each transect and compare them to the sum of pollinator interactions per transect. 
+
+```{r plant diverstiy vs pollinator lowest taxa}
+  
+#adding the gradient of plant diversity to the netting pollinator data 
+pollinator_net_lt <- net_lowest %>%
+  #long format from col7 to last col
+  pivot_longer(cols = 7:last_col(), names_to = "Taxa", values_to = "Count") %>%
+  #remove 0 count values
+  filter(Count > 0) %>%
+  #group by Site and Transect
+  group_by(site, transect) %>%
+  #sum the counts of each Taxa
+  summarise(total_interaction = sum(Count)) %>%
+  #join the diversity scores to the pollinator interaction data
+  left_join(diversity_scores, by = c("site" = "Site", "transect" = "Transect"))%>%
+  #change clumn names to have Site and Transect
+  rename(Site = site, Transect = transect)
+
+#scatterplot of Species richness vs. Total Interactions, custom colors for the sites
+ggplot(pollinator_net_lt, aes(x = Species_Richness, y = total_interaction)) +
+  geom_point(aes(color = Site)) +  # Apply the color based on Site
+  geom_smooth(method = "lm", se = TRUE, color = "blue") +  # Add a linear regression line
+  labs(title = "Plant Species Richness vs. Total Interactions",
+       x = "Plant Species Richness",
+       y = "Total Interactions") +
+  theme_minimal() +
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+
+#remove outliers in total interactions
+pol_div <- pollinator_net_lt %>%
+  filter(total_interaction < 90)
+
+#scatterplot of Species richness vs. Total Interactions with 2 outliers removed, using custom colors for the sites
+
+ggplot(pol_div, aes(x = Species_Richness, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "blue") +
+  labs(title = "Plant species Richness vs. Total Interactions",
+       x = "Plant species Richness",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+  
+
+## shannon
+
+#scatterplot of Shannon Index vs. Total Interactions
+ggplot(pollinator_net_lt, aes(x = Shannon_Index, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "blue") +
+  labs(title = "Shannon Index vs. Total Interactions",
+       x = "Shannon Index",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+
+#scatterplot of Shannon Index vs. Total Interactions with 2 outliers removed
+ggplot(pol_div, aes(x = Shannon_Index, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "blue") +
+  labs(title = "Shannon Index vs. Total Interactions",
+       x = "Shannon Index",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")+
+  #give each site a unique shape 
+  geom_point(aes(shape = Site))+
+  scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))+
+  theme(legend.position = "bottom")
+
+```
+
+## 1.3. Pollinator diversity vs weather
+
+```{r}
+#weather data from the field
+
+
+
+```
+
+
