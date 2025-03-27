@@ -19,6 +19,8 @@ Data was accessed from the Copernicus Land Monitoring Service (CLMS) and the Eur
 
 The data was then processed in QGIS to extract the surface in square meters covered by each land cover class in 1km buffers around the study sites. The data was then exported as .csv files. 
 
+For the purpose of this research, we kept only the CORINE land cover classes, adn combined some of the classes to reduce the number of classes in the data. We also calculated the relative cover ratio for each land cover class in each buffer. 
+
 ```{r setup, include=FALSE}
 library(tidyverse)
 ```
@@ -38,7 +40,7 @@ worldcover <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject
 
 #### CORINE
 
-The landcover classes are coded as numbers in the data. For now we are keping the codes as they are, and adding a prefix "CORINE" to the landcover class names.
+The landcover classes are coded as numbers in the data. For now we are keeping the codes as they are, and adding a prefix "CORINE" to the landcover class names.
 
 | Code | Landcover class |
 |:-----|:----------------|
@@ -71,6 +73,74 @@ corine_wide <- corine %>%
   pivot_wider(names_from = LandCover, values_from = Area_m2)%>%
   #replace NA with 0
   replace(is.na(.), 0)
+
+#site names - add a prefix indicating the site_type
+#  for "DES", "HLI", "JEP", "STP", "WUP"  add "ref" - reference sites
+# for  "BUH" ,   "KOT"  ,  "WDG",    "WED" add "res" - restored sites
+corine_wide$Site <- ifelse(corine_wide$Site %in% c("DES", "HLI", "JEP", "STP", "WUP"), paste("ref", corine_wide$Site, sep = "_"), paste("res", corine_wide$Site, sep = "_"))
+
+```
+
+The CORINE dataset has many classes of land cover, some of which are very similar and this level of precision is not needed in the scope of this research. We will combine some of the classes to reduce the number of classes in the data. Here are the new 6 classes
+
+1. Agricultural land - agri
+    - Non-irrigated arable land
+    
+2. Grassland - grass
+    - Pastures
+    - Natural grasslands
+3. Semi-natural habitat - snh
+    - transitional woodland-shrub
+4. Forest - forest
+    - Broad-leaved forest
+    - Coniferous forest
+5. Urban - urban
+    - Continuous urban fabric
+    - Discontinuous urban fabric
+    - Industrial or commercial units
+    - Sports and leisure facilities
+6. Water - water
+    - Inland marshes
+
+```{r combine classes}
+#combine the classes
+corine_wide_reduced <- corine_wide %>%
+  mutate(agri = CORINE_12,
+         grass = CORINE_18 + CORINE_26,
+         snh = CORINE_29,
+         forest = CORINE_23 + CORINE_24,
+         urban = CORINE_01 + CORINE_02 + CORINE_03 + CORINE_11,
+         water = CORINE_35) %>%
+  select(Site, agri, grass, snh, forest, urban, water)
+```
+
+##### CORINE - Relative cover ratio
+
+For now, the data is in square meters. We will calculate the relative cover ratio for each land cover class in each buffer. The relative cover ratio is the proportion of the buffer that is covered by each land cover class. 
+
+$$Relative\ cover\ ratio = \frac{Area\ of\ landcover\ class}{Total\ area\ of\ buffer}$$
+Since the buffers are all 1km in radius, the total area of the buffer is $pi*r^2= pi*(1000m)^2 = 3141592.65359 m^2$
+
+
+```{r relative_cover_ratio}
+#calculate the relative cover ratio
+corine_relative <- corine_wide_reduced %>%
+  mutate(agri = agri / 3141592.65359,
+         grass = grass / 3141592.65359,
+         snh = snh / 3141592.65359,
+         forest = forest / 3141592.65359,
+         urban = urban / 3141592.65359,
+         water = water / 3141592.65359)%>%
+  #times 100 to get the percentage
+  mutate(across(agri:water, ~ .x * 100))%>%
+    #round to 4 decimal places
+  mutate(across(agri:water, ~ round(.x, 3)))
+```
+
+### Save the data
+
+```{r}
+write.csv(corine_relative, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/corine_data.csv", row.names = FALSE)
 ```
 
 #### ESA WorldCover
@@ -100,26 +170,18 @@ worldcover_wide <- worldcover %>%
   pivot_wider(names_from = LandCover, values_from = Area_m2)%>%
   #replace NA with 0
   replace(is.na(.), 0)
+
+
+  #add site_type prefix
+worldcover_wide$Site <- ifelse(worldcover_wide$Site %in% c("DES", "HLI", "JEP", "STP", "WUP"), paste("ref", worldcover_wide$Site, sep = "_"), paste("res", worldcover_wide$Site, sep = "_"))
+
 ```
 
-### Combine both landcover data
-
-```{r combine}
-# combine the two data frames
-landscape_data <- corine_wide %>% 
-  left_join(worldcover_wide, by = "Site") 
-```
-
-### Save the data
-
-```{r}
-write.csv(landscape_data, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/landscape_data.csv", row.names = FALSE)
-```
 
 ### Vizualise the data
 
 ```{r}
-#vector conatinaing the CORINE legend for the pie chart with the landcover classes names
+#vector continaing the CORINE legend for the pie chart with the landcover classes names
 CORINE_legend <- c("Continuous urban fabric", "Discontinuous urban fabric", "Industrial or commercial units", "Sports and leisure facilities", "Non-irrigated arable land", "Pastures", "Broad-leaved forest", "Coniferous forest", "Natural grasslands", "Transitional woodland-shrub", "Inland marshes")
 
 #plot the data in a pie chart for CORINE only with custom legend
@@ -132,20 +194,40 @@ corine_wide %>%
   theme_void() +
   theme(legend.position = "bottom") +
   scale_fill_manual(values = c("CORINE_01" = "#FA6900FF", "CORINE_02" = "#F38630FF", "CORINE_03" = "#BE3428FF", "CORINE_11" = "#8785B2FF", "CORINE_12" = "#D6CFB7FF", "CORINE_18" = "#a3b18a", "CORINE_23" = "#121510FF", "CORINE_24" = "#006400", "CORINE_26" = "#6D8325FF", "CORINE_29" = "#647D4BFF", "CORINE_35" = "#7FC7AFFF"), labels = CORINE_legend) +
-  labs(title = "2021 CORINE Landcover in 1km buffers around study sites")
+  labs(title = "2018 CORINE Landcover in 1km buffers around study sites")
 
-#vector conatinaing the ESAWC legend for the pie chart with the landcover classes names
-ESAWC_legend <- c("Tree Cover", "Grassland", "Cropland", "Built-up", "Bare / Sparse vegetation", "Permanent Water Bodies", "Wetlands")
-
-#plot the data in a pie chart for ESAWC only with legend
-worldcover_wide %>%
+#plot the data in a pie chart for CORINE only with custom legend
+plot1 <- corine_wide_reduced %>%
   gather(key = "LandCover", value = "Area_m2", -Site) %>%
   ggplot(aes(x = "", y = Area_m2, fill = LandCover)) +
   geom_bar(stat = "identity", width = 1) +
   coord_polar("y") +
   facet_wrap(~Site) +
   theme_void() +
-  theme(legend.position = "bottom") +
-  scale_fill_manual(values = c("ESAWC_10" = "#121510FF", "ESAWC_30" = "#6D8325FF", "ESAWC_40" = "#D6CFB7FF", "ESAWC_50" = "#BD5630FF", "ESAWC_60" = "brown", "ESAWC_80" = "#3FB8AFFF", "ESAWC_90" = "#7FC7AFFF"), labels = ESAWC_legend) +
-  labs(title = "2018 ESAWC Landcover in 1km buffers around study sites")
+  theme(legend.position = "right") +
+  scale_fill_manual(values = c("agri" = "#D6CFB7FF", "grass" = "#6D8325FF", "snh" = "#647D4BFF", "forest" = "#121510FF", "urban" = "#FA6900FF", "water" = "#7FC7AFFF")) +
+  labs(title = "2018 CORINE Landcover in 1km \t
+       buffers around study sites")
+
+#vector containaing the ESAWC legend for the pie chart with the landcover classes names
+ESAWC_legend <- c("Tree Cover", "Grassland", "Cropland", "Built-up", "Bare / Sparse vegetation", "Permanent Water Bodies", "Wetlands")
+
+#plot the data in a pie chart for ESAWC only with legend
+plot2 <- worldcover_wide %>%
+  gather(key = "LandCover", value = "Area_m2", -Site) %>%
+  ggplot(aes(x = "", y = Area_m2, fill = LandCover)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  facet_wrap(~Site) +
+  theme_void() +
+  theme(legend.position = "right") +
+  scale_fill_manual(values = c("ESAWC_10" = "#121510FF", "ESAWC_30" = "#6D8325FF", "ESAWC_40" = "#D6CFB7FF", "ESAWC_50" = "#BD5630FF", "ESAWC_60" = "#647D4BFF", "ESAWC_80" = "#3FB8AFFF", "ESAWC_90" = "#7FC7AFFF"), labels = ESAWC_legend) +
+  labs(title = "2021 ESAWC Landcover in 1km \t
+       buffers around study sites")
+
+#combine the plots and adjust the margins
+final_plot <- plot1 | plot2 + plot_layout(guides = "collect") & 
+  theme(plot.margin = margin(5, 5, 5, 5)) # Adjust margins if needed
+
+print(final_plot)
 ```
