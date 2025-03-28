@@ -56,12 +56,15 @@ library(googlesheets4) #package to read google sheets
 library(tidyverse) 
 library(viridis) #color palette
 
-library(iNEXT) #package to run rarefaction curves
-library(fossil) 
+library(TNRS) # Resolve plant taxonomic names
 
 library(vegan)#package to run metaNMDS
 
-library(TNRS) # Resolve plant taxonomic names
+library(iNEXT) #package to run rarefaction curves
+library(fossil) 
+
+library(gridExtra) # Arrange multiple plots
+library(patchwork) # Arrange multiple plot
 
 plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 3 has the plant data
 ```
@@ -70,32 +73,31 @@ plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6
 #define custom colors for plotting
 custom_colors <- c(
   #reference sites
-  "DES" = "#FFCC00",  # Yellow
-  "HLI" = "#FF9900",  # Dark Orange
-  "JEP" = "#FF6600",  # Deep Orange
-  "STP" = "#B53737FF",  # Dark Orange
-  "WUP" = "#5E0000FF",  # Red-Orange
+  "DES" = "#7F3B19FF",  
+  "HLI" = "#FDB863FF",  
+  "JEP" = "#E08214FF",  
+  "STP" = "#B35806FF",
+  "WUP" = "#F7B059FF",
   # restored sites
-  "BUH" = "#006400",  # Dark Green
-  "KOT" = "#5aae61",  # Medium Green
-  "WDG" = "#67a9cf",  # Light Blue
-  "WED" = "#4682B4"   # Steel Blue
+  "BUH" = "#93C6E1FF",  
+  "KOT" = "#5F93ACFF",  
+  "WDG" = "#2E627AFF",  
+  "WED" = "#00344AFF"  
 )
 
-#pastel palette for confidence intervals
+
+#corresponding pastel palette for confidence intervals
 pastel_colors <- c(
-  # reference sites 
-  "DES" = "#FDF3B9",  # Pale Yellow
-  "HLI" = "#F6D6AD",  # Light Peach
-  "JEP" = "#F4C095",  # Pastel Orange
-  "STP" = "#F7CAC9",  # Soft Coral
-  "WUP" = "#EDA9ABFF",  # 
-  #restored sites 
-  "BUH" = "#A8D5BA",  # Pastel Green
-  "KOT" = "#B8E0D2",  # Pastel Teal
-  "WDG" = "#A7C7E7",  # Light Blue
-  "WED" = "#89ABE3"   # Soft Periwinkle
-)
+    "DES" = "#FFD1A9",  
+    "HLI" = "#FFE6B3",  
+    "JEP" = "#FFD699",  
+    "STP" = "#FFCC80",
+    "WUP" = "#FFE6CC",
+    "BUH" = "#CCEBFF",  
+    "KOT" = "#B3D9FF",  
+    "WDG" = "#99C2FF",  
+    "WED" = "#80B0FF"  
+  )
 
 # bicolor palette
 bicolor_palette <- c(
@@ -275,7 +277,7 @@ ggplot(plants3, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
 
 # 2. Processing plant data
 
-## A.1. NMDS 
+## A.1. NMDS - Average flower cover per site
 
 ```{r}
 # NMDS analysis for plant species composition between the sites
@@ -287,7 +289,7 @@ community_matrix <- plants3 %>%
   #remove NA rows in Cover_percentage
   filter(!is.na(Cover_percentage)) %>%
   group_by(Site, Plant_sp) %>%
-  summarise(Cover_percentage = sum(Cover_percentage), .groups = "drop") %>%
+  summarise(Cover_percentage = mean(Cover_percentage), .groups = "drop") %>%
   pivot_wider(names_from = Plant_sp, values_from = Cover_percentage, values_fill = 0) %>%
   column_to_rownames(var = "Site") # Convert 'Site' column to row names
 
@@ -480,9 +482,39 @@ ggplot(simper_df[54:69,], aes(x = AvDiss, y = Contrib, label = Species)) +
 length(simper_df$Species) # 69 species in total
 ```
 
+- Understanding SIMPER Output: Contribution % and Average Dissimilarity
+
+SIMPER (Similarity Percentage Analysis) helps identify which species contribute the most to the difference between groups (e.g., Restored vs. Reference sites). It breaks down Bray-Curtis dissimilarity into individual species contributions.
+
+1.  Average Dissimilarity (AvDiss)
+
+    This value represents the average dissimilarity between the two groups.
+    It tells you how different the species compositions are, on average, between sites.
+    A higher AvDiss means the sites are more different in species composition.
+
+2.  Contribution % (Contrib)
+
+    This shows how much each species contributes to the total dissimilarity between groups.
+    The sum of contributions for all species adds up to 100%.
+    Higher contribution % = species is driving the difference between groups.
+
+- Example:  
+
+|Species |AvDiss  |Contrib %  |
+|--------|--------|-----------|
+|Daucus carota |0.12 |15.6% |
+|Trifolium pratense |0.10 |12.8% |
+|Lotus corniculatus |0.08 |10.2% |
+
+    Daucus carota contributes 15.6% to the total difference between site types.
+    The species with the highest Contrib % are the most important in differentiating the groups.
+
+```{r}
+#remove extra data
+rm(simper_result, permanova_result, anosim_result, simper_df, site_scores)
+```
 
 ## B. iNext Approach
-
 
 ## B.1. Hill number calculation (not pooled) - presence/absence at plot level 
 
@@ -565,8 +597,6 @@ set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,
   )
 
 #ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/rarefaction_plant_sites_q123.png")
-
-#rm(plants1,iNEXT_output_plants, matrix_plant) #remove the matrix and plot to clear up memory
 ```
 
 
@@ -603,15 +633,15 @@ ggiNEXT(iNEXT_output_plants, type=3, color.var ="Assemblage",facet.var="Order.q"
 
 ```{r save iNext as csv, echo=FALSE}
 # Check the data
-view(iNEXT_output_plants$iNextEst)
-head(iNEXT_output_plants[["iNextEst"]])
+#view(iNEXT_output_plants$iNextEst)
+#head(iNEXT_output_plants[["iNextEst"]])
          
 
 # Check the asymptotic estimates
-view(iNEXT_output_plants$AsyEst)
+#view(iNEXT_output_plants$AsyEst)
 
 # Check the data information
-view(iNEXT_output_plants$DataInfo)
+#view(iNEXT_output_plants$DataInfo)
 
 #save the AsyEst data as csv
 write.csv(iNEXT_output_plants$AsyEst, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/iNext_AsyEst_plants.csv", row.names = FALSE)
@@ -689,114 +719,202 @@ set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,
   )
 ```
 
-## C. Relative
+```{r}
+#remove all iNext data to clear up memory
+rm(iNEXT_output_plants, matrix_plant, plants1)
+rm(rarefaction_plant_sites, rarefaction_plant_pooled)
+rm(matrix_pooled, iNEXT_output_pooled, pooled)
+```
+
+
+## C. Relative flower cover ratios
+
+To have the relative cover ratios of each plant species per site, we need to calculate the total cover per site and then divide the cover of each species by the total cover.
+$$\text{Relative cover ratio} = \frac{\text{Cover of species x per plot}}{\text{Total cover of all species per plot}}$$ 
+
+To calculate the relative cover ratio per transect, we will average the relative cover ratios of each species across the three plots in each transect.
+
+$$\text{Relative cover ratio of species x}_\text{per transect}=\frac{\text{relative_cov_%_plot}_{1}+\text{relative_cov_%_plot}_{2}+\text{relative_cov_%_plot}_{3}}{3}$$
+
+```{r relative cover ratios}
+
+# Calculate the total cover per site
+relative_flower <- plants3 %>%
+  select(-BB) %>%
+  #remove NA in Cover_percentage
+  filter(!is.na(Cover_percentage)) %>%
+  #new column for total cover per site
+  group_by(Site, Transect, Plot) %>%
+  mutate(Plot_Cover = sum(Cover_percentage, na.rm = TRUE)) %>%
+  #ungroup
+  ungroup() %>%
+  #new column for relative cover ratio
+  mutate(Relative_cover_plot = Cover_percentage / Plot_Cover)%>%
+  #replace NA in Relative_cover_plot with 0
+  mutate(Relative_cover_plot = replace_na(Relative_cover_plot, 0))
+
+
+relative_flower <- relative_flower %>%
+group_by(Site, Site_type, Transect, Plant_sp) %>%
+  mutate(Relative_cover_transect = sum(Relative_cover_plot, na.rm = TRUE) / 3) %>% # Average relative cover per species per transect
+  ungroup()%>%
+  select(-Plot,-Plot_Cover, -Relative_cover_plot, -Cover_percentage) %>%
+  #keep only unique rows
+  distinct()
+
+# plot the relative cover ratios per species, reorder the species by average cover
+ggplot(relative_flower, aes(x = reorder(Plant_sp, Relative_cover_transect), y = Relative_cover_transect, fill = Site)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Average Relative Cover Ratios per Species per Transect",
+    x = "Plant Species",
+    y = "Average Relative Cover Ratio",
+    fill = "Site") +
+  scale_fill_manual(values = custom_colors) +  # Apply custom colors to the plot
+  theme(legend.position = "top")
+```
+
 
 ## D. Gradient of plant diversity
 
-### Richness calculation
-```{r}
-richness <- plants3 %>%
-  group_by(Site, Site_type) %>%
-  summarise(Species_Richness = n_distinct(Plant_sp))
+### diversity index
 
-# point plot richness
-ggplot(richness, aes(x = Site, y = Species_Richness, color = Site_type)) +
-  geom_point(size = 3) +
+```{r diversity index with relative cover}
+# wide format for relative_flower
+relative_flower_w <- relative_flower %>%
+  tidyr::pivot_wider(names_from = Plant_sp, values_from = Relative_cover_transect, values_fill = 0)
+
+
+# Calculate diversity indices with the vegan package - Simpson and Shannon indices
+diversity_indices <- relative_flower_w %>%
+  mutate(
+    Floral_simpson_index = diversity(.[, -(1:3)], index = "simpson"),
+    Floral_shannon_index = diversity(.[, -(1:3)], index = "shannon")
+  ) %>%
+  select(1:3, Floral_simpson_index, Floral_shannon_index
+         )  # Keep only relevant columns
+
+# Calculate species richness per transect
+richness <- plants3 %>%
+  group_by(Site, Transect) %>%
+  summarise(Floral_species_richness = n_distinct(Plant_sp))
+
+#join the diversity indices with the species richness data
+diversity_indices <- left_join(diversity_indices, richness, by = c("Site", "Transect"))
+
+
+#add the gradient of plant diversity to the relative_flower data (there will be repeated rows for those 3 new columns)
+relative_flower <- left_join(relative_flower, diversity_indices, by = c("Site", "Transect", "Site_type"))
+
+#remove the wide format data and the richness data
+rm(relative_flower_w, richness)
+```
+
+
+### Plotting the diversity indices
+
+```{r plot diversity indices}
+#point plot the species richness per site
+(sp <- ggplot(diversity_indices, aes(x = Site, y = Floral_species_richness, color = Site)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0),size = 3) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Plant Species Richness",
     x = "Site",
     y = "Number of Flower Species",
-    color = "Site Type") +
+    color = "Site_type") +
   #change y limit to 0-30
   ylim(0, 30) +
   #custom colors
-  scale_color_manual(values = steelorange)
+  scale_color_manual(values = custom_colors) +
+  theme(legend.position = "none"))
+
+#point plot the simpson index per site with jitter
+(simp <-ggplot(diversity_indices, aes(x = Site, y = Floral_simpson_index, color = Site)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0), size = 3) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Simpson Div. Index",
+    x = "Site",
+    y = "Simpson Diversity Index",
+    color = "Site_type") +
+  #custom colors
+  scale_color_manual(values = custom_colors) +
+  theme(legend.position = "none"))
+
+#point plot the shannon index per site with jitter
+(shann <- ggplot(diversity_indices, aes(x = Site, y = Floral_shannon_index, color = Site)) +
+  geom_point(position = position_jitter(width = 0.1, height = 0), size = 3) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Shannon Div. Index",
+    x = "Site",
+    y = "Shannon Diversity Index",
+    color = "Site_type") +
+  #custom colors
+  scale_color_manual(values = custom_colors) +
+  theme(legend.position = "none"))
+
+#facet the 3 plots, add centered title for all plots, define image size and then save the plot
+combined_plot <- sp + simp + shann + plot_annotation(title = "Relative Flower Diversity Metrics per Site",) & 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16)) 
+print(combined_plot)
+
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/diversity_metrics.png", width = 16, height = 8)
+
+rm(sp, simp, shann, combined_plot)
 ```
 
 ```{r}
-colnames(plants3)
-
-diversity_scores <- plants3 %>%
-  select(-BB) %>%
-  group_by(Site, Transect) %>%
-  summarise(
-    # Calculate species richness (number of species present in each Transect)
-    Species_Richness = n_distinct(Plant_sp),
-    
-    # Calculate weighted Shannon Index
-    Shannon_Index = -sum((Cover_percentage / 100) * log(Cover_percentage / 100), na.rm = TRUE),
-    
-    # You could also calculate a weighted Simpson Index or other diversity metrics as needed
-    .groups = 'drop'  # Ensures results are ungrouped
-  )
-
-
-ggplot(diversity_scores, aes(x = Site, y = Shannon_Index, fill = Transect)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  theme_minimal() +
-  labs(
-    title = "Plant Diversity Gradient per Transect",
-    x = "Site",
-    y = "Shannon Index",
-    fill = "Transect")+
-    scale_fill_viridis(discrete = TRUE)
-
-
-ggplot(diversity_scores, aes(x = Site, y = Species_Richness, fill = Transect)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  theme_minimal() +
-  labs(
-    title = "Plant Diversity Gradient per Transect",
-    x = "Site",
-    y = "Species_Richness",
-    fill = "Transect")+
-  #viridis
-  scale_fill_viridis(discrete = TRUE)
-
 # Load pollinator interaction data
 load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250120_netdata.RData")
+
+# sum up of interactions per transect per flower species
 pol <- net_data %>%
   select(Site=site, Transect=transect, Plant_sp = plant_species, total_interaction)%>%
   group_by(Site, Transect, Plant_sp) %>%
   summarise(total_interaction = sum(total_interaction, na.rm = TRUE)) 
   
-#adding the gradient of plant diversity to the pol data 
-
+# sum of interactions per transect (no flower species)
 poli <- pol %>%
   select(-Plant_sp) %>%
   group_by(Site, Transect) %>%
   summarise(total_interaction = sum(total_interaction, na.rm = TRUE))
 
-dim(diversity_scores)
+dim(diversity_indices)
 dim(poli)
 
 #add the diversity scores to the pollinator interaction data
-pol_diversity <- left_join(poli, diversity_scores, by = c("Site", "Transect"))
+pol_floral_diversity <- left_join(poli, diversity_indices, by = c("Site", "Transect"))
 
 #scatterplot of Species richness vs. Total Interactions, custom colors for the sites
-ggplot(pol_diversity, aes(x = Species_Richness, y = total_interaction)) +
+ggplot(pol_floral_diversity, aes(x = Floral_species_richness, y = total_interaction)) +
   geom_point(aes(color = Site)) +  # Apply the color based on Site
-  geom_smooth(method = "lm", se = TRUE, color = "blue") +  # Add a linear regression line
+  geom_smooth(method = "lm", se = TRUE, color = "green4") +  # Add a linear regression line
   labs(title = "Plant Species Richness vs. Total Interactions",
-       x = "Plant Species Richness",
+       x = "Flower Species Richness",
        y = "Total Interactions") +
   theme_minimal() +
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
   theme(legend.position = "bottom")
 
 #remove outliers in total interactions
-pol_div <- pol_diversity %>%
-  filter(total_interaction < 80)
+pol_div <- pol_floral_diversity %>%
+  filter(total_interaction < 90)
+#%>%filter(Floral_simpson_index > 0.1)
 
 #scatterplot of Species richness vs. Total Interactions with 2 outliers removed, using custom colors for the sites
 
-ggplot(pol_div, aes(x = Species_Richness, y = total_interaction)) +
+ggplot(pol_div, aes(x = Floral_species_richness, y = total_interaction)) +
   geom_point(aes(color = Site)) +
-  geom_smooth(method = "lm", se = T, color = "blue") +
+  geom_smooth(method = "lm", se = T, color = "green4") +
   labs(title = "Plant species Richness vs. Total Interactions",
-       x = "Plant species Richness",
+       x = "Flower species Richness",
        y = "Total Interactions") +
   theme_minimal()+
   #adding colors to the point according to Site
@@ -808,11 +926,11 @@ ggplot(pol_div, aes(x = Species_Richness, y = total_interaction)) +
 ## shannon
 
 #scatterplot of Shannon Index vs. Total Interactions
-ggplot(pol_diversity, aes(x = Shannon_Index, y = total_interaction)) +
+ggplot(pol_floral_diversity, aes(x = Floral_shannon_index, y = total_interaction)) +
   geom_point(aes(color = Site)) +
-  geom_smooth(method = "lm", se = T, color = "blue") +
-  labs(title = "Shannon Index vs. Total Interactions",
-       x = "Shannon Index",
+  geom_smooth(method = "lm", se = T, color = "pink3") +
+  labs(title = "Plant Shannon Index vs. Total Interactions",
+       x = "Relative Flower Shannon Index",
        y = "Total Interactions") +
   theme_minimal()+
   #adding colors to the point according to Site
@@ -821,11 +939,11 @@ ggplot(pol_diversity, aes(x = Shannon_Index, y = total_interaction)) +
   theme(legend.position = "bottom")
 
 #scatterplot of Shannon Index vs. Total Interactions with 2 outliers removed
-ggplot(pol_div, aes(x = Shannon_Index, y = total_interaction)) +
+ggplot(pol_div, aes(x = Floral_shannon_index, y = total_interaction)) +
   geom_point(aes(color = Site)) +
-  geom_smooth(method = "lm", se = T, color = "blue") +
-  labs(title = "Shannon Index vs. Total Interactions",
-       x = "Shannon Index",
+  geom_smooth(method = "lm", se = T, color = "pink3") +
+  labs(title = "Plant Shannon Index vs. Total Interactions",
+       x = "Relative Flower Shannon Index",
        y = "Total Interactions") +
   theme_minimal()+
   #adding colors to the point according to Site
@@ -833,6 +951,33 @@ ggplot(pol_div, aes(x = Shannon_Index, y = total_interaction)) +
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
   theme(legend.position = "bottom")
 
+## simpson
+
+#scatterplot of Simpson Index vs. Total Interactions
+ggplot(pol_floral_diversity, aes(x = Floral_simpson_index, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "blue") +
+  labs(title = "Plant Simpson Index vs. Total Interactions",
+       x = "Relative Flower Simpson Index",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+
+#scatterplot of Simpson Index vs. Total Interactions with 2 outliers removed
+ggplot(pol_div, aes(x = Floral_simpson_index, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "blue") +
+  labs(title = "Plant Simpson Index vs. Total Interactions",
+       x = "Relative Flower Simpson Index",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
 ```
 
 
@@ -840,46 +985,32 @@ ggplot(pol_div, aes(x = Shannon_Index, y = total_interaction)) +
 
 
 
-## F. Aggregate plant data and pollinator interaction data
-```{r}
-flower_cover_summary <- plants3 %>%
-  group_by(Site, Transect, Plant_sp) %>%
-  summarise(avg_flower_cover = mean(Cover_percentage, na.rm = TRUE)) %>%
-  #remove "no flower" rows in Plant_sp col
-  filter(Plant_sp != "no flowers")
+## E. Aggregate plant data and pollinator interaction data
 
-#transform flower_cover_summary$avg_flower_cover==NaN to -1 to keep track of these missing values after joining
-flower_cover_summary$avg_flower_cover[is.na(flower_cover_summary$avg_flower_cover)] <- -1
-
-combined_data <- full_join(flower_cover_summary, 
+```{r relative cover summary}
+combined_data <- full_join(relative_flower, 
                            pol, 
                            by = c("Site", "Transect", "Plant_sp")) # to keep all plant species from both flower_cover_summary and pol
 
 #replace introduced NA values with 0
 combined_data$total_interaction[is.na(combined_data$total_interaction)] <- 0
-combined_data$avg_flower_cover[is.na(combined_data$avg_flower_cover)] <- 0
-
-#transform flower_cover_summary$avg_flower_cover==-1 back to NA
-combined_data$avg_flower_cover[combined_data$avg_flower_cover == -1] <- NA
+combined_data$Relative_cover_transect[is.na(combined_data$Relative_cover_transect)] <- 0
 
 length(unique(combined_data$Plant_sp)) # 74
-```
 
-```{r checking combined data}
 summary(combined_data)
 
 #compare total plant species in plants3 and pol
 length(unique(plants3$Plant_sp)) # 70
 length(unique(pol$Plant_sp)) # 40
 
-sum(is.na(combined_data$avg_flower_cover))  # Count missing flower cover values = 6
-sum(is.na(combined_data$total_interaction))  # Count missing interaction values = 0
-
-# Remove rows with missing flower cover values
+#fill in the missing diversity indices with the values found in the same Site and Transect, eg. if there is a missing value in Floral_species_richness WED T1, fill it with the value found in other rows with WED T1
 combined_data <- combined_data %>%
-  filter(!is.na(avg_flower_cover))
+  group_by(Site, Transect) %>%
+  fill(Floral_species_richness, Floral_simpson_index, Floral_shannon_index, .direction = "downup") %>%
+  ungroup()
 
-rm(flower_cover_summary)  # Remove intermediate dataframes to save memory
+
 ```
 
 ```{r visualizing combined data}
@@ -889,7 +1020,7 @@ rm(flower_cover_summary)  # Remove intermediate dataframes to save memory
 
 ## Relationship between flower abundance (cover %) and pollinator interactions ----------------------------
 
-ggplot(combined_data, aes(x = avg_flower_cover, y = total_interaction)) +
+ggplot(combined_data, aes(x = Relative_cover_transect, y = total_interaction)) +
   geom_point(alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
   labs(title = "Flower Cover vs. Pollinator Interactions (1 point = 1 transect)",
@@ -904,10 +1035,11 @@ ggplot(combined_data, aes(x = avg_flower_cover, y = total_interaction)) +
   #remove legend
   theme(legend.position = "none")
 
-cor_test <- cor.test(combined_data$avg_flower_cover, combined_data$total_interaction)
+cor_test <- cor.test(combined_data$Relative_cover_transect, combined_data$total_interaction)
 print(cor_test)
 ```
-### 3 most pollinator visited plant species
+
+### most pollinator visited plant species
 
 ```{r}
 # Pollinator Interaction Distribution
@@ -935,29 +1067,28 @@ ggplot(top_plants, aes(x = reorder(Plant_sp, total_interactions), y = total_inte
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 ```
-### abundance of the 4 most visited plant species
 
-```{r top4 creation and save csv}
-top4 <- plants3%>%
-  #remove NA rows in Cover_percentage
-  filter(!is.na(Cover_percentage)) %>%
-  #keep only rows that are top 4 plant species: Daucus carota, Pastinaca sativa, Peucedanum officinale and Galium album
-  filter(Plant_sp %in% c("Daucus carota", "Pastinaca sativa", "Peucedanum officinale", "Galium album")) %>%
+### abundance of the 2 most visited plant species
+
+```{r top2}
+top2 <- relative_flower%>%
+  #keep only rows that are top 2 plant species: Daucus carota, Pastinaca sativa
+  filter(Plant_sp %in% c("Daucus carota", "Pastinaca sativa")) %>%
   #make wider with Plant_sp as column names
-  pivot_wider(names_from = Plant_sp, values_from = Cover_percentage, values_fill = 0) %>%
-  #add the percentages of the 4 plant species into a column named top4_percentage
+  pivot_wider(names_from = Plant_sp, values_from = Relative_cover_transect, values_fill = 0) %>%
+  #add the percentages of the 2 plant species into a column named top2_ratio
   rowwise() %>%
-  mutate(top4_percentage = sum(c(`Daucus carota`, `Pastinaca sativa`, `Peucedanum officinale`, `Galium album`)))%>%
-  #summarise the mean top4_coverage per transect 
-  group_by(Site, Transect) %>%
-  summarise(mean_top4_coverage = mean(top4_percentage, na.rm = TRUE))
+  mutate(top2_ratio = sum(c(`Daucus carota`, `Pastinaca sativa`)))
+```
 
-#save the top4 data as csv
-write.csv(top4, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/top4.csv", row.names = FALSE)
+```{r save relative_flower and top2 as csv}
+#save the relative_flower and top2 data as csv
+write.csv(relative_flower, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/relative_flower.csv", row.names = FALSE)
+write.csv(top2, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/top2.csv", row.names = FALSE)
 ```
 
 
-# G. Network Metrics
+# F. Network Metrics
 ```{r packages}
 library(bootstrapnet)
 library (devtools)
@@ -1024,7 +1155,7 @@ plotweb(list_of_webs$young_restored,
   + is a network-level measure of specialization. It ranges between 0 (no specialization) and 1 (complete specialization).More specifically, H2' is a measure of discrimination, i.e. calculated in comparison to no specialization. [https://www.rdocumentation.org/packages/bipartite/versions/2.19/topics/networklevel]
   + characterizes the degree of specialization or partitioning among two parties in the entire network, H2 is not affected by network size or sampling intensity [https://bmcecol.biomedcentral.com/articles/10.1186/1472-6785-6-9]
 
-```{r network metrics, eval=FALSE, include=FALSE}
+```{r network metrics, eval=FALSE, include=FALSE, echo=FALSE}
 # H2 --------------------------------------------------
 # Reference sites
 # print message: "Calculating network metrics for reference sites..."
