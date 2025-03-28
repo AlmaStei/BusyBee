@@ -11,8 +11,38 @@ output:
 
 
 
+## Hypotheses
+
+*Q1: Do reference and restored sites exhibit differences in pollinator biodiversity?*
+
+  **H0:**
+  • no significant difference between reference and restored sites in pollinator biodiversity
+  → pollinators are highly mobile and can easily colonize restored habitats, thereby achieving similar biodiversity and composition to reference sites.
+  
+  **H1:**
+  • pollinator diversity is higher in reference sites compared to young restored sites
+  → habitat complexity, trophic levels, vegetation structure, and resource availability, all take time to develop in restored sites
 
 
+*Q2: Do traditional and automated methods yield different compositions of pollinators?*
+
+  **H0:**
+  • no significant differences in pollinator composition detected by traditional and automated methods
+  → because all methods aim to capture a representative sample of the pollinator community.
+  
+  **H1:**
+  • Traditional and automated methods yield different compositions of pollinators
+  → due to inherent biases in sampling efficiency, taxonomy resolution, and target taxa, leading to discrepancies in the detection of certain pollinators.
+  
+*Q3: Can automated methods effectively detect biodiversity changes between reference and restored sites?*
+
+  **H0:**
+  • Automated methods do not effectively detect biodiversity changes between reference and restored sites
+  → due to limitations in capturing the full spectrum of pollinator abundance and species richness, as well as potential challenges in achieving high taxonomic resolution.
+  
+  **H1:**
+  • Automated methods can effectively detect biodiversity differences between reference and restored sites
+  → machine learning algorithms can offer improved sensitivity and accuracy in detecting shifts in pollinator communities over time.
 
 ## 0.1. Setup - libraries
 
@@ -23,6 +53,13 @@ library(performance)
 library(easystats)
 
 library(reshape2)
+
+library(patchwork) #for wrapping plots
+library(Hmisc)  # correlation matrix
+library(corrplot)  # plotting
+
+#install library for fviz_pca
+library(factoextra)
 ```
 
 ## 0.2. Setup - aesthetics
@@ -31,16 +68,16 @@ library(reshape2)
 #define custom colors for plotting
 saturated_pal <- c(
   #reference sites
-  "DES" = "#FEE0B6FF",  # Yellow
-  "HLI" = "#FDB863FF",  # Dark Orange
-  "JEP" = "#E08214FF",  # Deep Orange
-  "STP" = "#B35806FF",  # Dark Orange
-  "WUP" = "#7F3B08FF",  # Red-Orange
+  "DES" = "#7F3B19FF",  
+  "HLI" = "#FDB863FF",  
+  "JEP" = "#E08214FF",  
+  "STP" = "#B35806FF",
+  "WUP" = "#FEE0B6FF",
   # restored sites
-  "BUH" = "#93C6E1FF",  # Dark Green
-  "KOT" = "#5F93ACFF",  # Medium Green
-  "WDG" = "#2E627AFF",  # Light Blue
-  "WED" = "#00344AFF"   # Steel Blue
+  "BUH" = "#93C6E1FF",  
+  "KOT" = "#5F93ACFF",  
+  "WDG" = "#2E627AFF",  
+  "WED" = "#00344AFF"  
 )
 
 
@@ -80,26 +117,31 @@ bicolor_bg <- c(
 ### Environmental data ------------
 
 ## landscape data from "C:\Users\Almas\Desktop\UNI_LEIPSI\Thesis\Thesis_Rproject\data\landscape_data.csv"
-landscape_data <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/landscape_data.csv")
+landscape_data <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/corine_data.csv")
 
 ## weather data from the Deutscher Wetterdienst (DWD)
 dwd_weather <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/dwd_weather_data.csv")
 
 ## weather data from the field
-field_weather <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/field_weather_data.csv")
+#field_weather <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/field_weather_data.csv")
 
 ## plant data
 plants <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/plants3.csv")
+relative_flower <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/relative_flower.csv")
+top2 <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/top2.csv")
 
 ## extrapolated plant data
-inext_plants <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/iNext_AsyEst_plants.csv")
+#inext_plants <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/iNext_AsyEst_plants.csv")
 
 ### Traditional methods ------------
 
-## netting data for families
+## netting data 
+netting <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_long.csv")
+
+## netting data for families wide format
 net_family <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_family.csv")
 
-## netting data for lowest taxa level
+## netting data for lowest taxa level wide format
 net_lowest <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_taxa.csv")
 
 ## pan trap data for families
@@ -114,16 +156,44 @@ flower_camera <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproj
 platform_camera <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/InsectDetect_platform_cams.csv")
 ```
 
+## 0.4. Combine data
+
+
+```{r}
+#combine netting and flower_camera data
+netting <- netting %>%
+  #add column with method used
+  mutate(Method = "Netting")
+
+flower_camera <- flower_camera %>%
+  #add column with method used
+  mutate(Method = "Flower Camera")
+
+#combine netting and flower_camera data
+net_and_flowercam_0.5 <- netting %>%
+  full_join(flower_camera, by = c("site" = "site", "date" = "date", "Method" = "Method", "family"="Classification_Category", "plant_species"="flower_sp")) %>%
+  #remove rows with other_families in the family column
+  filter(family != "other_families")%>%
+  select(-c("transect","lowest_taxa", "Image_Path","Order","Family"))%>%
+  #fill NA in the total_interaction column with 1
+  mutate(total_interaction = ifelse(is.na(total_interaction), 1, total_interaction))%>%
+  #fill in missing site_type values depending on the site
+  mutate(site_type = ifelse(site == "DES" | site == "HLI" | site == "JEP" | site == "STP" | site == "WUP", "Reference", "Restored"))%>%
+  #fill in NA rows in Family_confidence with 1
+  mutate(Family_Confidence = ifelse(is.na(Family_Confidence), 1, Family_Confidence))%>%
+  #remove rows in Family_confidence with scores below 0.5
+  filter(Family_Confidence >= 0.5)
+```
+
 
 ## 1.1. Plant diversity
 
 
 ### 1.1.1. Plant Diversity Estimates from iNext
 
+From the iNext analysis, we have estimates of plant diversity metrics (species richness, Shannon diversity, and Simpson diversity) for each site.
 
 ```{r}
-colnames(plants)
-
 # change format of inext_plants -> wide format
 inext_plants_wide <- inext_plants %>%
   #transform column names to shortened version -> easier to read
@@ -153,75 +223,66 @@ inext_plants_wide <- inext_plants %>%
 
 ```
 
-```{r}
-# Calculate the Shannon Index and Species Richness for each Transect
+```{r observed vs estimated plant diversity, fig.width=10, fig.height=5}
+# SPECIES RICHNESS
 
-diversity_scores <- plants %>%
-  select(-Site_Tn_Pn, -BB) %>%
-  group_by(Site, Transect) %>%
-  summarise(
-    # Calculate species richness (number of species present in each Transect)
-    Species_Richness = n_distinct(Plant_sp),
-    
-    # Calculate weighted Shannon Index
-    Shannon_Index = -sum((Cover_percentage / 100) * log(Cover_percentage / 100), na.rm = TRUE),
-    .groups = 'drop'  # Ensures results are ungrouped
-  )
-
-
-ggplot(diversity_scores, aes(x = Transect, y = Shannon_Index, fill = Site)) +
-  #fill bars with Site colors
-  geom_bar(stat = "identity", position = "dodge") +
-  theme_minimal() +
-  labs(
-    title = "Plant Species Richness per Transect",
-    x = "Transect",
-    y = "Shannon Richness",
-    fill = "Site")+
-    scale_fill_manual(values = saturated_pal)
-
-
-ggplot(diversity_scores, aes(x = Transect, y = Species_Richness, fill = Site)) +
-  #fill bars with Site colors
-  geom_bar(stat = "identity", position = "dodge") +
-  theme_minimal() +
-  labs(
-    title = "Plant Species Richness per Transect",
-    x = "Transect",
-    y = "Species Richness",
-    fill = "Site")+
-    scale_fill_manual(values = saturated_pal)
-
-
-# Convert to long format
-inext_plants_long <- inext_plants_wide %>%
+#barplot of observed vs estimated plant species richness per site (iNext)
+inext_plants_wide %>%
   pivot_longer(cols = c(sp_rich_obs, sp_rich_est), 
                names_to = "Type", 
-               values_to = "Richness")
+               values_to = "Richness")%>%
+  # Plot with two bars per Site
+  ggplot(aes(x = reorder(Site, Richness), y = Richness, fill = Type)) +
+    geom_bar(stat = "identity", position = "dodge") +  # Dodge for side-by-side bars
+    theme_minimal() +
+    labs(
+      title = "Observed vs Estimated Species Richness per Site",
+      x = "Site",
+      y = "Species Richness",
+      fill = "Richness Type"
+    ) +
+    scale_fill_manual(values = c("sp_rich_obs" =  "black", "sp_rich_est" = "gray"))  # Custom colors
 
-# Plot with two bars per Site
-ggplot(inext_plants_long, aes(x = reorder(Site, -Richness), y = Richness, fill = Type)) +
-  geom_bar(stat = "identity", position = "dodge") +  # Dodge for side-by-side bars
-  theme_minimal() +
-  labs(
-    title = "Observed vs Estimated Species Richness per Site",
-    x = "Site",
-    y = "Species Richness",
-    fill = "Richness Type"
-  ) +
-  scale_fill_manual(values = c("sp_rich_obs" =  saturated_pal, "sp_rich_est" = "gray"))  # Custom colors
+#SHANNON
 
-#plot Shannon_index per site from inext_plants_wide
+#barplot of observed vs estimated shannon index per site (iNext)
 inext_plants_wide %>%
-  ggplot(aes(x = reorder(Site, shannon_obs),y = shannon_obs, fill = Site)) +
-  geom_bar(stat = "identity") +
-  theme_minimal() +
-  labs(
-    title = "Shannon Index per Site",
-    x = "Site",
-    y = "Shannon Index",
-    fill = "Site")+
-    scale_fill_manual(values = saturated_pal)
+  pivot_longer(cols = c(shannon_obs, shannon_est), 
+               names_to = "Type", 
+               values_to = "Shannon")%>%
+  # Plot with two bars per Site
+  ggplot(aes(x = reorder(Site, Shannon), y = Shannon, fill = Type)) +
+    geom_bar(stat = "identity", position = "dodge") +  # Dodge for side-by-side bars
+    theme_minimal() +
+    labs(
+      title = "Observed vs Estimated Shannon Index per Site",
+      x = "Site",
+      y = "Shannon Index",
+      fill = "Shannon"
+    ) +
+    scale_fill_manual(values = c("shannon_obs" =  "black", "shannon_rich_est" = "gray"))  # Custom colors
+
+
+# SIMPSON
+
+#barplot of observed vs estimated simpson index per site (iNext)
+inext_plants_wide %>%
+  pivot_longer(cols = c(simpson_obs, simpson_est), 
+               names_to = "Type", 
+               values_to = "Simpson")%>%
+  # Plot with two bars per Site
+  ggplot(aes(x = reorder(Site, Simpson), y = Simpson, fill = Site)) +
+    geom_bar(stat = "identity") +  # Dodge for side-by-side bars
+    facet_wrap(~ Type, scales = "free_y") +  # Separate facets for obs & est
+    theme_minimal() +
+    labs(
+      title = "Observed vs Estimated Simpson Index per Site",
+      x = "Site",
+      y = "Simpson Index",
+      fill = "Simpson"
+    ) +
+    scale_fill_manual(values = saturated_pal)  # Custom colors
+
 ```
 
 ## 1.2. Plant diversity vs pollinator interactions
@@ -241,31 +302,31 @@ pollinator_net_lt <- net_lowest %>%
   #sum the counts of each Taxa
   summarise(total_interaction = sum(Count)) %>%
   #join the diversity scores to the pollinator interaction data
-  left_join(diversity_scores, by = c("site" = "Site", "transect" = "Transect"))%>%
+  left_join(inext_plants_wide, by = c("site" = "Site"))%>%
   #change clumn names to have Site and Transect
   rename(Site = site, Transect = transect)
 
-#scatterplot of Species richness vs. Total Interactions, custom colors for the sites
-ggplot(pollinator_net_lt, aes(x = Species_Richness, y = total_interaction)) +
+#scatter of Species richness vs. Total Interactions, custom colors for the sites
+ggplot(pollinator_net_lt, aes(x = sp_rich_est, y = total_interaction)) +
   geom_point(aes(color = Site)) +  # Apply the color based on Site
-  geom_smooth(method = "lm", se = TRUE, color = "blue") +  # Add a linear regression line
-  labs(title = "Plant Species Richness vs. Total Interactions",
-       x = "Plant Species Richness",
-       y = "Total Interactions") +
+  geom_smooth(method = "lm", se = TRUE, color = "gray") +  # Add a linear regression line
+  labs(title = "Estimated Plant Species Richness vs. Total Pollinator Interactions",
+       x = "Estimated Plant Species Richness",
+       y = "Total Pollinator Interactions") +
   theme_minimal() +
   scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
   theme(legend.position = "bottom")
 
-#remove outliers in total interactions
+#remove outliers in total interactions -> 4 above 90
 pol_div <- pollinator_net_lt %>%
   filter(total_interaction < 90)
 
 #scatterplot of Species richness vs. Total Interactions with 2 outliers removed, using custom colors for the sites
 
-ggplot(pol_div, aes(x = Species_Richness, y = total_interaction)) +
+ggplot(pol_div, aes(x = sp_rich_est, y = total_interaction)) +
   geom_point(aes(color = Site)) +
-  geom_smooth(method = "lm", se = T, color = "blue") +
-  labs(title = "Plant species Richness vs. Total Interactions",
+  geom_smooth(method = "lm", se = T, color = "gray") +
+  labs(title = "Estimated Plant species Richness vs. Total Interactions",
        x = "Plant species Richness",
        y = "Total Interactions") +
   theme_minimal()+
@@ -278,10 +339,10 @@ ggplot(pol_div, aes(x = Species_Richness, y = total_interaction)) +
 ## shannon
 
 #scatterplot of Shannon Index vs. Total Interactions
-ggplot(pollinator_net_lt, aes(x = Shannon_Index, y = total_interaction)) +
+ggplot(pollinator_net_lt, aes(x = shannon_est, y = total_interaction)) +
   geom_point(aes(color = Site)) +
-  geom_smooth(method = "lm", se = T, color = "blue") +
-  labs(title = "Shannon Index vs. Total Interactions",
+  geom_smooth(method = "lm", se = T, color = "salmon3") +
+  labs(title = "Estimated Shannon Index vs. Total Interactions",
        x = "Shannon Index",
        y = "Total Interactions") +
   theme_minimal()+
@@ -291,10 +352,10 @@ ggplot(pollinator_net_lt, aes(x = Shannon_Index, y = total_interaction)) +
   theme(legend.position = "bottom")
 
 #scatterplot of Shannon Index vs. Total Interactions with 2 outliers removed
-ggplot(pol_div, aes(x = Shannon_Index, y = total_interaction)) +
+ggplot(pol_div, aes(x = shannon_est, y = total_interaction)) +
   geom_point(aes(color = Site)) +
-  geom_smooth(method = "lm", se = T, color = "blue") +
-  labs(title = "Shannon Index vs. Total Interactions",
+  geom_smooth(method = "lm", se = T, color = "salmon3") +
+  labs(title = "Estimated Shannon Index vs. Total Interactions",
        x = "Shannon Index",
        y = "Total Interactions") +
   theme_minimal()+
@@ -303,19 +364,354 @@ ggplot(pol_div, aes(x = Shannon_Index, y = total_interaction)) +
   scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
   theme(legend.position = "bottom")+
   #give each site a unique shape 
-  geom_point(aes(shape = Site))+
-  scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))+
+  #geom_point(aes(shape = Site))+
+  #scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))+
+  theme(legend.position = "bottom")
+
+## simpson
+
+#scatterplot of Simpson Index vs. Total Interactions
+ggplot(pollinator_net_lt, aes(x = simpson_est, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "steelblue4") +
+  labs(title = "Estimated Simpson Index vs. Total Interactions",
+       x = "Simpson Index",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+
+
+#scatterplot of Simpson Index vs. Total Interactions with outliers removed
+ggplot(pol_div, aes(x = simpson_est, y = total_interaction)) +
+  geom_point(aes(color = Site) ) + #, size=5
+  geom_smooth(method = "lm", se = T, color = "steelblue4") +
+  labs(title = "Estimated Simpson Index vs. Total Interactions",
+       x = "Simpson Index",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
   theme(legend.position = "bottom")
 
 ```
+
+
+```{r}
+#scatterplot of richness from inext_plants_wide vs. Total Interactions
+ggplot(pollinator_net_lt, aes(x = sp_rich_est, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "blue") +
+  labs(title = "Estimated Species Richness vs. Total Interactions",
+       x = "Estimated Species Richness",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+```
+
+
 
 ## 1.3. Pollinator diversity vs weather
 
 ```{r}
 #weather data from the field
 
+#to the netting data, we'll add the temperature noted per transect
+pollinator_net_lt_temp <- pollinator_net_lt %>%
+  left_join(field_weather, by = c("Site" = "SITE", "Transect" = "transect"))%>%
+  #remove rows where total_interaction is higher than 300
+  filter(total_interaction < 100)
+  
+
+#scatterplot of temperature_C vs. Total Interactions
+ggplot(pollinator_net_lt_temp, aes(x = temperature_C, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "white") +
+  labs(title = "Temperature vs. Total Interactions",
+       x = "Temperature (°C)",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+
+#scatterplot of start_time vs. Total Interactions
+ggplot(pollinator_net_lt_temp, aes(x = start_time, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "white") +
+  labs(title = "Start Time vs. Total Interactions",
+       x = "Start Time",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+
+#scatterplot of wind_kmh vs. Total Interactions
+ggplot(pollinator_net_lt_temp, aes(x = wind_kmh, y = total_interaction)) +
+  geom_point(aes(color = Site)) +
+  geom_smooth(method = "lm", se = T, color = "white") +
+  labs(title = "Wind Speed vs. Total Interactions",
+       x = "Wind Speed (km/h)",
+       y = "Total Interactions") +
+  theme_minimal()+
+  #adding colors to the point according to Site
+  geom_point(aes(color = Site))+
+  scale_color_manual(values = saturated_pal) +  # Apply the custom colors to the plot
+  theme(legend.position = "bottom")
+```
 
 
+## 1.4. Correlation matrix enivronmental variables
+
+```{r}
+#change dwd_weather date format from 20240724 to 2024-07-24 by adding a "-" after the year and month
+dwd_weather <- dwd_weather %>%
+  #adding a "-" after the year and month
+  mutate(Date = gsub("(\\d{4})(\\d{2})", "\\1-\\2", MESS_DATUM))%>%
+  #adding - after the month
+  mutate(Date = gsub("(\\d{4}-\\d{2})(\\d{2})", "\\1-\\2", Date))
+
+envir_data <- field_weather %>%
+  select("Date"="date","Site" ="SITE","Site_type"= "restoration_type", "Transect" = "transect", "Temperature_C" = "temperature_C", "Wind_kmh" = "wind_kmh", "Start_time" = "start_time")%>%
+  #join the dwd weather data
+  left_join(dwd_weather, by = c("Date" = "Date", "Site"="SITE"))%>%
+  select(-MESS_DATUM)%>%
+  #join the landscape data
+  left_join(landscape_data, by = c("Site" = "Site"))%>%
+  
+  #join the plant data
+  left_join(inext_plants_wide, by = c("Site" = "Site"))
+
+#correlation matrix of all the numerical environmental variables
+tmp_cor_envir <- envir_data %>%
+  select(-c("Date", "Site", "Site_type", "Transect", 
+            
+            "sp_rich_se","sp_rich_lcl","sp_rich_ucl",
+            "shannon_se", "shannon_lcl", "shannon_ucl", 
+            "simpson_se" ,   "simpson_lcl"  , "simpson_ucl",
+            #dwd weather: remove everything except FM, FX, RSK,SDK, NM, TMK
+            "STATION", "STATIONS_ID","QN_3","QN_4","eor", 
+            "RSKF", "VPM", "PM", "UPM", "TXK", "TNK", "TGK"
+            )) %>%
+  #rename columns containing CORINE_ to corresponding Landcover class
+  rename_with(~ gsub("CORINE_01", "C Continuous urban fabric", .), contains("CORINE_01")) %>%
+  rename_with(~ gsub("CORINE_02", "C Discontinuous urban fabric", .), contains("CORINE_02")) %>%
+  rename_with(~ gsub("CORINE_03", "C Industrial or commercial units", .), contains("CORINE_03")) %>%
+  rename_with(~ gsub("CORINE_11", "C Sports and leisure facilities", .), contains("CORINE_11")) %>%
+  rename_with(~ gsub("CORINE_12", "C Non-irrigated arable land", .), contains("CORINE_12")) %>%
+  rename_with(~ gsub("CORINE_18", "C Pastures", .), contains("CORINE_18")) %>%
+  rename_with(~ gsub("CORINE_23", "C Broad-leaved forest", .), contains("CORINE_23")) %>%
+  rename_with(~ gsub("CORINE_24", "C Coniferous forest", .), contains("CORINE_24")) %>%
+  rename_with(~ gsub("CORINE_26", "C Natural grasslands", .), contains("CORINE_26")) %>%
+  rename_with(~ gsub("CORINE_29", "C Transitional woodland-shrub", .), contains("CORINE_29")) %>%
+  rename_with(~ gsub("CORINE_35", "C Inland marshes", .), contains("CORINE_35"))%>%
+  
+  #rename ESAWC to corresponding Landcover class
+  rename_with(~ gsub("ESAWC_10", "E Tree Cover", .), contains("ESAWC_10")) %>%
+  rename_with(~ gsub("ESAWC_30", "E Grassland", .), contains("ESAWC_30")) %>%
+  rename_with(~ gsub("ESAWC_40", "E Cropland", .), contains("ESAWC_40")) %>%
+  rename_with(~ gsub("ESAWC_50", "E Built-up", .), contains("ESAWC_50")) %>%
+  rename_with(~ gsub("ESAWC_60", "E Bare / Sparse vegetation", .), contains("ESAWC_60")) %>%
+  rename_with(~ gsub("ESAWC_80", "E Permanent Water Bodies", .), contains("ESAWC_80")) %>%
+  rename_with(~ gsub("ESAWC_90", "E Wetlands", .), contains("ESAWC_90"))%>%
+  
+  #rename weather variables to corresponding description
+  rename_with(~ gsub("FX", "daily maximum of windgust", .), contains("FX")) %>%
+  rename_with(~ gsub("FM", "daily mean of wind velocity", .), contains("FM")) %>%
+  rename_with(~ gsub("RSK", "daily precipitation height", .), contains("RSK")) %>%
+  rename_with(~ gsub("RSKF", "precipitation form", .), contains("RSKF")) %>%
+  rename_with(~ gsub("SDK", "daily sunshine duration", .), contains("SDK")) %>%
+  rename_with(~ gsub("SHK_TAG", "daily snow depth", .), contains("SHK_TAG")) %>%
+  rename_with(~ gsub("NM", "daily mean of cloud cover", .), contains("NM")) %>%
+  rename_with(~ gsub("VPM", "daily mean of vapor pressure", .), contains("VPM")) %>%
+  rename_with(~ gsub("PM", "daily mean of pressure", .), contains("PM")) %>%
+  rename_with(~ gsub("TMK", "daily mean of temperature", .), contains("TMK")) %>%
+  rename_with(~ gsub("UPM", "daily mean of relative humidity", .), contains("UPM")) %>%
+  rename_with(~ gsub("TXK", "daily maximum of temperature at 2 m height", .), contains("TXK")) %>%
+  rename_with(~ gsub("TNK", "daily minimum of temperature at 2m height", .), contains("TNK")) %>%
+  rename_with(~ gsub("TGK", "daily min. of air temp. at 5 cm above ground", .), contains("TGK"))%>%
+  rename_with(~ gsub("DISTANCE", "distance to closest weather station", .), contains("DISTANCE"))
+
+tmp_qq_plots <- list()
+# plot Q-Q plots for each variable
+for (i in 1:ncol(tmp_cor_envir)) {
+  tmp_qq_plots[[i]] <- ggplot(tmp_cor_envir, aes(sample = .data[[colnames(tmp_cor_envir)[i]]])) +
+  stat_qq()+
+  stat_qq_line()+
+  ggtitle(str_wrap(colnames(tmp_cor_envir)[i], width = 20))+
+  theme(plot.title = element_text(size = 10))  
+}
+
+tmp_qq_plots[[1]]; tmp_qq_plots[[2]]; tmp_qq_plots[[3]]; tmp_qq_plots[[4]]; tmp_qq_plots[[5]]; tmp_qq_plots[[6]]; tmp_qq_plots[[7]]; tmp_qq_plots[[8]]; tmp_qq_plots[[9]]; tmp_qq_plots[[10]]; tmp_qq_plots[[11]]; tmp_qq_plots[[12]]; tmp_qq_plots[[13]]; tmp_qq_plots[[14]]; tmp_qq_plots[[15]]; tmp_qq_plots[[16]]; tmp_qq_plots[[17]]; tmp_qq_plots[[18]]; tmp_qq_plots[[19]]; tmp_qq_plots[[20]]; tmp_qq_plots[[21]]; tmp_qq_plots[[22]]; tmp_qq_plots[[23]]; tmp_qq_plots[[24]]; tmp_qq_plots[[25]]; tmp_qq_plots[[26]]; tmp_qq_plots[[27]]; tmp_qq_plots[[28]]; tmp_qq_plots[[29]]; tmp_qq_plots[[30]]; tmp_qq_plots[[31]]; tmp_qq_plots[[32]]; tmp_qq_plots[[33]]
+
+```
+
+```{r}
+tmp_env_cor_results <- rcorr(as.matrix(tmp_cor_envir), type = "spearman") 
+
+# extract correlation matrix
+tmp_env_cor_matrix <- tmp_env_cor_results$r
+
+# extract the p-values
+tmp_env_p_matrix <- tmp_env_cor_results$P
+
+# plot correlation matrix (only insignificant ones hidden)
+tmp_corr_num <- corrplot(tmp_env_cor_matrix, 
+         type = "upper",
+         method = "color",
+         diag = F,                         # remove diagonal
+         #addCoef.col = "black",           # add coefficient coeffs, not used 
+         p.mat = tmp_env_p_matrix,         # add p-values matrix
+         sig.level = c(0.001, 0.01, 0.05), # significance thresholds
+         tl.col = "black",                 # color of variable labels
+         cl.align.text = "l",              # alignment of color legend
+         cl.offset = 0.3,                  # offset color legend text to the right
+         number.cex = 0.4,                 # size of coefficient text
+         tl.cex	= 0.4,                     # size of variable labels
+         insig = "label_sig",              # add stars according to significance thresholds
+         pch.cex = 0.4)                      # size of stars
+
+# save the plot as a png
+dev.copy(png, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/correlation_plot_num.png", width = 1600, height = 1600, res = 300)
+dev.off()
+```
+
+```{r}
+#PCA of the landscape data
+tmp_cor_envir_pca <- tmp_cor_envir %>%
+  #remove Na values
+  na.omit() %>%
+  prcomp(, scale = TRUE)
+
+# plot the PCA
+(tmp_cor_envir_pca_plot <- fviz_pca_biplot(tmp_cor_envir_pca, 
+                                         geom = c("point", "text"),
+                                         col.var = "contrib", # color by contributions to axes
+                                         gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), #this gradient indicates the contribution of each variable to the axis
+                                         repel = TRUE, # avoid text overlapping
+                                         title = "PCA of Environmental Data"))
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+#removing some redundant columns
+tmp_cor_envir_sleek <- tmp_cor_envir %>%
+  select(-c(
+    #plant diversity: only keep estimates for shannon index
+    "sp_rich_obs", "shannon_obs", "simpson_obs", #"sp_rich_est", "simpson_est", 
+    # between CORINE and ESAWC, only keep one when they are highly correlated 
+    "E Cropland", "E Tree Cover", "E Bare / Sparse vegetation", "E Built-up", "E Permanent Water Bodies", "E Wetlands", "E Grassland",
+    #weather
+    "daily maximum of windgust", "daily mean of cloud cover", "daily sunshine duration",
+    "distance to closest weather station",
+    #"Temperature_C", "Wind_kmh",
+    "daily mean of wind velocity", "daily precipitation height",  "daily mean of temperature"
+  ))%>%
+  na.omit() %>%
+  #combining urban fabric classes, commercial units and leisure into one class
+  mutate("C Urban fabric" = `C Continuous urban fabric` + `C Discontinuous urban fabric` + `C Industrial or commercial units` + `C Sports and leisure facilities`) %>%
+  select(-c(`C Continuous urban fabric`, `C Discontinuous urban fabric`, `C Industrial or commercial units`, `C Sports and leisure facilities`))
+
+#PCA of the landscape data
+tmp_cor_envir_pca_sleek <- prcomp(tmp_cor_envir_sleek, scale = TRUE)
+
+# plot the PCA
+(tmp_cor_envir_pca_plot_sleek <- fviz_pca_biplot(tmp_cor_envir_pca_sleek, 
+                                         geom = c("point", "text"),
+                                         col.var = "contrib", # color by contributions to axes
+                                         gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"), #this gradient indicates the contribution of each variable to the axis
+                                         repel = TRUE, # avoid text overlapping
+                                         title = "PCA of Environmental Data"))
+
+#corrplot of the sleek data
+tmp_env_cor_results_sleek <- rcorr(as.matrix(tmp_cor_envir_sleek), type = "spearman")
+
+# extract correlation matrix
+tmp_env_cor_matrix_sleek <- tmp_env_cor_results_sleek$r
+
+# extract the p-values
+tmp_env_p_matrix_sleek <- tmp_env_cor_results_sleek$P
+
+# plot correlation matrix (only insignificant ones hidden)
+
+(tmp_corr_sleek <- corrplot(tmp_env_cor_matrix_sleek, 
+         type = "upper",
+         method = "color",
+         diag = F,                         # remove diagonal
+         #addCoef.col = "black",           # add coefficient coeffs, not used 
+         p.mat = tmp_env_p_matrix_sleek,         # add p-values matrix
+         sig.level = c(0.001, 0.01, 0.05), # significance thresholds
+         tl.col = "black",                 # color of variable labels
+         cl.align.text = "l",              # alignment of color legend
+         cl.offset = 0.3,                  # offset color legend text to the right
+         number.cex = 0.6,                 # size of coefficient text
+         tl.cex	= 0.6,                     # size of variable labels
+         insig = "label_sig",              # add stars according to significance thresholds
+         pch.cex = 0.6))                   # size of stars
+
+```
+### Environmental data
+
+We collected landscape data from 2 sources, one of which (CORINE), had many classes that are quite similar and don't need to be in distinct columns for our purposes: 
+
+- Continuous urban fabric
+- Discontinuous urban fabric
+- Industrial or commercial units
+- Sports and leisure facilities
+
+Will all be combined into one class: Urban fabric.
+
+The weather data from the dwd station contains a lot of variables, and we definitely don't need all of them. We will keep the following:
+
+- distance to closest weather station
+- daily mean of wind velocity
+- daily precipitation height
+- daily mean of temperature
+
+```{r sleek envir data}
+# create a sleek version of the environmental data
+
+  
+```
+
+
+```{r}
+# remove all dataframes with tmp_ prefix
+#rm(list = ls(pattern = "^tmp_"))
+```
+
+
+## net_and_flowercam_0.5
+
+```{r}
+#calculating species richness in flower camera data per site
+flowercam_sp_rich <- flower_camera %>%
+  #remove other_family rows in Classification_Category
+  filter(Classification_Category != "other_families")%>%
+  group_by(site) %>%
+  summarise(sp_rich = n_distinct(Classification_Category))
+            
+#plot of species richness in flower camera data per site
+ggplot(flowercam_sp_rich, aes(x = reorder(site, sp_rich), y = sp_rich)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Species Richness in Flower Camera Data per Site",
+       x = "Site",
+       y = "Species Richness") +
+  theme_minimal()+
+  #custom color per site
+  geom_bar(stat = "identity", aes(fill = site))+
+  scale_fill_manual(values = saturated_pal)   # Apply the custom colors to the plot
+            
 ```
 
 
