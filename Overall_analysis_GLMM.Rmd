@@ -49,25 +49,30 @@ output:
 ### libraries    
 
 ```{r setup, include=FALSE}
-library(tidyverse) 
+
 library(vegan)  # For diversity indices
 library(paletteer)  # For color palettes
 library(RColorBrewer)  # For color palettes
 
-
-library(performance)
-library(easystats)
-
 library(reshape2)
-library(chron)  # for time data
-
 library(patchwork) #for wrapping plots
+library(chron)  # for time data
+library(lubridate)  # for date data
+
 library(Hmisc)  # correlation matrix
 library(corrplot)  # plotting
-
 library(factoextra) #install library for fviz_pca
+
+library(easystats)#library(parameters) #library(performance)
+library(lme4)
+library(ggeffects)
+library(arm) #for residual plots of binomial models
 library(DHARMa) #for residual plots
+#library(datawizard) #chek documentation
 library(pscl) #for zero inflation test
+#library(mgcv) #tweedie models
+
+library(tidyverse) 
 ```
 
 ### aesthetics
@@ -182,7 +187,7 @@ dwd_weather <- dwd_weather %>%
 
 #select the relevant columns for out analysis: Date, SITE, FM, TMK and rename them properly dm= daily mean
 dwd_weather <- dwd_weather %>%
-  select("Date"="Date",
+  dplyr::select("Date"="Date",
          "Site"="SITE",
          "dm_wind_velocity"="FM",
          "dm_temperature"="TMK")
@@ -191,40 +196,80 @@ dwd_weather <- dwd_weather %>%
 
 We will not keep the weather data written down by hand in the field, as it is not as reliable as the data from the DWD weather station. However, an interesting variable to keep is the start time of walking the transect for the netting method. This could be an important factor in the number of pollinators caught, as some species are more active in the morning or evening.
 
-### 1.2. Field weather data
+### 1.2. Field weather data - Start time of netting
 
 ```{r field weather start time}
 #transform field_weather into start_net dataframe
 start_net <- field_weather %>%
-  select("Date"="date",
+  dplyr::select(
+         "Date"="date",
          "Site"="SITE",
          "Transect"="transect",
          "Start_time"="start_time")
 
-#transform Start_time into a time format hh:mm
 start_net <- start_net %>%
-  mutate(Start_time = gsub("\\.", ":", Start_time)) %>%  # Replace '.' with ':'
-  mutate(Start_time = sub(":(\\d)$", ":\\10", Start_time)) %>%  # Add trailing 0 for single-digit minutes
-  mutate(Start_time = ifelse(grepl("^\\d{1,2}$", Start_time),  # Add ':00' for time without minutes
-                             paste0(Start_time, ":00"),
-                             Start_time)) %>% 
-  mutate(Start_time = paste0(Start_time, ":00")) %>%  # Ensure format is hh:mm:ss
-  mutate(Start_time = chron::times(Start_time))  # Convert to time-only format
+  mutate(
+    Start_time = gsub("\\.", ":", Start_time),  # Replace "." with ":"
+    Start_time = ifelse(Start_time == "9:25", "09:25", Start_time),  # Fix specific case
+    Start_time = ifelse(nchar(Start_time) == 4, paste0(Start_time, "0"), Start_time),  # Ensure "14:0" -> "14:00"
+    Start_time = ifelse(nchar(Start_time) == 2, paste0(Start_time, ":00"), Start_time),  # Ensure "14" -> "14:00"
+    Hour = as.integer(substr(Start_time, 1, 2)),  # Extract hour
+    Minute = as.integer(substr(Start_time, 4, 5)),  # Extract minutes
+    Time_Bin = ifelse(Minute < 30, sprintf("%02d:00", Hour), sprintf("%02d:30", Hour)) , # Ensure proper format
+    Time_category = ifelse(Minute < 30, Hour, Hour + 0.5),  # Convert 11:30 to 11.5
+    #change Time_category to integers from 9.0 -> 1, 9.5 -> 2, 10.0 -> 3, 10.5 -> 4 etc
+    Time_category = case_when(
+      Time_category == 9.0 ~ 1,
+      Time_category == 9.5 ~ 2,
+      Time_category == 10.0 ~ 3,
+      Time_category == 10.5 ~ 4,
+      Time_category == 11.0 ~ 5,
+      Time_category == 11.5 ~ 6,
+      Time_category == 12.0 ~ 7,
+      Time_category == 12.5 ~ 8,
+      Time_category == 13.0 ~ 9,
+      Time_category == 13.5 ~ 10,
+      Time_category == 14.0 ~ 11,
+      Time_category == 14.5 ~ 12,
+      Time_category == 15.0 ~ 13,
+      Time_category == 15.5 ~ 14,
+      Time_category == 16.0 ~ 15,
+      Time_category == 16.5 ~ 16,
+      Time_category == 17.0 ~ 17,
+      TRUE ~ NA_real_  )) %>% # Handle any other cases  
+  dplyr::select(-Hour, -Minute)# Remove temporary columns
 
-#rm(field_weather) # field_weather no longer needed
+     
+
+#barplot start time per site, colored by transect
+start_net %>%
+    ggplot(aes(x = Site, y = Time_Bin, fill = Transect)) +
+  geom_bar(stat = "identity", position= "dodge") +
+  labs(title = "Start time of netting per site",
+       x = "Site",
+       y = "Start time") +
+  theme(legend.position = "left")+
+  #viridis
+  scale_fill_viridis_d() 
+
+write.csv(start_net, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/start_net.csv", row.names = FALSE)
+
 ```
 
 ### 1.3. Landscape data & combining 
 
 ```{r landscape and top2}
 Floral_simpson_index <- relative_flower %>%
-  select("Site"="Site",
+  dplyr::select("Site"="Site",
          "Transect"="Transect",
          "Site_type"="Site_type",
          "Floral_simpson_index"="Floral_simpson_index")%>%
   distinct()
 
 envir_data <- start_net %>%
+  #select the relevant columns
+  dplyr::select(-c("Start_time", "Time_Bin"))%>%
+  
   #join the dwd weather data
   full_join(dwd_weather, by = c("Date" = "Date", "Site"))%>%
   
@@ -235,8 +280,9 @@ envir_data <- start_net %>%
   full_join(top2, by = c("Site" = "Site", "Transect")) %>%
   
   #remove extra columns
-  select( -c("Floral_simpson_index" ,   "Floral_shannon_index"   , "Floral_species_richness", "top2_ratio", "Site_type"))%>%
-  #select( -c("top2_ratio", "Floral_shannon_index"   , "Floral_species_richness"))%>%
+  dplyr::select(-c( "Site_type"))%>%
+  #dplyr::select( -c("top2_ratio", "Site_type"))%>%
+  #dplyr::select( -c("top2_ratio", "Floral_shannon_index"   , "Floral_species_richness"))%>%
   
   #add only simpson index from relative_flower 
   full_join(Floral_simpson_index, by= c("Site", "Transect"))%>%
@@ -244,6 +290,8 @@ envir_data <- start_net %>%
   
   #fill in NA with 0 in the Pastinaca.sativa"   "Daucus.carota"   "top2_ratio" columns   
   mutate(across(c("Pastinaca.sativa", "Daucus.carota"), ~replace_na(., 0)))%>%
+  mutate(across(c("top2_ratio"), ~replace_na(., 0)))%>%
+
   
   #change the date to a date format
   mutate(Date = as.Date(Date, format = "%Y-%m-%d"))%>%
@@ -253,7 +301,7 @@ envir_data <- start_net %>%
   
   #rename rows in Site_type column 1-5y to young_restored and Reference to reference
   mutate(Site_type = ifelse(Site_type == "1-5 y", "young_restored", "reference"))
-  
+
 ```
 
 ### 1.4. Correlation matrix of environmental variables
@@ -275,7 +323,8 @@ for (i in 1:ncol(tmp_cor_envir)) {
   theme(plot.title = element_text(size = 10))  
 }
 
-tmp_qq_plots[[1]]; tmp_qq_plots[[2]]; tmp_qq_plots[[3]]; tmp_qq_plots[[4]]; tmp_qq_plots[[5]]; tmp_qq_plots[[6]]; tmp_qq_plots[[7]]; tmp_qq_plots[[8]]; tmp_qq_plots[[9]];tmp_qq_plots[[10]];tmp_qq_plots[[11]];tmp_qq_plots[[12]]; tmp_qq_plots[[13]]#;tmp_qq_plots[[14]];tmp_qq_plots[[15]];tmp_qq_plots[[16]];tmp_qq_plots[[17]
+tmp_qq_plots[[1]]; tmp_qq_plots[[2]]; tmp_qq_plots[[3]]; tmp_qq_plots[[4]]; tmp_qq_plots[[5]]; tmp_qq_plots[[6]]; tmp_qq_plots[[7]]; tmp_qq_plots[[8]]; tmp_qq_plots[[9]];tmp_qq_plots[[10]];tmp_qq_plots[[11]];tmp_qq_plots[[12]]; tmp_qq_plots[[13]]
+#;tmp_qq_plots[[14]];tmp_qq_plots[[15]];tmp_qq_plots[[16]];tmp_qq_plots[[17]
 
 ```
 
@@ -289,7 +338,7 @@ tmp_env_cor_matrix <- tmp_env_cor_results$r
 tmp_env_p_matrix <- tmp_env_cor_results$P
 
 # plot correlation matrix (only insignificant ones hidden)
-tmp_corr_num <- corrplot(tmp_env_cor_matrix, 
+tmp_corr_num <- corrplot::corrplot(tmp_env_cor_matrix, 
          type = "upper",
          method = "color",
          diag = F,                         # remove diagonal
@@ -333,10 +382,16 @@ rm(list = ls(pattern = "^tmp_"))
 #rm(top2, landscape_data, dwd_weather, field_weather, start_net)
 ```
 
-
-## 2. Traditional methods - PAN TRAPS
+## 2. Traditional methods - NETTING
 
 ### 2.1. Data preparation
+
+
+
+
+## 3. Traditional methods - PAN TRAPS
+
+### 3.1. Data preparation
 
 ```{r}
 #the transect values for pan_family are not in the same format as in the envir_data. let's change that
@@ -355,10 +410,10 @@ pan_family1 <- pan_family %>%
   left_join(envir_data, by = c("Site", "Transect", "Date", "Site_type"))%>%
   
   #remove extra columns
-  select(-Start_time, -Days_since_start)
+  dplyr::select(-Time_category, -Days_since_start)
 ```
 
-### 2.2. Data exploration
+### 3.2. Data exploration
 
 ```{r}
 # scatterplot the number of taxa caught in the pan traps per transect depending on simpson index
@@ -420,7 +475,7 @@ pan_family1 %>%
   theme(legend.position = "bottom")
 ```
 
-### 2.3. Pan traps vs InsectDetect
+### 3.3. Pan traps vs InsectDetect
 
 
 ```{r insectdetect more than 0.5}
@@ -436,7 +491,7 @@ platform_camera %>%
   summarise(Count = n()) %>%
   ggplot(aes(x = location, y = Count, fill = top1)) +
   geom_bar(stat = "identity", color = "black") +
-  labs(title = "Count of each taxon caught in pan traps per site",
+  labs(title = "Count of each taxon caught on platforms per site",
        x = "Site",
        y = "Number of individuals caught") +
   #viridis  color palette for the taxa 
@@ -467,7 +522,7 @@ tmp_pan_family <- pan_family%>%
   filter(Count != 0) %>%
   
   #select only the relevant columns for the comparison
-  select(Site, Transect, Site_type, Category, Count)
+  dplyr::select(Site, Transect, Site_type, Category, Count)
 
 #select only the relevant columns fo platform_camera for the comparison
 tmp_platform_camera <- platform_camera %>%
@@ -492,7 +547,7 @@ tmp_platform_camera <- platform_camera %>%
   mutate(Site_type = NA)%>%
   
   #remove columns that not needed for comparison with pan_family, rename top1 to Category
-  select(Site=location, Site_type,Transect=transect, Category = top1, Count)
+  dplyr::select(Site=location, Site_type,Transect=transect, Category = top1, Count)
 
 
 #add method column to both pan_family and platform_camera
@@ -554,7 +609,7 @@ server <- function(input, output) {
       group_by(location, transect, top1) %>%
       summarise(Count = n(), .groups = "drop") %>%
       mutate(Site_type = NA) %>%
-      select(Site = location, Site_type, Transect = transect, Category = top1, Count)
+      dplyr::select(Site = location, Site_type, Transect = transect, Category = top1, Count)
     
     tmp_pan_family$Method <- "bowl_trap"
     tmp_platform_camera$Method <- "platform_camera"
@@ -597,18 +652,34 @@ shinyApp(ui = ui, server = server)
 rm(list = ls(pattern = "^tmp_"))
 ```
 
-## 3. Automated methods - PLATFORM CAMERAS
+## 4. Automated methods - PLATFORM CAMERAS
 
-### 3.1. Data preparation
+### 4.1. Data preparation
 
 ```{r}
+str(platform_camera)
+
+platform_camera <- platform_camera %>%
+  #transect values from numbers 1-5 to T1-T5
+  mutate(transect = as.character(transect)) %>%
+  mutate(transect = paste0("T", transect))%>%
+  #filter out top1 that start with none_ as they are not real taxa
+  filter(!grepl("none_", top1))
+
+platform_camera1 <- platform_camera %>%
+  #right date format
+  mutate(date = as.Date(date, format = "%Y-%m-%d"))%>%
+  #join the envir_data with platform_camera
+  left_join(envir_data, by = c("location"="Site","transect" ="Transect", "date"="Date"))%>%
+  #remove extra columns
+  dplyr::select(-Time_category, -Days_since_start)
 
 ```
 
 
-## 4. Automated methods - FLOWER CAMERAS
+## 5. Automated methods - FLOWER CAMERAS
 
-### 4.1. Data preparation
+### 5.1. Data preparation
 
 ```{r structure}
 #change format of "time" column from hh-mm-ss to hh:mm:ss
@@ -639,7 +710,7 @@ flower_camera %>%
   geom_bar(stat = "identity") +
   labs(title = "Count of each taxon caught with flower cameras per site",
        x = "Site",
-       y = "Number of individuals caught") +
+       y = "Number of detections") +
   theme(legend.position = "none") +
   scale_fill_manual(values = custom193_named)   # Apply manually
 ```
@@ -651,7 +722,7 @@ flower_camera <- flower_camera %>%
   
   
 ## Define THRESHOLD ----
-TH <- 0.8
+TH <- 0.5
 
 #histogram of the Family_Confidence
 flower_camera %>%
@@ -669,7 +740,7 @@ flower_camera %>%
 #new dataframe above TH
 flower_camera_light <- flower_camera %>%
   #remove path column
-  select(-Image_Path) %>%
+  dplyr::select(-Image_Path) %>%
   #filter out the rows where Family_Confidence is below the threshold
   filter(Family_Confidence > TH) %>% 
   #fill Site_type column with reference or young_restored
@@ -680,7 +751,7 @@ diff <- nrow(flower_camera) - nrow(flower_camera_light)
 prop <- diff / nrow(flower_camera) 
 
 #print 
-print(paste("By removing rows with a confidence score below the threshold", TH, ", we remove", round(prop,2), "of the data."))
+print(paste("By removing rows with a probality score below the threshold", TH, ", we remove", round(prop,2), "of the data."))
 #remove 
 rm(diff, prop)
 
@@ -698,7 +769,7 @@ flower_camera_light %>%
   theme(legend.position = "none") +
   scale_fill_manual(values = custom193_named)  +  
   # Add confidence threshold annotation
-  annotate("text", x = Inf, y = Inf, label = paste("Confidence threshold:", TH), 
+  annotate("text", x = Inf, y = Inf, label = paste("Probability threshold:", TH), 
            hjust = 1.1, vjust = 1.1, size = 3)
 
 #plot of the number of each taxon caught in per flower species 
@@ -711,17 +782,17 @@ flower_camera_light %>%
   geom_bar(stat = "identity") +
   labs(title = "Count of each taxon caught in flower cameras per flower species",
        x = "Flower Species",
-       y = "Number of individuals caught") +
+       y = "Number of detections") +
   theme(legend.position = "none") +
   #slant the x-axis labels
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_fill_manual(values = custom193_named) +  
   # Add confidence threshold annotation
-  annotate("text", x = Inf, y = Inf, label = paste("Confidence threshold:", TH), 
+  annotate("text", x = Inf, y = Inf, label = paste("Probability threshold:", TH), 
            hjust = 1.1, vjust = 1.1, size = 3)
 ```
 
-### 4.2. Data exploration - Individuals vs time
+### 5.2. Data exploration - Individuals vs time
 
 ```{r individuals vs time}
 #plot of the number of individuals caught in the flower cameras over time
@@ -733,16 +804,16 @@ binned_data <- flower_camera_light %>%
   #remove date from the time_bin column
   mutate(time_bin = format(time_bin, "%H:%M:%S"))
 
-# Summarize count of individuals per family per time bin
+# Summarize count of individuals per order per time bin
 binned_data <- binned_data %>%
-  group_by(date,site,time_bin, Family) %>%
+  group_by(date,site,time_bin, Order) %>%
   summarise(Count = n(), .groups = "drop")%>%
   #change time_bin to a character
   mutate(time_bin = as.character(time_bin))
 
 # Plot the data
-ggplot(binned_data, aes(x = time_bin, y = Count, color = Family)) +
-  geom_point() +
+ggplot(binned_data, aes(x = time_bin, y = Count, fill = Order)) +
+  geom_bar(stat = "identity")+
   labs(
     title = "Number of Individuals Per Family Over Time (10-min Bins)",
     x = "Time (10-minute bins)",
@@ -750,21 +821,21 @@ ggplot(binned_data, aes(x = time_bin, y = Count, color = Family)) +
   ) +
   facet_wrap(~site) +
   theme_minimal() +
-  theme(legend.position = "none")+
+  theme(legend.position = "right")+
   # format x-axis to show labels every hour
   scale_x_discrete(
       breaks = binned_data$time_bin[grepl("00:00$|30:00$", binned_data$time_bin)],
       labels = gsub(":00$", "", binned_data$time_bin[grepl("00:00$|30:00$", binned_data$time_bin)]))+
   #slant the x-axis labels
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
-  scale_color_manual(values = custom193_named)   # Apply manually
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  #scale_color_manual(values = custom193_named)   # Apply manually
 
-rm(binned_data)
+#rm(binned_data)
 ```
 
 
 
-### 4.3. Data exploration - Daucus carota
+### 5.3. Data exploration - Daucus carota
 
 Here, we'll focus on the Daucus carota species, as it is a common plant species in the study area and is known to attract a variety of pollinators. 
 
@@ -808,7 +879,7 @@ final_plot1 <- ggplot(daucus, aes(x = site, y = Count, fill = unique_families)) 
   labs(title = "Pollinator Family richness caught on Daucus carota",
        x = "Site",
        y = "Number of unique families caught") +
-  theme(legend.position = "right") +  # Shared legend at bottom
+  theme(legend.position = "none") +  # Shared legend at bottom
   scale_fill_manual(values = customfam)  # Consistent colors
 
 # Create a single ggplot with faceting
@@ -817,7 +888,7 @@ final_plot2 <- ggplot(daucus, aes(x = method, y = Count, fill = unique_families)
   labs(title = "Pollinator Family richness caught on Daucus carota",
        x = "Site",
        y = "Number of unique families caught") +
-  theme(legend.position = "right") +  # Shared legend at bottom
+  theme(legend.position = "none") +  # Shared legend at bottom
   scale_fill_manual(values = customfam)  # Consistent colors
 
 # Print the final plot
@@ -828,3 +899,693 @@ print(final_plot1); print(final_plot2)
 rm(daucus_cam, daucus_net, fams, customfam, final_plot1, final_plot2)
 ```
 
+## Modelling
+
+*Key Metric	Meaning*    
+
+- AICc (Akaike Information Criterion, corrected)	Measures model fit while penalizing complexity. Lower = better.
+- BIC (Bayesian Information Criterion)	Similar to AIC but penalizes complexity more harshly. Lower = better.
+- R² (Conditional & Marginal)	Measures variance explained by fixed & random effects. Higher = better.
+- ICC (Intraclass Correlation Coefficient)	Proportion of variance explained by random effects. Higher = more site-level variation.
+- RMSE (Root Mean Square Error)	Measures prediction error. Lower = better.
+
+## Model building - Flower survey data
+
+```{r fig.width=8, fig.height=10}
+scaled_envir_data <-envir_data %>%
+  
+  #z transform the numerical columns, except Floral_simpson_index
+  mutate(across(where(is.numeric) & !contains("Floral_simpson_index"), scale))
+
+#checking the values
+scaled_envir_data%>%
+  mutate(across(where(is.numeric)))%>%
+  #summary()%>%
+  sapply(sd)
+  
+scaled_envir_data%>%
+  ggplot(aes(x=Floral_simpson_index))+
+  geom_histogram(binwidth = 0.1, fill = "lightblue", color = "black")+
+  labs(title = "Histogram of Floral Simpson Index",
+       x = "Floral Simpson Index",
+       y = "Count")
+
+# Create a linear model
+# full model with Floral_simpson_index as response variable and structure around  the sites as explanatory variables, and site as random effect
+plantsimp_mod1_full <- lmer(Floral_simpson_index ~ majority_class + Site_type + (1|Site), data = scaled_envir_data)
+
+summary(plantsimp_mod1_full)
+parameters(plantsimp_mod1_full)
+
+#checking the model
+#check_model(plantsimp_mod1_full)
+
+#overdispersion
+check_overdispersion(plantsimp_mod1_full)
+
+#collinearity
+check_collinearity(plantsimp_mod1_full)
+
+# Compute fitted values and Pearson residuals
+plantsimp_mod1_vals <- fitted(plantsimp_mod1_full)
+plantsimp_mod1_residuals <- residuals(plantsimp_mod1_full, type = "pearson")
+# Create binned residuals plot
+arm::binnedplot(plantsimp_mod1_vals, plantsimp_mod1_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+plantsimp_mod1_sim_res <- simulateResiduals(fittedModel = plantsimp_mod1_full)
+plot(plantsimp_mod1_sim_res)
+```
+
+
+
+
+
+Variable	  Estimate	  Std. Error	t-value	  Interpretation
+(Intercept)	0.6233	    0.2175	     2.865	  Baseline Floral Simpson Index when all predictors are at their mean.
+agri	      -882.06	    4542.82	    -0.194  	Agriculture has a weak negative effect, but it is not significant.
+grass	      -826.37	    4256.14	    -0.194  	Grassland has a weak negative effect, but it is not significant.
+snh       	-121.56	    625.75	    -0.194  	Semi-natural habitat has a weak negative effect, but not significant.
+forest    	-674.38	    3473.38	    -0.194  	Forest has a weak negative effect, but not significant.
+urban	      -557.58	    2872.05	    -0.194  	Urban area has a weak negative effect, but not significant.
+water     	-197.66	    1017.87	    -0.194  	Water has a weak negative effect, but not significant.
+Site_type 	0.1349	    0.4736	     0.285  	Young restored sites have a slightly higher Simpson Index, but not significantly so.
+(young_restored)
+
+# Flower Survey Model Interpretation of Results
+The linear mixed model (LMM) was appropriate for this data, as it accounted for random site effects. 
+Assumptions were met: residuals were approximately normal, there was no overdispersion (dispersion ratio = 0.835, p = 0.536), and multicollinearity was low (VIF ~ 1.67). 
+The fixed effects showed no significant impact of majority land cover class (forest, grass, or urban) or site type (young restored) on floral Simpson index. 
+  - No majority class significantly affects floral diversity, meaning different land covers (forest, grass, urban) do not have a strong influence on floral Simpson Index in this dataset. 
+  - The restoration stage does not significantly influence floral diversity.
+
+
+
+## Model building - netting data
+
+```{r prepare data}
+#scale the last envir_data - Floral simpson_index
+scaled_envir_data <- envir_data %>%
+  #z transform the numerical columns, except Floral_simpson_index
+  mutate(across(where(is.numeric), scale))
+
+netting1 <- netting %>%
+  #right date format
+  mutate(date = as.Date(date, format = "%Y-%m-%d"))%>%
+  #summarize by site, transect
+  group_by(site, transect) %>%
+  summarise(total_interaction_T = sum(total_interaction), .groups = "drop")%>%
+   #join the envir_data with netting
+  left_join(scaled_envir_data, by = c("site"="Site", "transect"="Transect"))
+
+#histogram of total_interaction_T
+netting1 %>%
+  ggplot(aes(x = total_interaction_T)) +
+  geom_histogram(fill = "lightblue", color = "black") +
+  labs(title = "Histogram of Netting Counts",
+       x = "total interactions",
+       y = "Count")
+```
+## Netting - POISSON GLMM
+
+```{r netting_mod1_full, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+#Poisson distribution 
+netting_mod1_full <- glmer(total_interaction_T 
+                           ~ Floral_simpson_index 
+                           + Time_category
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           + dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                          + Days_since_start
+                           + (1|site), 
+                           data = netting1, family = "poisson")
+
+summary(netting_mod1_full)
+parameters(netting_mod1_full)
+
+#check the model
+check_model(netting_mod1_full)
+
+#overdispersion
+check_overdispersion(netting_mod1_full)
+
+#collinearity
+check_collinearity(netting_mod1_full)
+
+# Compute fitted values and Pearson residuals
+netting_mod1_vals <- fitted(netting_mod1_full)
+netting_mod1_residuals <- residuals(netting_mod1_full, type = "pearson")
+# Create binned residuals plot
+arm::binnedplot(netting_mod1_vals, netting_mod1_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting_mod1_sim_res <- simulateResiduals(fittedModel = netting_mod1_full)
+plot(netting_mod1_sim_res)
+```
+
+```{r netting_mod2_full, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect 
+# removing dm_temperature
+netting_mod2_full <- glmer(total_interaction_T 
+                           ~ Floral_simpson_index 
+                           + Time_category
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           #+ dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                           + Days_since_start
+                           + (1|site), 
+                           data = netting1, family = "poisson")
+
+summary(netting_mod2_full)
+parameters(netting_mod2_full)
+
+#check the model
+check_model(netting_mod2_full)
+
+#overdispersion
+check_overdispersion(netting_mod2_full)
+#collinearity
+check_collinearity(netting_mod2_full)
+
+# Compute fitted values and Pearson residuals
+netting_mod2_vals <- fitted(netting_mod2_full)
+netting_mod2_residuals <- residuals(netting_mod2_full, type = "pearson")
+# Create binned residuals plot
+arm::binnedplot(netting_mod2_vals, netting_mod2_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting_mod2_sim_res <- simulateResiduals(fittedModel = netting_mod2_full)
+plot(netting_mod2_sim_res)
+```
+ 
+```{r netting_mod3_full, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# removing days since start
+netting_mod3_full <- glmer(total_interaction_T 
+                           ~ Floral_simpson_index 
+                           + Time_category
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           #+ dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                          #+ Days_since_start
+                           + (1|site), 
+                           data = netting1, family = "poisson")
+
+summary(netting_mod3_full)
+parameters(netting_mod3_full)
+
+#check the model
+check_model(netting_mod3_full, verbose = T)
+
+#overdispersion
+check_overdispersion(netting_mod3_full)
+
+#collinearity
+check_collinearity(netting_mod3_full)
+
+# Compute fitted values and Pearson residuals
+netting_mod3_vals <- fitted(netting_mod3_full)
+netting_mod3_residuals <- residuals(netting_mod3_full, type = "pearson")
+
+# Create binned residuals plot
+arm::binnedplot(netting_mod3_vals, netting_mod3_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting_mod3_sim_res <- simulateResiduals(fittedModel = netting_mod3_full)
+plot(netting_mod3_sim_res)
+```
+
+#### netting_mod3_full
+netting_mod3_full <- glmer(total_interaction_T 
+                           ~ Floral_simpson_index 
+                           + Time_category
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           + (1|site), 
+                           data = netting1, family = "poisson")
+*Model summary:*
+- has 5 predictors and one random effect -> 
+- has a significant effect of the floral simpson index (p < 0.001), time category (p < 0.001), top2_ratio (p < 0.001), has a significant effect of dm_wind_velocity (p = 0.014 )
+- has a marginal effect of site type (p = 0.051)
+
+*Model assumptions:*
+- Over dispersion was detected (p < 0.001) with the performance package check_overdispersion()
+    + another model could be used - negative binomial
+    + the DHARMa qqplot showed the same pattern - dispersion is not normal (p < 0.001)
+- the DHARMa qqplot also indicated significant outliers. 
+- Correlation is low between predictors (VIF < 2) with the performance package check_collinearity()
+- The binned residuals plot from the arm package shows no clear trend.
+
+```{r netting_mod4_full, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# removing site_type
+
+netting_mod4_full <- glmer(total_interaction_T 
+                           ~ Floral_simpson_index 
+                           + Time_category
+                           + top2_ratio
+                           #+ Site_type
+                           + dm_wind_velocity
+                           #+ dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                          #+ Days_since_start
+                           + (1|site), 
+                           data = netting1, family = "poisson")
+
+summary(netting_mod4_full)
+parameters(netting_mod4_full)
+
+#check the model
+check_model(netting_mod4_full, verbose = T)
+
+#overdispersion
+check_overdispersion(netting_mod4_full)
+
+#collinearity
+check_collinearity(netting_mod4_full)
+
+# Compute fitted values and Pearson residuals
+netting_mod4_vals <- fitted(netting_mod4_full)
+netting_mod4_residuals <- residuals(netting_mod4_full, type = "pearson")
+
+# Create binned residuals plot
+arm::binnedplot(netting_mod4_vals, netting_mod4_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting_mod4_sim_res <- simulateResiduals(fittedModel = netting_mod4_full)
+plot(netting_mod4_sim_res)
+```
+### Compare the models with the performance package
+```{r}
+# Compare the models with the performance package
+net_pois_comp1 <- compare_performance(netting_mod1_full, netting_mod2_full, netting_mod3_full, netting_mod4_full,  
+                                        metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
+
+# Print the comparison table
+print(net_pois_comp1)
+```
+
+## Netting - no outliers POISSON
+
+Since the DHARMa package flagged outliers as a significant issue, we will try to remove them and re-run the model.
+
+```{r outlier removal}
+#define the outliers according to the DHARMa package
+outliers <- which(abs(residuals(netting_mod4_full, type = "pearson")) > 3)
+
+
+
+netting2 <- netting1 %>%
+  #remove main outlier - interaction count over 300
+  filter(total_interaction_T < 300)
+  #remove DHARMa outliers
+  #filter(!row_number() %in% outliers)
+
+netting3 <- netting1 %>%
+  #substract 100 from the outlier
+  mutate(total_interaction_T = ifelse(total_interaction_T > 300, total_interaction_T - 100, total_interaction_T))
+```
+
+```{r netting2_mod1_full, fig.width=8, fig.height=10}
+netting2_mod1_full <- glmer(total_interaction_T 
+                                   ~ Floral_simpson_index 
+                                   + Time_category
+                                   + top2_ratio
+                                   + Site_type
+                                   + dm_wind_velocity
+                                   + dm_temperature
+                                   #+  majority_class
+                                   #+ urban + agri + grass + snh + forest + water
+                                   + Days_since_start
+                                   + (1|site), 
+                                   data = netting2, family = "poisson")
+summary(netting2_mod1_full)
+parameters(netting2_mod1_full)
+
+#check the model
+check_model(netting2_mod1_full, verbose = T)
+
+#overdispersion
+check_overdispersion(netting2_mod1_full)
+#collinearity
+check_collinearity(netting2_mod1_full)
+
+# Compute fitted values and Pearson residuals
+#netting2_mod1_vals <- fitted(netting2_mod1_full)
+#netting2_mod1_residuals <- residuals(netting2_mod1_full, type = "pearson")
+# Create binned residuals plot
+#arm::binnedplot(netting2_mod1_vals, netting2_mod1_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting2_mod1_sim_res <- simulateResiduals(fittedModel = netting2_mod1_full)
+plot(netting2_mod1_sim_res)
+
+```
+```{r netting2_mod2_full, fig.width=8, fig.height=10}
+# removing floral simpson index
+netting2_mod2_full <- glmer(total_interaction_T 
+                                   ~ Time_category
+                                   #Floral_simpson_index
+                                   + top2_ratio
+                                   + Site_type
+                                   + dm_wind_velocity
+                                   + dm_temperature
+                                   + Days_since_start
+                                   + (1|site), 
+                                   data = netting2, 
+                                   family = "poisson")
+
+summary(netting2_mod2_full)
+parameters(netting2_mod2_full)
+
+#check the model
+check_model(netting2_mod2_full, verbose = T)
+
+#overdispersion
+check_overdispersion(netting2_mod2_full)
+#collinearity
+check_collinearity(netting2_mod2_full)
+
+# Compute fitted values and Pearson residuals
+# netting2_mod2_vals <- fitted(netting2_mod2_full)
+# netting2_mod2_residuals <- residuals(netting2_mod2_full, type = "pearson")
+# Create binned residuals plot
+# arm::binnedplot(netting2_mod2_vals, netting2_mod2_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting2_mod2_sim_res <- simulateResiduals(fittedModel = netting2_mod2_full)
+plot(netting2_mod2_sim_res)
+```
+
+```{r netting2_mod3_full, fig.width=8, fig.height=10}
+# removing days since start
+netting2_mod3_full <- glmer(total_interaction_T 
+                                   ~ Time_category
+                                   #+ Floral_simpson_index
+                                   + top2_ratio
+                                   + Site_type
+                                   + dm_wind_velocity
+                                   + dm_temperature
+                                   #+ Days_since_start
+                                   + (1|site), 
+                                   data = netting2, 
+                                   family = "poisson")
+
+summary(netting2_mod3_full)
+parameters(netting2_mod3_full)
+
+#check the model
+check_model(netting2_mod3_full, verbose = T)
+#overdispersion
+check_overdispersion(netting2_mod3_full)
+#collinearity
+check_collinearity(netting2_mod3_full)
+
+# Compute fitted values and Pearson residuals
+# netting2_mod3_vals <- fitted(netting2_mod3_full)
+# netting2_mod3_residuals <- residuals(netting2_mod3_full, type = "pearson")
+# Create binned residuals plot
+# arm::binnedplot(netting2_mod3_vals, netting2_mod2_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting2_mod3_sim_res <- simulateResiduals(fittedModel = netting2_mod3_full)
+plot(netting2_mod3_sim_res)
+```
+
+```{r netting2_mod4_full, fig.width=8, fig.height=10}
+# removing wind velocity
+netting2_mod4_full <- glmer(total_interaction_T 
+                                   ~ Time_category
+                                   #+ Floral_simpson_index
+                                   + top2_ratio
+                                   + Site_type
+                                   #+ dm_wind_velocity
+                                   + dm_temperature
+                                   #+ Days_since_start
+                                   + (1|site), 
+                                   data = netting2, 
+                                   family = "poisson")
+
+summary(netting2_mod4_full)
+parameters(netting2_mod4_full)
+
+#check the model
+check_model(netting2_mod4_full, verbose = T)
+
+#overdispersion
+check_overdispersion(netting2_mod4_full)
+#collinearity
+check_collinearity(netting2_mod4_full)
+
+# Compute fitted values and Pearson residuals
+# netting2_mod4_vals <- fitted(netting2_mod4_full)
+# netting2_mod4_residuals <- residuals(netting2_mod4_full, type = "pearson")
+# Create binned residuals plot
+# arm::binnedplot(netting2_mod4_vals, netting2_mod4_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting2_mod4_sim_res <- simulateResiduals(fittedModel = netting2_mod4_full)
+plot(netting2_mod4_sim_res)
+
+
+```
+
+```{r}
+# Compare the models with the performance package
+net_pois_comp2 <- compare_performance(netting2_mod1_full, netting2_mod2_full, netting2_mod3_full, netting2_mod4_full,  
+                                        metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
+
+# Print the comparison table
+print(net_pois_comp2)
+```
+
+
+
+## Netting - NEGATIVE BINOMIAL GLMM
+
+```{r netting_mod1_NB, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# negative binomial distribution
+
+netting_mod1_NB <- glmer.nb(total_interaction_T 
+                            ~ Floral_simpson_index 
+                            + Time_category
+                            + top2_ratio
+                            + Site_type
+                            + dm_wind_velocity
+                            + dm_temperature
+                            +  majority_class
+                            #+ urban + agri + grass + snh + forest + water
+                            + Days_since_start
+                            + (1|site), 
+                            data = netting1, 
+                            family = nbinom2)
+
+summary(netting_mod1_NB)
+parameters(netting_mod1_NB)
+  
+#check the model
+check_model(netting_mod1_NB, verbose = T)
+
+#overdispersion
+check_overdispersion(netting_mod1_NB)
+#collinearity
+check_collinearity(netting_mod1_NB)
+
+# Compute fitted values and Pearson residuals
+netting_mod1_NB_vals <- fitted(netting_mod1_NB)
+netting_mod1_NB_residuals <- residuals(netting_mod1_NB, type = "pearson")
+
+# Create binned residuals plot
+arm::binnedplot(netting_mod1_NB_vals, netting_mod1_NB_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting_mod1_NB_sim_res <- simulateResiduals(fittedModel = netting_mod1_NB)
+plot(netting_mod1_NB_sim_res)
+```
+ 
+ 
+```{r netting_mod2_NB, fig.width=8, fig.height=10}
+
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# remove dm_temperature
+
+netting_mod2_NB <- glmer.nb(total_interaction_T 
+                           ~ Floral_simpson_index 
+                           + Time_category
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           #+ dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                           + Days_since_start
+                           + (1|site), 
+                           data = netting1,
+                           family = nbinom2)
+
+summary(netting_mod2_NB)
+parameters(netting_mod2_NB)
+
+#check the model
+check_model(netting_mod2_NB, verbose = T)
+#overdispersion
+check_overdispersion(netting_mod2_NB)
+#collinearity
+check_collinearity(netting_mod2_NB)
+
+# Compute fitted values and Pearson residuals
+netting_mod2_NB_vals <- fitted(netting_mod2_NB)
+netting_mod2_NB_residuals <- residuals(netting_mod2_NB, type = "pearson")
+
+# Create binned residuals plot
+arm::binnedplot(netting_mod2_NB_vals, netting_mod2_NB_residuals)
+#DHARMa package - simulate residuals and check model assumptions
+netting_mod2_NB_sim_res <- simulateResiduals(fittedModel = netting_mod2_NB)
+plot(netting_mod2_NB_sim_res)
+
+```
+
+```{r netting_mod3_NB, fig.width=8, fig.height=10} 
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# remove dm_temperature
+
+netting_mod3_NB <- glmer.nb(total_interaction_T 
+                           ~ Floral_simpson_index 
+                           #+ Time_category
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           #+ dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                            #+ Days_since_start
+                           + (1|site), 
+                           data = netting1,
+                           family = nbinom2)
+
+summary(netting_mod3_NB)
+parameters(netting_mod3_NB)
+
+#check the model
+check_model(netting_mod3_NB, verbose = T)
+#overdispersion
+check_overdispersion(netting_mod3_NB)
+#collinearity
+check_collinearity(netting_mod3_NB)
+
+# Compute fitted values and Pearson residuals
+netting_mod3_NB_vals <- fitted(netting_mod3_NB)
+netting_mod3_NB_residuals <- residuals(netting_mod3_NB, type = "pearson")
+
+# Create binned residuals plot
+arm::binnedplot(netting_mod3_NB_vals, netting_mod3_NB_residuals)
+#DHARMa package - simulate residuals and check model assumptions
+netting_mod3_NB_sim_res <- simulateResiduals(fittedModel = netting_mod3_NB)
+plot(netting_mod3_NB_sim_res)
+
+```
+
+```{r netting_mod4_NB, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# remove floral simpson_index
+netting_mod4_NB <- glmer.nb(total_interaction_T 
+                           #~ Floral_simpson_index 
+                           #+ Time_category
+                           ~ top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           #+ dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                            #+ Days_since_start
+                           + (1|site), 
+                           data = netting1, 
+                           family = nbinom2)
+
+summary(netting_mod4_NB)
+parameters(netting_mod4_NB)
+
+```
+
+## NB REMOVING OUTLIERS
+
+```{r netting_mod1_nb, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# negative binomial distribution
+
+netting2_mod1_NB <- glmer.nb(total_interaction_T 
+                            ~ Floral_simpson_index 
+                            + Time_category
+                            + top2_ratio
+                            + Site_type
+                            + dm_wind_velocity
+                            + dm_temperature
+                            #+  majority_class
+                            #+ urban + agri + grass + snh + forest + water
+                            + Days_since_start
+                            + (1|site), 
+                            data = netting3,
+                            family = nbinom2)
+
+
+summary(netting2_mod1_NB)
+parameters(netting2_mod1_NB)
+
+#check the model
+check_model(netting2_mod1_NB, verbose = T)
+#overdispersion
+check_overdispersion(netting2_mod1_NB)
+#collinearity
+check_collinearity(netting2_mod1_NB)
+
+# Compute fitted values and Pearson residuals
+netting2_mod1_NB_vals <- fitted(netting2_mod1_NB)
+netting2_mod1_NB_residuals <- residuals(netting2_mod1_NB, type = "pearson")
+# Create binned residuals plot
+arm::binnedplot(netting2_mod1_NB_vals, netting2_mod1_NB_residuals)
+
+#DHARMa package - simulate residuals and check model assumptions
+netting2_mod1_NB_sim_res <- simulateResiduals(fittedModel = netting2_mod1_NB)
+plot(netting2_mod1_NB_sim_res)
+
+```
+
+
+## Tweedie Models
+
+```{r netting_mod1_tweedie, fig.width=8, fig.height=10}
+netting_mod_TW <- glm(total_interaction_T 
+                      ~ Floral_simpson_index 
+                      + Time_category
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           + dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                          + Days_since_start, 
+                      data = netting2, 
+                      family = tweedie(var.power=1.5, link.power=0))
+
+summary(netting_mod_TW)
+
+plot(netting_mod_TW)  # Plots model diagnostics
+gam.check(netting_mod_TW)  # Checks for goodness of fit
+
+str(netting1)  # Check structure
+summary(netting1)  # Look for missing values
+any(is.na(netting1))  # Check if there are NA values
+```
