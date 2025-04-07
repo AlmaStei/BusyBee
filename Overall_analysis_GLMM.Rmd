@@ -1008,6 +1008,8 @@ netting1 %>%
 ```
 ## Netting - POISSON GLMM
 
+### Netting model 1 - poisson with all predictors
+
 ```{r netting_mod1_full, fig.width=8, fig.height=10}
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
 #Poisson distribution 
@@ -1047,6 +1049,15 @@ netting_mod1_sim_res <- simulateResiduals(fittedModel = netting_mod1_full)
 plot(netting_mod1_sim_res)
 ```
 
+This first model has too many predictors and is overfitting the data. 
+A lot of the predictors are significant, but the assumptions of the model are not met (overdispersion(p < 0.001), S-shape around qqplot, and the residuals appear to be heteroskedastic (residuals vs predicted plot)). 
+We will be removing predictors one by one and checking the model assumptions after each step. 
+
+### Netting model 2 - poisson -dm_temperature
+
+For the second model, the daily mean tempreature is removed, because it had the highest p-value (0.741) and was not significant.
+dm temperature             |     0.02 | 0.07 | [-0.11,  0.16] |  0.33 | 0.741 
+
 ```{r netting_mod2_full, fig.width=8, fig.height=10}
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect 
 # removing dm_temperature
@@ -1084,6 +1095,15 @@ arm::binnedplot(netting_mod2_vals, netting_mod2_residuals)
 netting_mod2_sim_res <- simulateResiduals(fittedModel = netting_mod2_full)
 plot(netting_mod2_sim_res)
 ```
+
+There are still too many predictors and some issues with the model assumptions. 
+ 
+ 
+### Netting model 3 - poisson - dm_temperature and days since start
+
+Removing the days since start, because it had the highest p-value and was not significant:   
+Days_since_start         0.11976    0.06882   1.740  0.08181 .  
+
  
 ```{r netting_mod3_full, fig.width=8, fig.height=10}
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
@@ -1135,13 +1155,13 @@ netting_mod3_full <- glmer(total_interaction_T
                            + (1|site), 
                            data = netting1, family = "poisson")
 *Model summary:*
-- has 5 predictors and one random effect -> 
+- has 5 predictors and one random effect
 - has a significant effect of the floral simpson index (p < 0.001), time category (p < 0.001), top2_ratio (p < 0.001), has a significant effect of dm_wind_velocity (p = 0.014 )
 - has a marginal effect of site type (p = 0.051)
 
 *Model assumptions:*
 - Over dispersion was detected (p < 0.001) with the performance package check_overdispersion()
-    + another model could be used - negative binomial
+    + another model could be used - *negative binomial*
     + the DHARMa qqplot showed the same pattern - dispersion is not normal (p < 0.001)
 - the DHARMa qqplot also indicated significant outliers. 
 - Correlation is low between predictors (VIF < 2) with the performance package check_collinearity()
@@ -1197,183 +1217,14 @@ net_pois_comp1 <- compare_performance(netting_mod1_full, netting_mod2_full, nett
 print(net_pois_comp1)
 ```
 
-## Netting - no outliers POISSON
-
-Since the DHARMa package flagged outliers as a significant issue, we will try to remove them and re-run the model.
-
-```{r outlier removal}
-#define the outliers according to the DHARMa package
-outliers <- which(abs(residuals(netting_mod4_full, type = "pearson")) > 3)
-
-
-
-netting2 <- netting1 %>%
-  #remove main outlier - interaction count over 300
-  filter(total_interaction_T < 300)
-  #remove DHARMa outliers
-  #filter(!row_number() %in% outliers)
-
-netting3 <- netting1 %>%
-  #substract 100 from the outlier
-  mutate(total_interaction_T = ifelse(total_interaction_T > 300, total_interaction_T - 100, total_interaction_T))
-```
-
-```{r netting2_mod1_full, fig.width=8, fig.height=10}
-netting2_mod1_full <- glmer(total_interaction_T 
-                                   ~ Floral_simpson_index 
-                                   + Time_category
-                                   + top2_ratio
-                                   + Site_type
-                                   + dm_wind_velocity
-                                   + dm_temperature
-                                   #+  majority_class
-                                   #+ urban + agri + grass + snh + forest + water
-                                   + Days_since_start
-                                   + (1|site), 
-                                   data = netting2, family = "poisson")
-summary(netting2_mod1_full)
-parameters(netting2_mod1_full)
-
-#check the model
-check_model(netting2_mod1_full, verbose = T)
-
-#overdispersion
-check_overdispersion(netting2_mod1_full)
-#collinearity
-check_collinearity(netting2_mod1_full)
-
-# Compute fitted values and Pearson residuals
-#netting2_mod1_vals <- fitted(netting2_mod1_full)
-#netting2_mod1_residuals <- residuals(netting2_mod1_full, type = "pearson")
-# Create binned residuals plot
-#arm::binnedplot(netting2_mod1_vals, netting2_mod1_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting2_mod1_sim_res <- simulateResiduals(fittedModel = netting2_mod1_full)
-plot(netting2_mod1_sim_res)
-
-```
-```{r netting2_mod2_full, fig.width=8, fig.height=10}
-# removing floral simpson index
-netting2_mod2_full <- glmer(total_interaction_T 
-                                   ~ Time_category
-                                   #Floral_simpson_index
-                                   + top2_ratio
-                                   + Site_type
-                                   + dm_wind_velocity
-                                   + dm_temperature
-                                   + Days_since_start
-                                   + (1|site), 
-                                   data = netting2, 
-                                   family = "poisson")
-
-summary(netting2_mod2_full)
-parameters(netting2_mod2_full)
-
-#check the model
-check_model(netting2_mod2_full, verbose = T)
-
-#overdispersion
-check_overdispersion(netting2_mod2_full)
-#collinearity
-check_collinearity(netting2_mod2_full)
-
-# Compute fitted values and Pearson residuals
-# netting2_mod2_vals <- fitted(netting2_mod2_full)
-# netting2_mod2_residuals <- residuals(netting2_mod2_full, type = "pearson")
-# Create binned residuals plot
-# arm::binnedplot(netting2_mod2_vals, netting2_mod2_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting2_mod2_sim_res <- simulateResiduals(fittedModel = netting2_mod2_full)
-plot(netting2_mod2_sim_res)
-```
-
-```{r netting2_mod3_full, fig.width=8, fig.height=10}
-# removing days since start
-netting2_mod3_full <- glmer(total_interaction_T 
-                                   ~ Time_category
-                                   #+ Floral_simpson_index
-                                   + top2_ratio
-                                   + Site_type
-                                   + dm_wind_velocity
-                                   + dm_temperature
-                                   #+ Days_since_start
-                                   + (1|site), 
-                                   data = netting2, 
-                                   family = "poisson")
-
-summary(netting2_mod3_full)
-parameters(netting2_mod3_full)
-
-#check the model
-check_model(netting2_mod3_full, verbose = T)
-#overdispersion
-check_overdispersion(netting2_mod3_full)
-#collinearity
-check_collinearity(netting2_mod3_full)
-
-# Compute fitted values and Pearson residuals
-# netting2_mod3_vals <- fitted(netting2_mod3_full)
-# netting2_mod3_residuals <- residuals(netting2_mod3_full, type = "pearson")
-# Create binned residuals plot
-# arm::binnedplot(netting2_mod3_vals, netting2_mod2_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting2_mod3_sim_res <- simulateResiduals(fittedModel = netting2_mod3_full)
-plot(netting2_mod3_sim_res)
-```
-
-```{r netting2_mod4_full, fig.width=8, fig.height=10}
-# removing wind velocity
-netting2_mod4_full <- glmer(total_interaction_T 
-                                   ~ Time_category
-                                   #+ Floral_simpson_index
-                                   + top2_ratio
-                                   + Site_type
-                                   #+ dm_wind_velocity
-                                   + dm_temperature
-                                   #+ Days_since_start
-                                   + (1|site), 
-                                   data = netting2, 
-                                   family = "poisson")
-
-summary(netting2_mod4_full)
-parameters(netting2_mod4_full)
-
-#check the model
-check_model(netting2_mod4_full, verbose = T)
-
-#overdispersion
-check_overdispersion(netting2_mod4_full)
-#collinearity
-check_collinearity(netting2_mod4_full)
-
-# Compute fitted values and Pearson residuals
-# netting2_mod4_vals <- fitted(netting2_mod4_full)
-# netting2_mod4_residuals <- residuals(netting2_mod4_full, type = "pearson")
-# Create binned residuals plot
-# arm::binnedplot(netting2_mod4_vals, netting2_mod4_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting2_mod4_sim_res <- simulateResiduals(fittedModel = netting2_mod4_full)
-plot(netting2_mod4_sim_res)
-
-
-```
-
-```{r}
-# Compare the models with the performance package
-net_pois_comp2 <- compare_performance(netting2_mod1_full, netting2_mod2_full, netting2_mod3_full, netting2_mod4_full,  
-                                        metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
-
-# Print the comparison table
-print(net_pois_comp2)
-```
-
+The comparison of the models shows that the model with the lowest AICc and BIC is the third model (netting_mod3_full), which has the lowest AICc and BIC values. However, even in this model, the AICc and BIC values are quite high, indicating that the model is not the best fit for the data. In the next step, we will try to run a negative binomial model to see if it improves the fit of the model.
 
 
 ## Netting - NEGATIVE BINOMIAL GLMM
+
+### Netting model 1 - negative binomial with all predictors 
+
+We start again with the full model, but this time we use a negative binomial distribution.
 
 ```{r netting_mod1_NB, fig.width=8, fig.height=10}
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
@@ -1386,7 +1237,7 @@ netting_mod1_NB <- glmer.nb(total_interaction_T
                             + Site_type
                             + dm_wind_velocity
                             + dm_temperature
-                            +  majority_class
+                            #+  majority_class
                             #+ urban + agri + grass + snh + forest + water
                             + Days_since_start
                             + (1|site), 
@@ -1415,20 +1266,22 @@ arm::binnedplot(netting_mod1_NB_vals, netting_mod1_NB_residuals)
 netting_mod1_NB_sim_res <- simulateResiduals(fittedModel = netting_mod1_NB)
 plot(netting_mod1_NB_sim_res)
 ```
- 
+
+With this model, the assumptions are met (qqplot is normal, no overdispersion, and the residuals are homoscedastic). There are still too many predictors for the amount of data we have, so we will remove the predictors one by one and check the model assumptions after each step.
+
  
 ```{r netting_mod2_NB, fig.width=8, fig.height=10}
 
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# remove dm_temperature
+# remove time_category (p= 0.442 for netting_mod1_NB)
 
 netting_mod2_NB <- glmer.nb(total_interaction_T 
                            ~ Floral_simpson_index 
-                           + Time_category
+                           #+ Time_category
                            + top2_ratio
                            + Site_type
                            + dm_wind_velocity
-                           #+ dm_temperature
+                           + dm_temperature
                            #+  majority_class
                            #+ urban + agri + grass + snh + forest + water
                            + Days_since_start
@@ -1460,7 +1313,7 @@ plot(netting_mod2_NB_sim_res)
 
 ```{r netting_mod3_NB, fig.width=8, fig.height=10} 
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# remove dm_temperature
+# remove days since start ( p= 0.333 for netting_mod2_NB)
 
 netting_mod3_NB <- glmer.nb(total_interaction_T 
                            ~ Floral_simpson_index 
@@ -1468,10 +1321,10 @@ netting_mod3_NB <- glmer.nb(total_interaction_T
                            + top2_ratio
                            + Site_type
                            + dm_wind_velocity
-                           #+ dm_temperature
+                           + dm_temperature
                            #+  majority_class
                            #+ urban + agri + grass + snh + forest + water
-                            #+ Days_since_start
+                           #+ Days_since_start
                            + (1|site), 
                            data = netting1,
                            family = nbinom2)
@@ -1500,17 +1353,17 @@ plot(netting_mod3_NB_sim_res)
 
 ```{r netting_mod4_NB, fig.width=8, fig.height=10}
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# remove floral simpson_index
+# remove dm temperature (p= 0.2486 for netting_mod3_NB)
 netting_mod4_NB <- glmer.nb(total_interaction_T 
-                           #~ Floral_simpson_index 
+                           ~ Floral_simpson_index 
                            #+ Time_category
-                           ~ top2_ratio
+                           + top2_ratio
                            + Site_type
                            + dm_wind_velocity
                            #+ dm_temperature
                            #+  majority_class
                            #+ urban + agri + grass + snh + forest + water
-                            #+ Days_since_start
+                           #+ Days_since_start
                            + (1|site), 
                            data = netting1, 
                            family = nbinom2)
@@ -1520,13 +1373,23 @@ parameters(netting_mod4_NB)
 
 ```
 
-## NB REMOVING OUTLIERS
 
-```{r netting_mod1_nb, fig.width=8, fig.height=10}
+### Compare the NB models with the performance package
+
+```{r}
+# Compare the models with the performance package
+net_NB_comp1 <- compare_performance(netting_mod1_NB, netting_mod2_NB, netting_mod3_NB, netting_mod4_NB,  
+                                        metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
+
+# Print the comparison table
+print(net_NB_comp1)
+```
+### NB model including landscape data
+
+```{r netting_mod1_land_NB, fig.width=8, fig.height=10}
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# negative binomial distribution
 
-netting2_mod1_NB <- glmer.nb(total_interaction_T 
+netting_mod1_land_NB <- glmer.nb(total_interaction_T 
                             ~ Floral_simpson_index 
                             + Time_category
                             + top2_ratio
@@ -1534,58 +1397,201 @@ netting2_mod1_NB <- glmer.nb(total_interaction_T
                             + dm_wind_velocity
                             + dm_temperature
                             #+  majority_class
-                            #+ urban + agri + grass + snh + forest + water
+                            + urban + agri + grass + snh + forest + water
                             + Days_since_start
                             + (1|site), 
-                            data = netting3,
+                            data = netting1, 
                             family = nbinom2)
 
 
-summary(netting2_mod1_NB)
-parameters(netting2_mod1_NB)
+summary(netting_mod1_land_NB)
+parameters(netting_mod1_land_NB)
 
-#check the model
-check_model(netting2_mod1_NB, verbose = T)
+```
+
+
+```{r netting_mod2_land_NB, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+
+# removing snh (p=0.690 for previous model)
+netting_mod2_land_NB <- glmer.nb(total_interaction_T 
+                            ~ Floral_simpson_index 
+                            + Time_category
+                            + top2_ratio
+                            + Site_type
+                            + dm_wind_velocity
+                            + dm_temperature
+                            #+  majority_class
+                            + urban + agri + grass 
+                            #+ snh 
+                            + forest + water
+                            + Days_since_start
+                            + (1|site), 
+                            data = netting1, 
+                            family = nbinom2)
+
+
+summary(netting_mod2_land_NB)
+parameters(netting_mod2_land_NB)
+
+```
+
+
+```{r netting_mod3_land_NB, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+
+# removing forest (p= 0.963324 for previous model)
+netting_mod3_land_NB <- glmer.nb(total_interaction_T 
+                            ~ Floral_simpson_index 
+                            + Time_category
+                            + top2_ratio
+                            + Site_type
+                            + dm_wind_velocity
+                            + dm_temperature
+                            #+  majority_class
+                            + urban + agri + grass 
+                            #+ snh 
+                            #+ forest 
+                            + water
+                            + Days_since_start
+                            + (1|site), 
+                            data = netting1, 
+                            family = nbinom2)
+
+
+summary(netting_mod3_land_NB)
+parameters(netting_mod3_land_NB)
+
+```
+
+```{r netting_mod4_land_NB, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# removing days since start (p= 0.963  for previous model)
+
+netting_mod4_land_NB <- glmer.nb(total_interaction_T 
+                            ~ Floral_simpson_index 
+                            + Time_category
+                            + top2_ratio
+                            + Site_type
+                            + dm_wind_velocity
+                            + dm_temperature
+                            #+  majority_class
+                            + urban + agri + grass 
+                            #+ snh 
+                            #+ forest 
+                            + water
+                            #+ Days_since_start
+                            + (1|site), 
+                            data = netting1, 
+                            family = nbinom2)
+
+summary(netting_mod4_land_NB)
+parameters(netting_mod4_land_NB)
+
+```
+
+```{r netting_mod5_land_NB, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# removing Floral_simpson_index (p= 0.479 for previous model)
+
+netting_mod5_land_NB <- glmer.nb(total_interaction_T 
+                            #~ Floral_simpson_index 
+                            ~ Time_category
+                            + top2_ratio
+                            + Site_type
+                            + dm_wind_velocity
+                            + dm_temperature
+                            #+  majority_class
+                            + urban + agri + grass 
+                            #+ snh 
+                            #+ forest 
+                            + water
+                            #+ Days_since_start
+                            + (1|site), 
+                            data = netting1, 
+                            family = nbinom2)
+
+summary(netting_mod5_land_NB)
+parameters(netting_mod5_land_NB)
+
+```
+
+```{r netting_mod6_land_NB, fig.width=8, fig.height=10}
+# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
+# removing dm wind velocity  (p= 0.284 for previous model)
+
+netting_mod6_land_NB <- glmer.nb(total_interaction_T 
+                            #~ Floral_simpson_index 
+                            #+ Time_category
+                            ~ top2_ratio
+                            + Site_type
+                            #+ dm_wind_velocity
+                            + dm_temperature
+                            #+  majority_class
+                            + urban + agri + grass 
+                            #+ snh 
+                            #+ forest 
+                            + water
+                            #+ Days_since_start
+                            + (1|site), 
+                            data = netting1, 
+                            family = nbinom2)
+
+summary(netting_mod6_land_NB)
+parameters(netting_mod6_land_NB)
+
+```
+
+```{r netting_mod7_land_NB, fig.width=8, fig.height=10}
+#remove dm temperature  p= 0.744    in previous model 
+
+netting_mod7_land_NB <- glmer.nb(total_interaction_T 
+                            #~ Floral_simpson_index 
+                            #+ Time_category
+                            ~ top2_ratio
+                            + Site_type
+                            #+ dm_wind_velocity
+                            #+ dm_temperature
+                            #+  majority_class
+                            + urban + agri + grass 
+                            #+ snh 
+                            #+ forest 
+                            + water
+                            #+ Days_since_start
+                            + (1|site), 
+                            data = netting1, 
+                            family = nbinom2)
+summary(netting_mod7_land_NB)
+parameters(netting_mod7_land_NB)
+
+check_model(netting_mod7_land_NB, verbose = T)
+
 #overdispersion
-check_overdispersion(netting2_mod1_NB)
+check_overdispersion(netting_mod7_land_NB)
 #collinearity
-check_collinearity(netting2_mod1_NB)
+check_collinearity(netting_mod7_land_NB)
 
 # Compute fitted values and Pearson residuals
-netting2_mod1_NB_vals <- fitted(netting2_mod1_NB)
-netting2_mod1_NB_residuals <- residuals(netting2_mod1_NB, type = "pearson")
+netting_mod7_land_NB_vals <- fitted(netting_mod7_land_NB)
+netting_mod7_land_NB_residuals <- residuals(netting_mod7_land_NB, type = "pearson")
 # Create binned residuals plot
-arm::binnedplot(netting2_mod1_NB_vals, netting2_mod1_NB_residuals)
+arm::binnedplot(netting_mod7_land_NB_vals, netting_mod7_land_NB_residuals)
 
 #DHARMa package - simulate residuals and check model assumptions
-netting2_mod1_NB_sim_res <- simulateResiduals(fittedModel = netting2_mod1_NB)
-plot(netting2_mod1_NB_sim_res)
+netting_mod7_land_NB_sim_res <- simulateResiduals(fittedModel = netting_mod7_land_NB)
+plot(netting_mod7_land_NB_sim_res)
+```
+
+### Compare the models with the performance package
+
+```{r}
+# Compare the models with the performance package
+net_NB_comp2 <- compare_performance(netting_mod1_land_NB, netting_mod2_land_NB, netting_mod3_land_NB, netting_mod4_land_NB, 
+                                      netting_mod5_land_NB, netting_mod6_land_NB, netting_mod7_land_NB,
+                                        metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
+
+# Print the comparison table
+print(net_NB_comp2)
 
 ```
 
-
-## Tweedie Models
-
-```{r netting_mod1_tweedie, fig.width=8, fig.height=10}
-netting_mod_TW <- glm(total_interaction_T 
-                      ~ Floral_simpson_index 
-                      + Time_category
-                           + top2_ratio
-                           + Site_type
-                           + dm_wind_velocity
-                           + dm_temperature
-                           #+  majority_class
-                           #+ urban + agri + grass + snh + forest + water
-                          + Days_since_start, 
-                      data = netting2, 
-                      family = tweedie(var.power=1.5, link.power=0))
-
-summary(netting_mod_TW)
-
-plot(netting_mod_TW)  # Plots model diagnostics
-gam.check(netting_mod_TW)  # Checks for goodness of fit
-
-str(netting1)  # Check structure
-summary(netting1)  # Look for missing values
-any(is.na(netting1))  # Check if there are NA values
-```
