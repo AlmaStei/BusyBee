@@ -135,6 +135,55 @@ theme_new <- theme_classic(base_size = 12) +
 theme_set(theme_new)
 ```
 
+#### Predictor colors
+
+Setting predictor colors allows us to make unified plots with the same colors for the same variables in the modelling steps. 
+Now in order to call one of the colors, we can do as follows:  `predictor_colors["Floral_simpson_index_T"]`.
+
+```{r}
+# Select 7 colors from the a palette
+predictor_colors <- paletteer::paletteer_d("MetBrewer::Nattier")[1:7]
+
+# Assign colors to the predictor variables
+predictor_colors <- setNames(predictor_colors, c(
+  "dm_temperature", 
+  "Floral_simpson_index_T",
+  "minutes_since_9am",
+  "top2_ratio",
+  "Plot_Cover_T",
+  "Days_since_start",
+  "dm_wind_velocity"
+))
+
+# View the named color mapping
+print(predictor_colors)
+
+barplot(
+  rep(1, length(predictor_colors)),
+  col = predictor_colors,
+  names.arg = names(predictor_colors),
+  las = 2,  # rotate labels
+  cex.names = 0.8,
+  main = "Predictor Color Preview"
+)
+
+
+```
+**One option: MetBrewer::Derain**
+
+predictor_colors <- paletteer::paletteer_d("MetBrewer::Derain")[1:7]
+
+Assign colors to the predictor variables
+predictor_colors <- setNames(predictor_colors, c(
+  "dm_temperature", 
+  "top2_ratio",
+  "Plot_Cover_T",
+  "Floral_simpson_index_T",
+  "minutes_since_9am",
+  "Days_since_start",
+  "dm_wind_velocity"
+))
+
 ## 0.3. data loading   
  
 ```{r loading all needed csv files}
@@ -243,12 +292,24 @@ write.csv(start_net, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/d
 ### 1.3. Landscape data & combining 
 
 ```{r landscape and top2}
-Floral_simpson_index <- relative_flower %>%
+Floral_simpson_index_T <- relative_flower %>%
   dplyr::select("Site"="Site",
          "Transect"="Transect",
          "Site_type"="Site_type",
          "Floral_simpson_index"="Floral_simpson_index")%>%
-  distinct()
+  distinct()%>%
+  #new column with average simpson per transect
+  group_by(Site, Transect, Site_type) %>%
+  summarise(Floral_simpson_index_T = sum(Floral_simpson_index)/3)%>%
+  ungroup()
+
+
+planty <- relative_flower %>%
+  dplyr::select(Site, Plot_Cover, Transect)%>%
+  #average the plot cover per transect
+  group_by(Site, Transect) %>%
+  summarise(Plot_Cover_T = mean(Plot_Cover, na.rm = TRUE))
+  
 
 envir_data <- start_net %>%
   #select the relevant columns
@@ -262,15 +323,19 @@ envir_data <- start_net %>%
   
   #join the top2 data
   full_join(top2, by = c("Site" = "Site", "Transect")) %>%
+  dplyr::select(-c( "Site_type"))%>% #site_type from the top2 is lacking some rows, we'll get this variable from another dataframe 
+
+  
+  #join the plant data
+  full_join(planty, by = c("Site" = "Site", "Transect"))%>%
   
   #remove extra columns
-  dplyr::select(-c( "Site_type"))%>%
   #dplyr::select( -c("top2_ratio", "Site_type"))%>%
   #dplyr::select( -c("top2_ratio", "Floral_shannon_index"   , "Floral_species_richness"))%>%
   
   #add only simpson index from relative_flower 
-  full_join(Floral_simpson_index, by= c("Site", "Transect"))%>%
-  
+  full_join(Floral_simpson_index_T, by= c("Site", "Transect"))%>%
+
   
   #fill in NA with 0 in the Pastinaca.sativa"   "Daucus.carota"   "top2_ratio" columns   
   mutate(across(c("Pastinaca.sativa", "Daucus.carota"), ~replace_na(., 0)))%>%
@@ -284,11 +349,15 @@ envir_data <- start_net %>%
   mutate(Days_since_start = as.numeric(Date - min(Date)+1))%>%
   
   #rename rows in Site_type column 1-5y to young_restored and Reference to reference
-  mutate(Site_type = ifelse(Site_type == "1-5 y", "young_restored", "reference"))
+  mutate(Site_type = ifelse(Site_type == "1-5 y", "young_restored", "reference"))%>%
+  
+  distinct()
 
 ```
 
 ### 1.4. Correlation matrix of environmental variables
+
+At a transect level. 
 
 ```{r correlation matrix}
 #correlation matrix of all the numerical environmental variables
@@ -297,7 +366,8 @@ tmp_cor_envir <- envir_data %>%
   na.omit() %>%
   #remove minutes_since_9am column
   select(-c("minutes_since_9am")) %>%
-  mutate(across(everything(), scale)) # scale the data - Z-score standardization
+  mutate(across(everything(), scale))%>% # scale the data - Z-score standardization
+  distinct()
   
 tmp_qq_plots <- list()
 # plot Q-Q plots for each variable
@@ -309,8 +379,8 @@ for (i in 1:ncol(tmp_cor_envir)) {
   theme(plot.title = element_text(size = 10))  
 }
 
-tmp_qq_plots[[1]]; tmp_qq_plots[[2]]; tmp_qq_plots[[3]]; tmp_qq_plots[[4]]; tmp_qq_plots[[5]]; tmp_qq_plots[[6]]; tmp_qq_plots[[7]]; tmp_qq_plots[[8]]; tmp_qq_plots[[9]];tmp_qq_plots[[10]];tmp_qq_plots[[11]];tmp_qq_plots[[12]]; tmp_qq_plots[[13]]
-#;tmp_qq_plots[[14]];tmp_qq_plots[[15]];tmp_qq_plots[[16]];tmp_qq_plots[[17]
+tmp_qq_plots[[1]]; tmp_qq_plots[[2]]; tmp_qq_plots[[3]]; tmp_qq_plots[[4]]; tmp_qq_plots[[5]]; tmp_qq_plots[[6]]; tmp_qq_plots[[7]]; tmp_qq_plots[[8]]; tmp_qq_plots[[9]];tmp_qq_plots[[10]];tmp_qq_plots[[11]];tmp_qq_plots[[12]]; tmp_qq_plots[[13]];tmp_qq_plots[[14]]
+#;tmp_qq_plots[[15]];tmp_qq_plots[[16]];tmp_qq_plots[[17]
 
 ```
 
@@ -411,7 +481,7 @@ pan_family1 <- pan_family %>%
 pan_family1 %>%
   #remove 0 count values
   filter(Count > 0) %>%
-  ggplot(aes(x = Floral_simpson_index, y = Count)) +
+  ggplot(aes(x = Floral_simpson_index_T, y = Count)) +
   geom_point(aes(color = Site), alpha = 5) +
   #geom_smooth(method = "lm", se = FALSE) +
   labs(title = "Number of individuals caught in pan traps per transect depending on simpson index",
@@ -456,7 +526,7 @@ pan_family1 %>%
 pan_family1 %>%
   #remove 0 count values
   #filter(Count > 0) %>%
-  ggplot(aes(x = Floral_simpson_index, y = Count)) +
+  ggplot(aes(x =Floral_simpson_index_T, y = Count)) +
   geom_point(aes(color = Site), alpha = 5) +
   #geom_smooth(method = "lm", se = FALSE) +
   labs(title = "Count vs Floral Simpson Index",
@@ -715,7 +785,7 @@ platform_camera1 %>%
 
 platform_camera1 <- platform_camera1 %>%
  #scale these columns: "dm_wind_velocity" "dm_temperature" "agri" "grass" "snh" "forest" "urban" "water" "Pastinaca.sativa" "Daucus.carota" "top2_ratio" "Floral_simpson_index" "minutes_since_9am"  
-  mutate(across(c("dm_wind_velocity", "dm_temperature", "agri", "grass", "snh", "forest", "urban", "water", "Pastinaca.sativa", "Daucus.carota", "top2_ratio", "Floral_simpson_index", "minutes_since_9am", "Days_since_start"), scale))
+  mutate(across(c("dm_wind_velocity", "dm_temperature", "agri", "grass", "snh", "forest", "urban", "water", "Pastinaca.sativa", "Daucus.carota", "top2_ratio", "Floral_simpson_index_T", "minutes_since_9am", "Days_since_start"), scale))
 
 ```
 
@@ -955,6 +1025,8 @@ rm(daucus_cam, daucus_net, fams, customfam, final_plot1, final_plot2)
 
 ## 6.1. Flower survey data
 
+For the flower survey data, we have data at the plot level, but we'll average them to transect level, as it is the same level as the netting, pan traps and platform data.
+
 ### 6.1.1. Flower survey - Linear mixed model with random effect - lmer 
 
 ```{r fig.width=8, fig.height=10}
@@ -970,17 +1042,23 @@ scaled_envir_data%>%
   sapply(sd)
   
 scaled_envir_data%>%
-  ggplot(aes(x=Floral_simpson_index))+
+  ggplot(aes(x=Floral_simpson_index_T))+
   geom_histogram(binwidth = 0.1, fill = "lightblue", color = "black")+
   labs(title = "Histogram of Floral Simpson Index",
        x = "Floral Simpson Index",
        y = "Count")
 
+# is the floral simpson index normally distributed?
+shapiro.test(scaled_envir_data$Floral_simpson_index_T) # p-value = 0.02828, so it is not normally distributed
+datawizard::describe_distribution(scaled_envir_data$Floral_simpson_index_T)
+
+
 # Create a linear model
 # full model with Floral_simpson_index as response variable and structure around  the sites as explanatory variables, and site as random effect
-plantsimp_mod1_full <- lmer(Floral_simpson_index 
+plantsimp_mod1_full <- lmer(Floral_simpson_index_T
                             ~ Site_type
                             +majority_class 
+                            +Plot_Cover_T
                             #+ agri + grass + snh + forest + urban + water
                             + (1|Site), data = scaled_envir_data)
 
@@ -1005,32 +1083,87 @@ arm::binnedplot(plantsimp_mod1_vals, plantsimp_mod1_residuals)
 #DHARMa package - simulate residuals and check model assumptions
 plantsimp_mod1_sim_res <- simulateResiduals(fittedModel = plantsimp_mod1_full)
 plot(plantsimp_mod1_sim_res)
+testDispersion(plantsimp_mod1_full) 
+```
+
+```{r plantsimp_mod1_beta, fig.width=8, fig.height=10}
+plantsimp_mod1_beta <- glmmTMB(Floral_simpson_index_T 
+                               ~ Site_type 
+                               + majority_class #majority labndcover class in 1km buffer zone around the site
+                               #+ agri + grass + snh + forest + urban + water
+                               + Plot_Cover_T 
+                               + top2_ratio
+                               + (1|Site),
+                    #ziformula = ~1,  # allows zero-inflation if needed
+                    family = beta_family(),
+                    data = scaled_envir_data)
+
+summary(plantsimp_mod1_beta)
+parameters(plantsimp_mod1_beta)
+
+#checking the model
+check_model(plantsimp_mod1_beta)
+#overdispersion
+check_overdispersion(plantsimp_mod1_beta)
+#collinearity
+check_collinearity(plantsimp_mod1_beta)
+# Compute fitted values and Pearson residuals
+plantsimp_mod1_beta_vals <- fitted(plantsimp_mod1_beta)
+plantsimp_mod1_beta_residuals <- residuals(plantsimp_mod1_beta, type = "pearson")
+# Create binned residuals plot
+arm::binnedplot(plantsimp_mod1_beta_vals, plantsimp_mod1_beta_residuals)
+#DHARMa package - simulate residuals and check model assumptions
+plantsimp_mod1_beta_sim_res <- simulateResiduals(fittedModel = plantsimp_mod1_beta)
+plot(plantsimp_mod1_beta_sim_res)
 ```
 
 
-
-
-
-Variable	  Estimate	  Std. Error	t-value	  Interpretation
-(Intercept)	0.6233	    0.2175	     2.865	  Baseline Floral Simpson Index when all predictors are at their mean.
-agri	      -882.06	    4542.82	    -0.194  	Agriculture has a weak negative effect, but it is not significant.
-grass	      -826.37	    4256.14	    -0.194  	Grassland has a weak negative effect, but it is not significant.
-snh       	-121.56	    625.75	    -0.194  	Semi-natural habitat has a weak negative effect, but not significant.
-forest    	-674.38	    3473.38	    -0.194  	Forest has a weak negative effect, but not significant.
-urban	      -557.58	    2872.05	    -0.194  	Urban area has a weak negative effect, but not significant.
-water     	-197.66	    1017.87	    -0.194  	Water has a weak negative effect, but not significant.
-Site_type 	0.1349	    0.4736	     0.285  	Young restored sites have a slightly higher Simpson Index, but not significantly so.
-(young_restored)
-
 #### 6.1.2. Flower Survey Model Interpretation of Results
-The linear mixed model (LMM) was appropriate for this data, as it accounted for random site effects. 
-Assumptions were met: residuals were approximately normal, there was no overdispersion (dispersion ratio = 0.835, p = 0.536), and multicollinearity was low (VIF ~ 1.67). 
-The fixed effects showed no significant impact of majority land cover class (forest, grass, or urban) or site type (young restored) on floral Simpson index. 
-  - No majority class significantly affects floral diversity, meaning different land covers (forest, grass, urban) do not have a strong influence on floral Simpson Index in this dataset. 
-  - The restoration stage does not significantly influence floral diversity.
+
+> Model Summary: `plantsimp_mod1_beta`
+
+**Model type:** Beta regression with logit link  
+**Response:** `Floral_simpson_index_T` (bounded between 0 and 1)  
+**Predictors:** `Site_type`, `majority_class` (land cover), `Plot_Cover_T`  
+**Random effect:** Intercept for `Site`
+
+---
+
+> Assumption Checks
+
+- ✅ **Distributional appropriateness**: The response is continuous and bounded (0, 1), suitable for a beta distribution.
+- ✅ **No overdispersion**: Dispersion ratio = 1.085, *p* = 0.664 (DHARMa).
+- ✅ **No multicollinearity**: All VIF values < 2.3.
+- ✅ **Residual diagnostics** (DHARMa):
+  - No significant dispersion.
+  - No zero-inflation.
+  - No major residual structure.
+- ⚠️ **Random effect warning**: The variance for `Site` is near zero. This suggests possible singularity (i.e., random intercept not contributing meaningfully).
+
+---
+
+> Interpretation of Results
+
+- **Significant effect:**
+  - `Plot_Cover_T` (scaled plot-level vegetation cover)  
+    - Estimate = -0.64  
+    - *p* < 0.001  
+    - **Interpretation:** As local vegetation cover increases, floral Simpson diversity decreases.
+
+- **Non-significant predictors:**
+  - `Site_type` (*p* = 0.16)
+  - `majority_class` (all levels *p* > 0.5)
+
+---
+
+> Conclusion
+
+The best predictor of floral Simpson diversity in this model is **local-scale vegetation cover** (`Plot_Cover_T`), which has a **significant negative effect**. Broader site type and surrounding land cover context (`majority_class`) do not explain significant variation in flower diversity in this case.
+
+--- 
 
 ```{r fig.width=8, fig.height=10}
-plot_model(plantsimp_mod1_full , type = "est", show.values = TRUE, value.offset = .3)
+plot_model(plantsimp_mod1_beta , type = "est", show.values = TRUE, value.offset = .3)
 ```
 
 
@@ -1040,9 +1173,9 @@ For the netting data, the predictor variables are:
 - Floral Simpson Index
     + Simpson index captures dominant flowering species, aligning with the nested structure of plant–pollinator networks: many specialists rely on a few generalists. This skewed interaction pattern makes generalist flowers key to maintaining pollinator communities, justifying their emphasis in diversity modeling.
 - Minutes since 9 am
-    + Time since 9 am, when the netting started, to account for the time of day. Each netting session is made to be 30 minutes of active netting, so the sampling effort is the same for all transects. 
+    + Time since 9 am, to account for the time of day. Each netting session is made to be 30 minutes of active netting, so the sampling effort is the same for all transects. 
 - Top 2 ratio
-    + Relative abundance ratio of D. carota to P. sativa used as a proxy for dominance shifts.
+    + Relative abundance ratio of D. carota and P. sativa combined, used as a proxy for dominance shifts.
 - Site type
     + Young restored sites (1 to 5 years ago) vs reference sites.
 - Daily mean wind velocity
@@ -1062,7 +1195,7 @@ Since we have only 5 transects per site (5x9= 45 units), we need to be careful w
 ```{r prepare data}
 #scale the last envir_data - Floral simpson_index
 scaled_envir_data <- envir_data %>%
-  #z transform the numerical columns, except Floral_simpson_index
+  #z transform the numerical columns, exceptFloral_simpson_index_T
   mutate(across(where(is.numeric), scale))
 
 netting1 <- netting %>%
@@ -1085,195 +1218,17 @@ netting1 %>%
 
 ## A.6.2.1. INTERACTION Netting - POISSON GLMM
 
-```{r netting_mod1_full, fig.width=8, fig.height=10}
-# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-#Poisson distribution 
-netting_mod1_full <- glmer(total_interaction_T 
-                           ~ Floral_simpson_index 
-                           + minutes_since_9am
-                           + top2_ratio
-                           + Site_type
-                           + dm_wind_velocity
-                           + dm_temperature
-                           #+  majority_class
-                           #+ urban + agri + grass + snh + forest + water
-                          + Days_since_start
-                           + (1|site), 
-                           data = netting1, family = "poisson")
 
-summary(netting_mod1_full)
-parameters(netting_mod1_full)
-
-#check the model
-check_model(netting_mod1_full)
-
-#overdispersion
-check_overdispersion(netting_mod1_full)
-
-#collinearity
-check_collinearity(netting_mod1_full)
-
-# Compute fitted values and Pearson residuals
-netting_mod1_vals <- fitted(netting_mod1_full)
-netting_mod1_residuals <- residuals(netting_mod1_full, type = "pearson")
-# Create binned residuals plot
-arm::binnedplot(netting_mod1_vals, netting_mod1_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting_mod1_sim_res <- simulateResiduals(fittedModel = netting_mod1_full)
-plot(netting_mod1_sim_res)
-```
-
-This first model has too many predictors and is overfitting the data. 
+The first model has too many predictors and is over fitting the data. 
 A lot of the predictors are significant, but the assumptions of the model are not met (overdispersion(p < 0.001), S-shape around qqplot, and the residuals appear to be heteroskedastic (residuals vs predicted plot)). 
 We will be removing predictors one by one and checking the model assumptions after each step. 
-
-
-For the second model, the daily mean tempreature is removed, because it had the highest p-value (0.741) and was not significant.
-dm temperature             |     0.02 | 0.07 | [-0.11,  0.16] |  0.33 | 0.741 
-
-```{r netting_mod2_full, fig.width=8, fig.height=10}
-# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect 
-# removing dm_temperature
-netting_mod2_full <- glmer(total_interaction_T 
-                           ~ Floral_simpson_index 
-                           + minutes_since_9am
-                           + top2_ratio
-                           + Site_type
-                           + dm_wind_velocity
-                           #+ dm_temperature
-                           #+  majority_class
-                           #+ urban + agri + grass + snh + forest + water
-                           + Days_since_start
-                           + (1|site), 
-                           data = netting1, family = "poisson")
-
-summary(netting_mod2_full)
-parameters(netting_mod2_full)
-
-#check the model
-check_model(netting_mod2_full)
-
-#overdispersion
-check_overdispersion(netting_mod2_full)
-#collinearity
-check_collinearity(netting_mod2_full)
-
-# Compute fitted values and Pearson residuals
-netting_mod2_vals <- fitted(netting_mod2_full)
-netting_mod2_residuals <- residuals(netting_mod2_full, type = "pearson")
-# Create binned residuals plot
-arm::binnedplot(netting_mod2_vals, netting_mod2_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting_mod2_sim_res <- simulateResiduals(fittedModel = netting_mod2_full)
-plot(netting_mod2_sim_res)
-```
-
-There are still too many predictors and some issues with the model assumptions. 
- 
-Removing the days since start, because it had the highest p-value and was not significant:   
-Days_since_start         0.11976    0.06882   1.740  0.08181 .  
-
- 
-```{r netting_mod3_full, fig.width=8, fig.height=10}
-# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# removing time category (p =0.468 in the previous model)
-netting_mod3_full <- glmer(total_interaction_T 
-                           ~ Floral_simpson_index 
-                           #+ minutes_since_9am
-                           + top2_ratio
-                           + Site_type
-                           + dm_wind_velocity
-                           #+ dm_temperature
-                           #+  majority_class
-                           #+ urban + agri + grass + snh + forest + water
-                           + Days_since_start
-                           + (1|site), 
-                           data = netting1, family = "poisson")
-
-summary(netting_mod3_full)
-parameters(netting_mod3_full)
-
-#check the model
-check_model(netting_mod3_full, verbose = T)
-
-#overdispersion
-check_overdispersion(netting_mod3_full)
-
-#collinearity
-check_collinearity(netting_mod3_full)
-
-# Compute fitted values and Pearson residuals
-netting_mod3_vals <- fitted(netting_mod3_full)
-netting_mod3_residuals <- residuals(netting_mod3_full, type = "pearson")
-
-# Create binned residuals plot
-arm::binnedplot(netting_mod3_vals, netting_mod3_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting_mod3_sim_res <- simulateResiduals(fittedModel = netting_mod3_full)
-plot(netting_mod3_sim_res)
-```
-
-```{r netting_mod4_full, fig.width=8, fig.height=10}
-# full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# removing days since start
-
-netting_mod4_full <- glmer(total_interaction_T 
-                           ~ Floral_simpson_index 
-                           #+ minutes_since_9am
-                           + top2_ratio
-                           + Site_type
-                           + dm_wind_velocity
-                           #+ dm_temperature
-                           #+  majority_class
-                           #+ urban + agri + grass + snh + forest + water
-                          #+ Days_since_start
-                           + (1|site), 
-                           data = netting1, family = "poisson")
-
-summary(netting_mod4_full)
-parameters(netting_mod4_full)
-
-#check the model
-check_model(netting_mod4_full, verbose = T)
-
-#overdispersion
-check_overdispersion(netting_mod4_full)
-
-#collinearity
-check_collinearity(netting_mod4_full)
-
-# Compute fitted values and Pearson residuals
-netting_mod4_vals <- fitted(netting_mod4_full)
-netting_mod4_residuals <- residuals(netting_mod4_full, type = "pearson")
-
-# Create binned residuals plot
-arm::binnedplot(netting_mod4_vals, netting_mod4_residuals)
-
-#DHARMa package - simulate residuals and check model assumptions
-netting_mod4_sim_res <- simulateResiduals(fittedModel = netting_mod4_full)
-plot(netting_mod4_sim_res)
-```
-
-
-#### Compare the models with the performance package
-```{r netting_pois_comp1}
-# Compare the models with the performance package
-netting_pois_comp1 <- compare_performance(netting_mod1_full, netting_mod2_full, netting_mod3_full, netting_mod4_full,  
-                                        metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
-
-# Print the comparison table
-print(netting_pois_comp1)
-```
 
 The comparison of the models shows that the model with the lowest AICc and BIC is the third model (netting_mod3_full), which has the lowest AICc and BIC values. However, even in this model, the AICc and BIC values are quite high, indicating that the model is not the best fit for the data. In the next step, we will try to run a negative binomial model to see if it improves the fit of the model.
 
 ### Interpretation of results for POISSON GLMM
 **netting_mod3_full**
 netting_mod3_full <- glmer(total_interaction_T 
-                           ~ Floral_simpson_index 
+                           ~Floral_simpson_index_T 
                            + minutes_since_9am
                            + top2_ratio
                            + Site_type
@@ -1302,12 +1257,13 @@ We start again with the full model, but this time we use a negative binomial dis
 # negative binomial distribution
 
 netting_mod1_NB <- glmer.nb(total_interaction_T 
-                            ~ Floral_simpson_index 
+                            ~Floral_simpson_index_T 
                             + minutes_since_9am
                             + top2_ratio
                             + Site_type
                             + dm_wind_velocity
                             + dm_temperature
+                            + Plot_Cover_T
                             #+  majority_class
                             #+ urban + agri + grass + snh + forest + water
                             + Days_since_start
@@ -1336,6 +1292,9 @@ arm::binnedplot(netting_mod1_NB_vals, netting_mod1_NB_residuals)
 #DHARMa package - simulate residuals and check model assumptions
 netting_mod1_NB_sim_res <- simulateResiduals(fittedModel = netting_mod1_NB)
 plot(netting_mod1_NB_sim_res)
+
+plot_model(netting_mod1_NB , type = "est", show.values = TRUE, value.offset = .3)
+
 ```
 
 With this model, the assumptions are met (qqplot is normal, no overdispersion, and the residuals are homoscedastic). There are still too many predictors for the amount of data we have, so we will remove the predictors one by one and check the model assumptions after each step.
@@ -1343,15 +1302,16 @@ With this model, the assumptions are met (qqplot is normal, no overdispersion, a
 ```{r netting_mod2_NB, fig.width=8, fig.height=10}
 
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# remove minutes_since_9am (p= 0.432 for netting_mod1_NB)
+# remove minutes_since_9am (p= 0.376 for netting_mod1_NB)
 
 netting_mod2_NB <- glmer.nb(total_interaction_T 
-                           ~ Floral_simpson_index 
+                           ~Floral_simpson_index_T 
                            #+ minutes_since_9am
                            + top2_ratio
                            + Site_type
                            + dm_wind_velocity
                            + dm_temperature
+                           + Plot_Cover_T
                            #+  majority_class
                            #+ urban + agri + grass + snh + forest + water
                            + Days_since_start
@@ -1383,15 +1343,16 @@ plot(netting_mod2_NB_sim_res)
 
 ```{r netting_mod3_NB, fig.width=8, fig.height=10} 
 # full model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# remove days since start ( p= 0.333 for netting_mod2_NB)
+# remove days since start ( p= 0.441  for netting_mod2_NB)
 
 netting_mod3_NB <- glmer.nb(total_interaction_T 
-                           ~ Floral_simpson_index 
+                           ~Floral_simpson_index_T 
                            #+ minutes_since_9am
                            + top2_ratio
                            + Site_type
                            + dm_wind_velocity
                            + dm_temperature
+                           + Plot_Cover_T
                            #+  majority_class
                            #+ urban + agri + grass + snh + forest + water
                            #+ Days_since_start
@@ -1423,13 +1384,14 @@ plot(netting_mod3_NB_sim_res)
 
 ```{r netting_mod4_NB, fig.width=8, fig.height=10}
 #  model with interaction counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
-# remove dm temperature (p= 0.2486 for netting_mod3_NB)
+# remove dm temperature (p= 0.266  for netting_mod3_NB)
 netting_mod4_NB <- glmer.nb(total_interaction_T 
-                           ~ Floral_simpson_index 
+                           ~Floral_simpson_index_T 
                            #+ minutes_since_9am
                            + top2_ratio
                            + Site_type
                            + dm_wind_velocity
+                           + Plot_Cover_T
                            #+ dm_temperature
                            #+  majority_class
                            #+ urban + agri + grass + snh + forest + water
@@ -1455,7 +1417,8 @@ netting_mod4_NB_residuals <- residuals(netting_mod4_NB, type = "pearson")
 # Create binned residuals plot
 arm::binnedplot(netting_mod4_NB_vals, netting_mod4_NB_residuals)
 
-
+#check singularity
+isSingular(netting_mod4_NB)
 #DHARMa package - simulate residuals and check model assumptions
 netting_mod4_NB_sim_res <- simulateResiduals(fittedModel = netting_mod4_NB)
 plot(netting_mod4_NB_sim_res)
@@ -1464,11 +1427,12 @@ plot(netting_mod4_NB_sim_res)
 ```{r netting_mod5_NB, fig.width=8, fig.height=10}
 #removing floral_simpson (p=0.1731 for netting_mod4_NB)
 netting_mod5_NB <- glmer.nb(total_interaction_T 
-                           #~ Floral_simpson_index 
+                           #~Floral_simpson_index_T 
                            #+ minutes_since_9am
                            ~ top2_ratio
                            + Site_type
                            + dm_wind_velocity
+                           + Plot_Cover_T
                            #+ dm_temperature
                            #+  majority_class
                            #+ urban + agri + grass + snh + forest + water
@@ -1510,69 +1474,139 @@ netting_NB_comp1 <- compare_performance(netting_mod1_NB, netting_mod2_NB, nettin
 print(netting_NB_comp1)
 ```
 
-The comparison of the models shows that the model with the lowest AICc and BIC is the fifth model (netting_mod5_NB), which has the lowest AICc and BIC values. However, the model was flagged as singular (*boundary (singular) fit: see help('isSingular')*), indicating that the random effects structure was overfitted. Here, the variance estimate for the random intercept is effectively zero:    
-|Parameter            | Coefficient|
-|---------------------|------------|
-|SD (Intercept: site) |        0.00|
-
-indicating that site-level variation did not contribute meaningfully to the model. This suggests that the fixed effects sufficiently explained the variation in total interactions across sites, and that the random effect of site can be removed without significantly affecting the model fit.
+The comparison of the models shows that the model with the lowest AICc and BIC is the fourth model (netting_mod4_NB), which has the lowest AICc and BIC values. 
 
 To confirm this hypothesis we can run a likelihood ratio test to compare the model with and without the random effect. 
 
 #### Likelihood Ratio Test
 ```{r}
-mod_with_random <- glmer.nb(total_interaction_T ~ Floral_simpson_index + top2_ratio + Site_type + dm_wind_velocity + (1 | site), data = netting1)
-mod_without_random <- glm.nb(total_interaction_T ~ Floral_simpson_index + top2_ratio + Site_type + dm_wind_velocity, data = netting1)
-
-anova(mod_with_random, mod_without_random)
+#mod_with_random <- glmer.nb(total_interaction_T ~Floral_simpson_index_T + top2_ratio + Site_type + dm_wind_velocity + (1 | site), data = netting1)
+#mod_without_random <- glm.nb(total_interaction_T ~Floral_simpson_index_T + top2_ratio + Site_type + dm_wind_velocity, data = netting1)
+mod_without_random <- glm.nb(total_interaction_T 
+                           ~Floral_simpson_index_T 
+                           #+ minutes_since_9am
+                           + top2_ratio
+                           + Site_type
+                           + dm_wind_velocity
+                           + Plot_Cover_T,
+                           #+ dm_temperature
+                           #+  majority_class
+                           #+ urban + agri + grass + snh + forest + water
+                           #+ Days_since_start
+                           #+ (1|site), 
+                           data = netting1)
+anova(netting_mod4_NB, mod_without_random)
 ``` 
 
-We compared the model with random effect to one without a random intercept for site using a likelihood ratio test. The comparison revealed no difference in model fit (χ²(1) = 0, p = 1), with identical log-likelihoods and deviance. AIC also slightly favored the simpler model. We therefore removed the random effect to improve model parsimony without sacrificing model quality.
+We compared the model with random effect to one without a random intercept for site using a likelihood ratio test. The comparison revealed no difference in model fit (χ²(1) = 0.0302, p = 0.862), with almost identical log-likelihoods and deviance. AIC also slightly favored the simpler model. 
 
 #### Visualize the model results
 
+**netting_mod4_NB**
+Parameter                  | Log-Mean |   SE |         95% CI |     z |      p
+(Intercept)                |     4.04 | 0.07 | [ 3.90,  4.18] | 57.64 | < .001
+Floral simpson index T     |    -0.31 | 0.08 | [-0.46, -0.16] | -4.01 | < .001
+top2 ratio                 |     0.24 | 0.05 | [ 0.14,  0.34] |  4.67 | < .001
+Site type [young_restored] |    -0.36 | 0.11 | [-0.58, -0.14] | -3.25 | 0.001 
+dm wind velocity           |    -0.15 | 0.05 | [-0.26, -0.05] | -2.82 | 0.005 
+Plot Cover T               |    -0.17 | 0.07 | [-0.31, -0.02] | -2.29 | 0.022 
+
 ```{r}
-plot(ggpredict(netting_mod4_NB, terms = "top2_ratio"))
-plot(ggpredict(netting_mod4_NB, terms = "dm_wind_velocity"))
-#plot(ggpredict(netting_mod4_NB, terms = "Floral_simpson_index"))
-plot(ggpredict(netting_mod4_NB, terms = "Site_type"))
-
-
 library(sjPlot)
-plot_model(netting_mod5_NB, type = "est", show.values = TRUE, value.offset = 0.3)
+plot_model(netting_mod4_NB, type = "est", show.values = TRUE, value.offset = 0.3)
 
-
-ggplot(netting1, aes(x = Site_type, y = total_interaction_T)) +
-  geom_boxplot(fill = "lightblue") +
-  theme_minimal() +
-  labs(y = "Total interactions", x = "Site Type")
-
-ggplot(netting1, aes(x = majority_class, y = total_interaction_T)) +
-  geom_boxplot(fill = "lightblue") +
-  theme_minimal() +
-  labs(y = "Total interactions", x = "Majority landcover class in 1km radius around sites")
+plot(ggpredict(netting_mod4_NB, terms = "Site_type"))
 ```
 
-```{r}
+```{r plot netting_mod4_NB predictions}
+
+## wind netting_mod4_NB ---------
 # Get the original mean and SD of wind velocity before scaling
 wind_mean <- mean(envir_data$dm_wind_velocity, na.rm = TRUE)
 wind_sd <- sd(envir_data$dm_wind_velocity, na.rm = TRUE)
 
 # Get predictions on the scaled variable
-pred_wind <- ggpredict(netting_mod5_NB , terms = "dm_wind_velocity")
+pred_wind <- ggpredict(netting_mod4_NB , terms = "dm_wind_velocity")
 
 # Unscale the x-axis
 pred_wind$x_unscaled <- (pred_wind$x * wind_sd) + wind_mean
 
 # Plot
 ggplot(pred_wind, aes(x = x_unscaled, y = predicted)) +
-  geom_line(size = 1.2) +
-  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), alpha = 0.2) +
+  geom_line(size = 1.2, color = predictor_colors[["dm_wind_velocity"]]) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = alpha(predictor_colors[["dm_wind_velocity"]], 0.5)) +
   labs(
-    title = "Predicted Insect Counts by Wind Velocity",
+    title = "Netting: Predicted Insect Counts vs Wind Velocity",
     x = "Wind Velocity (km/hour)",
     y = "Predicted Count of insects caught with netting"
+  ) +
+  theme_minimal()
+
+## top2_ratio netting_mod4_NB ---------
+# Get the original mean and SD of top2_ratio before scaling
+top2_mean <- mean(envir_data$top2_ratio, na.rm = TRUE)
+top2_sd <- sd(envir_data$top2_ratio, na.rm = TRUE)
+
+# Get predictions on the scaled variable
+pred_top2 <- ggpredict(netting_mod4_NB , terms = "top2_ratio")
+
+# Unscale the x-axis
+pred_top2$x_unscaled <- (pred_top2$x * top2_sd) + top2_mean
+
+# Plot
+ggplot(pred_top2, aes(x = x_unscaled, y = predicted)) +
+  geom_line(size = 1.2, color = predictor_colors[["top2_ratio"]]) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = alpha(predictor_colors[["top2_ratio"]], 0.5)) + 
+  labs(
+    title = "Netting: Predicted Insect Counts vs Top 2 Ratio",
+    x = "Top 2 Ratio: relative ratio of D. carota and P. sativa",
+    y = "Predicted Count of insects caught with netting"
   )
+
+## Floral_simpson_index_T netting_mod4_NB ---------
+# Get the original mean and SD of Floral_simpson_index_T before scaling
+floral_mean <- mean(envir_data$Floral_simpson_index_T, na.rm = TRUE)
+floral_sd <- sd(envir_data$Floral_simpson_index_T, na.rm = TRUE)
+
+# Get predictions on the scaled variable
+pred_floral <- ggpredict(netting_mod4_NB , terms = "Floral_simpson_index_T")
+
+# Unscale the x-axis
+pred_floral$x_unscaled <- (pred_floral$x * floral_sd) + floral_mean
+# Plot
+ggplot(pred_floral, aes(x = x_unscaled, y = predicted)) +
+  geom_line(size = 1.2, color = predictor_colors[["Floral_simpson_index_T"]]) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = alpha(predictor_colors[["Floral_simpson_index_T"]], 0.5)) + 
+  labs(
+    title = "Netting: Predicted Insect Counts by Floral Simpson Index",
+    x = "Floral Simpson Index",
+    y = "Predicted Count of insects caught with netting"
+  )
+
+## Plot_Cover_T netting_mod4_NB ---------
+# Get the original mean and SD of Plot_Cover_T before scaling
+plot_cover_mean <- mean(envir_data$Plot_Cover_T, na.rm = TRUE)
+plot_cover_sd <- sd(envir_data$Plot_Cover_T, na.rm = TRUE)
+
+# Get predictions on the scaled variable
+pred_plot_cover <- ggpredict(netting_mod4_NB , terms = "Plot_Cover_T")
+
+# Unscale the x-axis
+pred_plot_cover$x_unscaled <- (pred_plot_cover$x * plot_cover_sd) + plot_cover_mean
+# Plot
+ggplot(pred_plot_cover, aes(x = x_unscaled, y = predicted)) +
+  geom_line(size = 1.2, color = predictor_colors[["Plot_Cover_T"]]) +
+  geom_ribbon(aes(ymin = conf.low, ymax = conf.high), 
+              fill = alpha(predictor_colors[["Plot_Cover_T"]],0.5)) +
+  labs(
+    title = "Netting: Predicted Insect Counts vs Floral Cover",
+    x = "Floral Cover: average percentage of flower cover per transect",
+    y = "Predicted Count of insects caught with netting"
+  )
+
 ```
 
 
@@ -1583,12 +1617,13 @@ ggplot(pred_wind, aes(x = x_unscaled, y = predicted)) +
 # negative binomial distribution
 
 netting_mod1_NB_noRE <- glm.nb(total_interaction_T 
-                            ~ Floral_simpson_index 
+                            ~Floral_simpson_index_T 
                             + minutes_since_9am
                             + top2_ratio
                             + Site_type
                             + dm_wind_velocity
                             + dm_temperature
+                            + Plot_Cover_T
                             #+  majority_class
                             #+ urban + agri + grass + snh + forest + water
                             + Days_since_start,
@@ -1617,15 +1652,16 @@ plot(netting_mod1_NB_noRE_sim_res)
 ```
 
 ```{r netting_mod2_NB_noRE, fig.width=8, fig.height=10}
-#removing minutes_since_9am (p= 0.443 for netting_mod1_NB_noRE)
+#removing minutes_since_9am (p= 0.370  for netting_mod1_NB_noRE)
 
 netting_mod2_NB_noRE <- glm.nb(total_interaction_T 
-                            ~ Floral_simpson_index 
+                            ~Floral_simpson_index_T 
                             #+ minutes_since_9am
                             + top2_ratio
                             + Site_type
                             + dm_wind_velocity
                             + dm_temperature
+                            + Plot_Cover_T
                             #+  majority_class
                             #+ urban + agri + grass + snh + forest + water
                             + Days_since_start,
@@ -1636,15 +1672,16 @@ parameters(netting_mod2_NB_noRE)
 ```
 
 ```{r netting_mod3_NB_noRE, fig.width=8, fig.height=10}
-#removing days since start ( p= 0.341 for netting_mod2_NB_noRE)
+#removing days since start ( p= 0.446  for netting_mod2_NB_noRE)
 
 netting_mod3_NB_noRE <- glm.nb(total_interaction_T 
-                            ~ Floral_simpson_index 
+                            ~Floral_simpson_index_T 
                             #+ minutes_since_9am
                             + top2_ratio
                             + Site_type
                             + dm_wind_velocity
-                            + dm_temperature,
+                            + dm_temperature
+                            + Plot_Cover_T,
                             #+  majority_class
                             #+ urban + agri + grass + snh + forest + water
                             #+ Days_since_start,
@@ -1655,14 +1692,15 @@ parameters(netting_mod3_NB_noRE)
 ```
 
 ```{r netting_mod4_NB_noRE, fig.width=8, fig.height=10}
-#removing temperature (p= 0.229  for netting_mod3_NB_noRE)
+#removing temperature (p= 0.258   for netting_mod3_NB_noRE)
 
 netting_mod4_NB_noRE <- glm.nb(total_interaction_T 
-                            ~ Floral_simpson_index 
+                            ~Floral_simpson_index_T 
                             #+ minutes_since_9am
                             + top2_ratio
                             + Site_type
-                            + dm_wind_velocity,
+                            + dm_wind_velocity
+                            + Plot_Cover_T,
                             #+ dm_temperature
                             #+  majority_class
                             #+ urban + agri + grass + snh + forest + water
@@ -1749,7 +1787,7 @@ netting_richness %>%
 # Poisson distribution
 
 netting_rich_mod1_poiss <- glmer(unique_taxa 
-                                 ~ Floral_simpson_index 
+                                 ~Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  + Site_type
@@ -1784,7 +1822,7 @@ plot(netting_rich_mod1_poiss_sim_res)
 # removing site_type (p= 0.947   for netting_rich_mod1_poiss)
 
 netting_rich_mod2_poiss <- glmer(unique_taxa 
-                                 ~ Floral_simpson_index 
+                                 ~Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -1813,7 +1851,7 @@ plot(netting_rich_mod2_poiss_sim_res)
 #removing temperature (p= 0.722   for netting_rich_mod2_poiss)
 
 netting_rich_mod3_poiss <- glmer(unique_taxa 
-                                 ~ Floral_simpson_index 
+                                 ~Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -1841,7 +1879,7 @@ plot(netting_rich_mod3_poiss_sim_res)
 ```{r netting_rich_mod4_poiss, fig.width=8, fig.height=10}
 # removing wind velocity (p= 0.674  ,  for netting_rich_mod3_poiss)
 netting_rich_mod4_poiss <- glmer(unique_taxa 
-                                 ~ Floral_simpson_index 
+                                 ~Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -1868,9 +1906,9 @@ plot(netting_rich_mod4_poiss_sim_res)
 ```
 
 ```{r netting_rich_mod5_poiss, fig.width=8, fig.height=10}
-# removing floral_simpson_index (p= 0.407 ,  for netting_rich_mod4_poiss)
+# removingFloral_simpson_index_T (p= 0.407 ,  for netting_rich_mod4_poiss)
 netting_rich_mod5_poiss <- glmer(unique_taxa 
-                                 #~ Floral_simpson_index 
+                                 #~Floral_simpson_index_T 
                                  ~ minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -1911,7 +1949,7 @@ Does including the random effect of site significantly improve model fit?
 
 ```{r}
 mod_with_random <- glmer(unique_taxa 
-                                 ~ Floral_simpson_index 
+                                 ~Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -1919,7 +1957,7 @@ mod_with_random <- glmer(unique_taxa
                                  #+ dm_temperature
                                  + Days_since_start
                                  + (1|site), data = netting_richness)
-mod_without_random <- glm(unique_taxa ~  Floral_simpson_index 
+mod_without_random <- glm(unique_taxa ~ Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -1940,7 +1978,7 @@ A likelihood ratio test comparing models with and without a random intercept for
 
 # Poisson distribution
 netting_rich_mod1_noRE_poiss <- glm(unique_taxa 
-                                     ~ Floral_simpson_index 
+                                     ~Floral_simpson_index_T 
                                      + minutes_since_9am
                                      + top2_ratio
                                      + Site_type
@@ -1970,7 +2008,7 @@ plot(netting_rich_mod1_noRE_poiss_sim_res)
 ```{r netting_rich_mod2_noRE_poiss, fig.width=8, fig.height=10}
 #remove site_type (p= 0.869  for netting_rich_mod1_noRE_poiss)
 netting_rich_mod2_noRE_poiss <- glm(unique_taxa 
-                                     ~ Floral_simpson_index 
+                                     ~Floral_simpson_index_T 
                                      + minutes_since_9am
                                      + top2_ratio
                                      #+ Site_type
@@ -2000,7 +2038,7 @@ plot(netting_rich_mod2_noRE_poiss)
 #removing temperature (p= 0.834   for netting_rich_mod2_noRE_poiss)
 
 netting_rich_mod3_noRE_poiss <- glm(unique_taxa 
-                                 ~ Floral_simpson_index 
+                                 ~Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -2027,7 +2065,7 @@ plot(netting_rich_mod3_poiss_sim_res)
 ```{r netting_rich_mod4_noRE_poiss, fig.width=8, fig.height=10}
 # removing wind velocity (p= 0.674 ,  for netting_rich_mod3_noRE_poiss)
 netting_rich_mod4_noRE_poiss <- glm(unique_taxa 
-                                 ~ Floral_simpson_index 
+                                 ~Floral_simpson_index_T 
                                  + minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -2050,9 +2088,9 @@ plot(netting_rich_mod4_noRE_poiss_sim_res)
 ```
 
 ```{r netting_rich_mod5_noRE_poiss, fig.width=8, fig.height=10}
-# removing floral_simpson_index (p= 0.407    ,  for netting_rich_mod4_noRE_poiss)
+# removingFloral_simpson_index_T (p= 0.407    ,  for netting_rich_mod4_noRE_poiss)
 netting_rich_mod5_noRE_poiss <- glm(unique_taxa 
-                                 #~ Floral_simpson_index 
+                                 #~Floral_simpson_index_T 
                                  ~ minutes_since_9am
                                  + top2_ratio
                                  #+ Site_type
@@ -2155,7 +2193,7 @@ The shannon index is normally distributed (shapiro test: p-value = 0.1578) and h
 # full model with shannon index as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
 # Poisson distribution
 netting_shannon_mod1_gauss <- lmer(shannon_diversity 
-                                   ~ Floral_simpson_index 
+                                   ~Floral_simpson_index_T 
                                    + minutes_since_9am
                                    + top2_ratio
                                    + Site_type
@@ -2188,7 +2226,7 @@ plot(netting_shannon_mod1_gauss_sim_res)
 # removing top2_ratio (p= 0.959  for netting_shannon_mod1_gauss)
 
 netting_shannon_mod2_gauss <- lmer(shannon_diversity 
-                                   ~ Floral_simpson_index 
+                                   ~Floral_simpson_index_T 
                                    + minutes_since_9am
                                    #+ top2_ratio
                                    + Site_type
@@ -2217,7 +2255,7 @@ plot(netting_shannon_mod2_gauss_sim_res)
 ```{r netting_shannon_mod3_gauss, fig.width=8, fig.height=10}
 #remove site_type (p= 0.875   for netting_shannon_mod2_gauss)
 netting_shannon_mod3_gauss <- lmer(shannon_diversity 
-                                   ~ Floral_simpson_index 
+                                   ~Floral_simpson_index_T 
                                    + minutes_since_9am
                                    #+ top2_ratio
                                    #+ Site_type
@@ -2243,7 +2281,7 @@ plot(netting_shannon_mod3_gauss_sim_res)
 ```{r netting_shannon_mod4_gauss, fig.width=8, fig.height=10}
 #remove floral simpson index (p= 0.459    for netting_shannon_mod3_gauss)
 netting_shannon_mod4_gauss <- lmer(shannon_diversity 
-                                   #~ Floral_simpson_index 
+                                   #~Floral_simpson_index_T 
                                    ~ minutes_since_9am
                                    #+ top2_ratio
                                    #+ Site_type
@@ -2270,7 +2308,7 @@ plot(netting_shannon_mod4_gauss_sim_res)
 ```{r netting_shannon_mod5_gauss, fig.width=8, fig.height=10}
 #remove temperature (p= dm temperature 0.344  for netting_shannon_mod4_gauss)
 netting_shannon_mod5_gauss <- lmer(shannon_diversity 
-                                   #~ Floral_simpson_index 
+                                   #~Floral_simpson_index_T 
                                    ~ minutes_since_9am
                                    #+ top2_ratio
                                    #+ Site_type
@@ -2336,7 +2374,7 @@ The simpson index is not normally distributed (shapiro test: p-value = 0.0034) a
 library(betareg)
 
 netting_simpson_mod1_beta <- glmmTMB(simpson_diversity 
-                                     ~ Floral_simpson_index 
+                                     ~Floral_simpson_index_T 
                                      + minutes_since_9am 
                                      + dm_wind_velocity
                                      + top2_ratio
@@ -2366,7 +2404,7 @@ plot(netting_simpson_mod1_beta_sim_res)
 ```{r netting_simpson_mod2_beta, fig.width=8, fig.height=10}
 # REMOVE top2_ratio (p= 0.922  for netting_simpson_mod1_beta)
 netting_simpson_mod2_beta <- glmmTMB(simpson_diversity 
-                                     ~ Floral_simpson_index 
+                                     ~Floral_simpson_index_T 
                                      + minutes_since_9am 
                                      + dm_wind_velocity
                                      #+ top2_ratio
@@ -2398,7 +2436,7 @@ plot(netting_simpson_mod2_beta_sim_res)
 #remove temperature (p= 0.5915  for netting_simpson_mod2_beta)
 
 netting_simpson_mod3_beta <- glmmTMB(simpson_diversity 
-                                     ~ Floral_simpson_index 
+                                     ~Floral_simpson_index_T 
                                      + minutes_since_9am 
                                      + dm_wind_velocity
                                      #+ top2_ratio
@@ -2426,7 +2464,7 @@ plot(netting_simpson_mod3_beta_sim_res)
 ```{r netting_simpson_mod4_beta, fig.width=8, fig.height=10}
 #remove floral simpson index (p= 0.556        for netting_simpson_mod3_beta)
 netting_simpson_mod4_beta <- glmmTMB(simpson_diversity 
-                                     #~ Floral_simpson_index 
+                                     #~Floral_simpson_index_T 
                                      ~ minutes_since_9am 
                                      + dm_wind_velocity
                                      #+ top2_ratio
@@ -2456,7 +2494,7 @@ plot(netting_simpson_mod4_beta_sim_res)
 #REMOVE SITE TYPE (p= 0.1266 for netting_simpson_mod4_beta)
 
 netting_simpson_mod5_beta <- glmmTMB(simpson_diversity 
-                                     #~ Floral_simpson_index 
+                                     #~Floral_simpson_index_T 
                                      ~ minutes_since_9am 
                                      + dm_wind_velocity
                                      #+ top2_ratio
@@ -2599,7 +2637,7 @@ Since this is count data, it is going to be modeled with a Poisson distribution.
 # full model with insect counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
 # Poisson distribution
 platform_count_mod1_poiss <- glmmTMB(count 
-                                     ~ Floral_simpson_index 
+                                     ~ Floral_simpson_index_T
                                      #+ minutes_since_9am
                                      + top2_ratio
                                      + Site_type
@@ -2635,7 +2673,7 @@ There is overdispersion in the model, so we will use a negative binomial distrib
 # Negative binomial distribution
 
 platform_count_mod1_nb <- glmmTMB(count 
-                                   ~ Floral_simpson_index 
+                                   ~ Floral_simpson_index_T 
                                    + top2_ratio
                                    + Site_type
                                    + dm_wind_velocity
@@ -2664,7 +2702,7 @@ plot(platform_count_mod1_nb_sim_res)
 # removing top2_ratio (p= 0.978    for platform_count_mod1_nb)
 
 platform_count_mod2_nb <- glmmTMB(count 
-                                   ~ Floral_simpson_index 
+                                   ~ Floral_simpson_index_T 
                                    #+ top2_ratio
                                    + Site_type
                                    + dm_wind_velocity
@@ -2692,7 +2730,7 @@ plot(platform_count_mod2_nb_sim_res)
 ```{r platform_count_mod3_nb, fig.width=8, fig.height=10}
 # removing site_type start (p= 0.915     for platform_count_mod2_nb)
 platform_count_mod3_nb <- glmmTMB(count 
-                                   ~ Floral_simpson_index 
+                                   ~ Floral_simpson_index_T 
                                    #+ top2_ratio
                                    #+ Site_type
                                    + dm_wind_velocity
@@ -2719,7 +2757,7 @@ plot(platform_count_mod3_nb_sim_res)
 ```{r platform_count_mod4_nb, fig.width=8, fig.height=10}
 #removing floral simpson index (p= 0.822   for platform_count_mod3_nb)
 platform_count_mod4_nb <- glmmTMB(count 
-                                   #~ Floral_simpson_index 
+                                   #~ Floral_simpson_index_T 
                                    #+ top2_ratio
                                    #+ Site_type
                                    ~ dm_wind_velocity
@@ -2747,7 +2785,7 @@ plot(platform_count_mod4_nb_sim_res)
 ```{r platform_count_mod5_nb, fig.width=8, fig.height=10}
 #removing days since start (p= 0.443   for platform_count_mod4_nb)
 platform_count_mod5_nb <- glmmTMB(count 
-                                   #~ Floral_simpson_index 
+                                   #~ Floral_simpson_index_T 
                                    #+ top2_ratio
                                    #+ Site_type
                                    ~ dm_wind_velocity
@@ -2887,7 +2925,7 @@ The data for richness captured with the platform cameras is normally distributed
 # Poisson distribution
 
 platform_richness_mod1_poiss <- glmmTMB(richness 
-                                        ~ Floral_simpson_index 
+                                        ~ Floral_simpson_index_T 
                                         + rec_time_min
                                         + top2_ratio
                                         + Site_type
@@ -2918,7 +2956,7 @@ The Poisson model seems to fit this data well, there is no sign of overdispersio
 #remove top2 ratio (p= 0.652    for platform_richness_mod1_poiss)
 
 platform_richness_mod2_poiss <- glmmTMB(richness 
-                                        ~ Floral_simpson_index 
+                                        ~ Floral_simpson_index_T 
                                         # top2_ratio
                                         + rec_time_min
                                         + Site_type
@@ -2946,7 +2984,7 @@ plot(platform_richness_mod2_poiss_sim_res)
 ```{r platform_richness_mod3_poiss, fig.width=8, fig.height=10}
 #remove floral simpson (p= 0.624     for platform_richness_mod2_poiss)
 platform_richness_mod3_poiss <- glmmTMB(richness 
-                                        #~ Floral_simpson_index 
+                                        #~ Floral_simpson_index_T 
                                         #+ top2_ratio
                                         ~ Site_type
                                         + rec_time_min
@@ -2975,7 +3013,7 @@ plot(platform_richness_mod3_poiss_sim_res)
 ```{r platform_richness_mod4_poiss, fig.width=8, fig.height=10}
 #remove rec_time_min (p= 0.588  for platform_richness_mod3_poiss)
 platform_richness_mod4_poiss <- glmmTMB(richness 
-                                        #~ Floral_simpson_index 
+                                        #~ Floral_simpson_index_T 
                                         #+ top2_ratio
                                         #+ rec_time_min
                                         ~ dm_wind_velocity
@@ -3003,7 +3041,7 @@ plot(platform_richness_mod4_poiss_sim_res)
 ```{r platform_richness_mod5_poiss, fig.width=8, fig.height=10}
 #remove site_type (p= 0.139    for platform_richness_mod4_poiss)
 platform_richness_mod5_poiss <- glmmTMB(richness 
-                                        #~ Floral_simpson_index 
+                                        #~ Floral_simpson_index_T 
                                         #+ top2_ratio
                                         #+ Site_type
                                         #+ rec_time_min
@@ -3031,7 +3069,7 @@ plot(platform_richness_mod5_poiss_sim_res)
 ```{r platform_richness_mod6_poiss, fig.width=8, fig.height=10}
 #remove days since start (p= 0.1763   for platform_richness_mod5_poiss)
 platform_richness_mod6_poiss <- glmmTMB(richness 
-                                        #~ Floral_simpson_index 
+                                        #~ Floral_simpson_index_T 
                                         #+ top2_ratio
                                         #+ Site_type
                                         #+ rec_time_min
@@ -3204,7 +3242,7 @@ The shannon rate per minute is not normally distributed (Shapiro-Wilk test, p=0.
 ```{r platform_shannonrate_mod1_gamma, fig.width=8, fig.height=10}
 # full model with insect shannon diversity as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect, and recording time is included to account for sampling effort differences
 platform_shannon_mod1_gamma <- glmer(shannon_diversity_rate
-                                     ~ Floral_simpson_index
+                                     ~ Floral_simpson_index_T
                                      + top2_ratio
                                      + Site_type
                                      + Days_since_start
@@ -3247,7 +3285,7 @@ platform_diversity <- platform_diversity %>%
   mutate(rec_time_min_scaled = scale(rec_time_min))
 
 platform_shannon_mod1_gauss <- lmer(shannon_diversity 
-                                   ~ Floral_simpson_index 
+                                   ~ Floral_simpson_index_T 
                                    + rec_time_min_scaled
                                    + top2_ratio
                                    + Site_type
@@ -3276,7 +3314,7 @@ plot(platform_shannon_mod1_gauss_sim_res)
 ```{r platform_shannon_mod2_gauss, fig.width=8, fig.height=10}
 #remove site_type (p= 0.361 for platform_shannon_mod1_gauss)
 platform_shannon_mod2_gauss <- lmer(shannon_diversity 
-                                   ~ Floral_simpson_index 
+                                   ~ Floral_simpson_index_T 
                                    + rec_time_min_scaled
                                    + top2_ratio
                                    #+ Site_type
@@ -3305,7 +3343,7 @@ plot(platform_shannon_mod2_gauss_sim_res)
 ```{r platform_shannon_mod3_gauss, fig.width=8, fig.height=10}
 # remove wind velocity (p= 0.334  for platform_shannon_mod2_gauss)
 platform_shannon_mod3_gauss <- lmer(shannon_diversity 
-                                   ~ Floral_simpson_index 
+                                   ~ Floral_simpson_index_T 
                                    + rec_time_min_scaled
                                    + top2_ratio
                                    #+ Site_type
@@ -3334,7 +3372,7 @@ plot(platform_shannon_mod3_gauss_sim_res)
 ```{r platform_shannon_mod4_gauss, fig.width=8, fig.height=10}
 #remove floral index (p= 0.281  for platform_shannon_mod3_gauss)
 platform_shannon_mod4_gauss <- lmer(shannon_diversity 
-                                   #~ Floral_simpson_index 
+                                   #~ Floral_simpson_index_T 
                                    ~ rec_time_min_scaled
                                    + top2_ratio
                                    #+ Site_type
@@ -3361,7 +3399,7 @@ plot(platform_shannon_mod4_gauss_sim_res)
 ```{r platform_shannon_mod5_gauss, fig.width=8, fig.height=10}
 #remove top2_ratio (p= 0.133  for platform_shannon_mod4_gauss)
 platform_shannon_mod5_gauss <- lmer(shannon_diversity 
-                                   #~ Floral_simpson_index 
+                                   #~ Floral_simpson_index_T 
                                    ~ rec_time_min_scaled
                                    #+ top2_ratio
                                    #+ Site_type
@@ -3491,7 +3529,7 @@ The data for simpson diversity captured with the platform cameras is not normall
 # full model with insect simpson diversity as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect, and recording time is included to account for sampling effort differences
 
 platform_simpson_mod1_beta <- glmmTMB(simpson_diversity 
-                                       ~ Floral_simpson_index 
+                                       ~ Floral_simpson_index_T 
                                        + rec_time_min
                                        + top2_ratio
                                        + Site_type
@@ -3518,9 +3556,9 @@ plot(platform_simpson_mod1_beta_sim_res)
 ```
 
 ```{r platform_simpson_mod2_beta, fig.width=8, fig.height=10}
-#remove floral simpson index (p= 0.319    for platform_simpson_mod1_beta_noRE)
+#remove floral simpson index (p= 0.319    for platform_simpson_mod1_beta)
 platform_simpson_mod2_beta <- glmmTMB(simpson_diversity 
-                                       #~ Floral_simpson_index 
+                                       #~ Floral_simpson_index_T 
                                        ~ top2_ratio
                                        + rec_time_min
                                        + Site_type
@@ -3549,7 +3587,7 @@ plot(platform_simpson_mod2_beta_sim_res)
 ```{r platform_simpson_mod3_beta, fig.width=8, fig.height=10}
 #remove site type (p= 0.138   for platform_simpson_mod2_beta)
 platform_simpson_mod3_beta <- glmmTMB(simpson_diversity 
-                                       #~ Floral_simpson_index 
+                                       #~ Floral_simpson_index_T 
                                        ~ top2_ratio
                                        #+ Site_type
                                        + rec_time_min
@@ -3580,7 +3618,7 @@ plot(platform_simpson_mod3_beta_sim_res)
 #remove dm_wind_velocity  (p= 0.071 for platform_simpson_mod3_beta)
 
 platform_simpson_mod4_beta <- glmmTMB(simpson_diversity 
-                                       #~ Floral_simpson_index 
+                                       #~ Floral_simpson_index_T 
                                        ~ top2_ratio
                                       + rec_time_min
                                        #+ Site_type
@@ -3610,7 +3648,7 @@ plot(platform_simpson_mod4_beta_sim_res)
 ```{r platform_simpson_mod5_beta, fig.width=8, fig.height=10}
 #remove top 2  (p= 0.075  for platform_simpson_mod4_beta)
 platform_simpson_mod5_beta <- glmmTMB(simpson_diversity 
-                                       #~ Floral_simpson_index 
+                                       #~ Floral_simpson_index_T 
                                        # top2_ratio
                                        #+ Site_type
                                        #+ dm_wind_velocity 
@@ -3641,7 +3679,7 @@ plot(platform_simpson_mod5_beta_sim_res)
 #### compare the models with the performance package
 ```{r platform_simpson_beta_comp1}
 # Compare the models with the performance package
-platform_simpson_beta_comp1 <- compare_performance(platform_simpson_mod1_beta_noRE, platform_simpson_mod2_beta, platform_simpson_mod3_beta, platform_simpson_mod4_beta, platform_simpson_mod5_beta, metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
+platform_simpson_beta_comp1 <- compare_performance(platform_simpson_mod1_beta, platform_simpson_mod2_beta, platform_simpson_mod3_beta, platform_simpson_mod4_beta, platform_simpson_mod5_beta, metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
 # Print the comparison table
 print(platform_simpson_beta_comp1)
 ``` 
@@ -3721,7 +3759,7 @@ planty <- relative_flower %>%
 
 flower_cam_count_full <- envir_data %>%
   #remove data irrelevant for flower camera, such as transect, minutes since 9am, floral simpson index
-  select(-c(Transect, minutes_since_9am, Floral_simpson_index, Pastinaca.sativa, Daucus.carota, top2_ratio)) %>%
+  select(-c(Transect, minutes_since_9am,Floral_simpson_index_T, Pastinaca.sativa, Daucus.carota, top2_ratio)) %>%
   #join the flower camera data
   left_join(flower_cam_count_full, by = c("Site"= "site","Date"= "date"))%>%
   distinct()%>%
@@ -3878,12 +3916,44 @@ plot(flower_abundance_mod3_nb_sim_res)
 
 ```{r flower_abundance_mod4_nb, fig.width=8, fig.height=10}
 #remove floral simpson index (p= 0.169       for flower_abundance_mod3_nb)
+flower_abundance_mod4_nb <- glmer.nb(count 
+                                     #~ Site_type
+                                     #+ flower_sp
+                                     #+ average_flower_cover
+                                     ~ Floral_simpson_index_site
+                                     #+ Days_since_start
+                                     + dm_wind_velocity 
+                                     + dm_temperature 
+                                     + (1 | Site), 
+                                   #negative binomial distribution model
+                                   family = nbinom2,
+                                   data = flower_cam_count_full)
+summary(flower_abundance_mod4_nb)
+parameters(flower_abundance_mod4_nb)
+#check for singularity
+performance::check_singularity(flower_abundance_mod4_nb)
+#check the model
+check_model(flower_abundance_mod4_nb, verbose = T)
+#overdispersion
+check_overdispersion(flower_abundance_mod4_nb)
+#collinearity
+check_collinearity(flower_abundance_mod4_nb)
+# dharma package - simulate residuals and check model assumptions
+flower_abundance_mod4_nb_sim_res <- simulateResiduals(fittedModel = flower_abundance_mod4_nb)
+plot(flower_abundance_mod4_nb_sim_res)
 
 ```
 
-
+####  Compare the models with the performance package
+```{r flower_abundance_nb_comp1}
+# Compare the models with the performance package
+flower_abundance_nb_comp1 <- compare_performance(flower_abundance_mod1_nb, flower_abundance_mod2_nb, flower_abundance_mod3_nb, flower_abundance_mod4_nb, metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
+# Print the comparison table
+print(flower_abundance_nb_comp1)
+```
 
 ```{r}
 plot_model(flower_abundance_mod2_nb , type = "est", show.values = TRUE, value.offset = .3)
+
 ```
 
