@@ -7,11 +7,8 @@ output:
       toc: TRUE
 ---
 
-## 0.0. Description
-
-
-
-## Hypotheses
+# I. Description of project
+## I.A. Hypotheses
 
 *Q1: Do reference and restored sites exhibit differences in pollinator biodiversity?*
 
@@ -44,9 +41,10 @@ output:
   • Automated methods can effectively detect biodiversity differences between reference and restored sites
   → machine learning algorithms can offer improved sensitivity and accuracy in detecting shifts in pollinator communities over time.
 
-## 0. Setup    
 
-### libraries    
+
+# II. Setup    
+## II.A. libraries    
 
 ```{r setup, include=FALSE}
 
@@ -77,7 +75,7 @@ library(pscl) #for zero inflation test
 library(tidyverse) 
 ```
 
-### aesthetics
+## II.B. aesthetics
 
 ```{r custom colors}
 #define custom colors for plotting
@@ -201,7 +199,7 @@ predictor_colors <- setNames(predictor_colors, c(
   "rec_time_min"
 ))
 
-## 0.3. data loading   
+## II.C. data loading   
  
 ```{r loading all needed csv files}
 ### Environmental data ------------
@@ -242,9 +240,13 @@ platform_logs_rec <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_R
 ```
 
 
-## 1. Enivronmental variables
 
-### 1.1. Dwd weather data
+
+
+# III. EDA & data cleaning
+
+## III.A. Enivronmental variables
+### III.A.1. Dwd weather data
 
 ```{r dwd weather}
 #change dwd_weather date format from 20240724 to 2024-07-24 by adding a "-" after the year and month
@@ -265,7 +267,7 @@ dwd_weather <- dwd_weather %>%
 
 We will not keep the weather data written down by hand in the field, as it is not as reliable as the data from the DWD weather station. However, an interesting variable to keep is the start time of walking the transect for the netting method. This could be an important factor in the number of pollinators caught, as some species are more active in the morning or evening.
 
-### 1.2. Field weather data - Start time of netting
+### III.A.2. Field weather data - Start time of netting
 
 ```{r field weather start time}
 #transform field_weather into start_net dataframe
@@ -306,7 +308,7 @@ write.csv(start_net, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/d
 
 ```
 
-### 1.3. Landscape data & combining 
+### III.A.3. Landscape data & combining 
 
 ```{r landscape and top2}
 Floral_simpson_index_T <- relative_flower %>%
@@ -372,7 +374,7 @@ envir_data <- start_net %>%
 
 ```
 
-### 1.4. Correlation matrix of environmental variables
+### III.A.4. Correlation matrix of environmental variables
 
 At a transect level. 
 
@@ -431,7 +433,7 @@ dev.copy(png, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/
 dev.off()
 ```
 
-### 1.5. PCA of environmental variables
+### III.A.5. PCA of environmental variables
 
 ```{r PCA}
 #PCA of the environmental data
@@ -455,9 +457,10 @@ rm(list = ls(pattern = "^tmp_"))
 #rm(top2, landscape_data, dwd_weather, field_weather, start_net)
 ```
 
-## 2. Traditional methods - NETTING
 
-### 2.1. Data preparation
+
+## III.B. Traditional methods - NETTING
+### III.B.1. Data preparation
 
 
 ```{r}
@@ -467,9 +470,10 @@ netting <- netting %>%
 ```
 
 
-## 3. Traditional methods - PAN TRAPS
 
-### 3.1. Data preparation
+
+## III.C. Traditional methods - PAN TRAPS
+### III.C.1. Data preparation
 
 ```{r}
 #the transect values for pan_family are not in the same format as in the envir_data. let's change that
@@ -491,7 +495,7 @@ pan_family1 <- pan_family %>%
   dplyr::select(-minutes_since_9am, -Days_since_start)
 ```
 
-### 3.2. Data exploration
+### III.C.2. Data exploration
 
 ```{r}
 # scatterplot the number of taxa caught in the pan traps per transect depending on simpson index
@@ -566,7 +570,7 @@ pan_family1 %>%
 
 ```
 
-### 3.3. Pan traps vs InsectDetect
+### III.C.3. Pan traps vs InsectDetect
 
 
 ```{r insectdetect more than 0.5}
@@ -743,9 +747,10 @@ shinyApp(ui = ui, server = server)
 rm(list = ls(pattern = "^tmp_"))
 ```
 
-## 4. Automated methods - PLATFORM CAMERAS
 
-### 4.1. Data preparation
+
+## III.D. Automated methods - PLATFORM CAMERAS
+### III.D.1. Data preparation
 
 ```{r}
 str(platform_camera)
@@ -807,9 +812,10 @@ platform_camera1 <- platform_camera1 %>%
 ```
 
 
-## 5. Automated methods - FLOWER CAMERAS
 
-### 5.1. Data preparation
+
+## III.E. Automated methods - FLOWER CAMERAS
+### III.E.1. Data preparation
 
 ```{r structure}
 #change format of "time" column from hh-mm-ss to hh:mm:ss
@@ -923,7 +929,7 @@ flower_camera_light %>%
            hjust = 1.1, vjust = 1.1, size = 3)
 ```
 
-### 5.2. Data exploration - Individuals vs time
+### III.E.2. Data exploration - Individuals vs time
 
 ```{r individuals vs time}
 #plot of the number of individuals caught in the flower cameras over time
@@ -966,7 +972,7 @@ ggplot(binned_data, aes(x = time_bin, y = Count, fill = Order)) +
 
 
 
-### 5.3. Data exploration - Daucus carota
+### III.E.3. Data exploration - Daucus carota
 
 Here, we'll focus on the Daucus carota species, as it is a common plant species in the study area and is known to attract a variety of pollinators. 
 
@@ -1030,7 +1036,12 @@ print(final_plot1); print(final_plot2)
 rm(daucus_cam, daucus_net, fams, customfam, final_plot1, final_plot2)
 ```
 
-## 6. Modelling
+
+
+
+
+
+# IV. Modelling
 
 *Key Metric	Meaning*    
 
@@ -1040,11 +1051,12 @@ rm(daucus_cam, daucus_net, fams, customfam, final_plot1, final_plot2)
 - ICC (Intraclass Correlation Coefficient)	Proportion of variance explained by random effects. Higher = more site-level variation.
 - RMSE (Root Mean Square Error)	Measures prediction error. Lower = better.
 
-## 6.1. Flower survey data
+
+## IV.A. Flower survey data
 
 For the flower survey data, we have data at the plot level, but we'll average them to transect level, as it is the same level as the netting, pan traps and platform data.
 
-### 6.1.1. Flower survey - Linear mixed model with random effect - lmer 
+### IV.A.1. Flower survey - Linear mixed model with random effect - lmer 
 
 ```{r fig.width=8, fig.height=10}
 scaled_envir_data <-envir_data %>%
@@ -1134,8 +1146,13 @@ plantsimp_mod1_beta_sim_res <- simulateResiduals(fittedModel = plantsimp_mod1_be
 plot(plantsimp_mod1_beta_sim_res)
 ```
 
+#### IV.A.1.a. Visualize the model
 
-#### 6.1.2. Flower Survey Model Interpretation of Results
+```{r fig.width=8, fig.height=10}
+plot_model(plantsimp_mod1_beta , type = "est", show.values = TRUE, value.offset = .3)
+```
+
+#### IV.A.1.b. Flower Survey Model Interpretation of Results
 
 > Model Summary: `plantsimp_mod1_beta`
 
@@ -1143,8 +1160,6 @@ plot(plantsimp_mod1_beta_sim_res)
 **Response:** `Floral_simpson_index_T` (bounded between 0 and 1)  
 **Predictors:** `Site_type`, `majority_class` (land cover), `Plot_Cover_T`  
 **Random effect:** Intercept for `Site`
-
----
 
 > Assumption Checks
 
@@ -1156,8 +1171,6 @@ plot(plantsimp_mod1_beta_sim_res)
   - No zero-inflation.
   - No major residual structure.
 - ⚠️ **Random effect warning**: The variance for `Site` is near zero. This suggests possible singularity (i.e., random intercept not contributing meaningfully).
-
----
 
 > Interpretation of Results
 
@@ -1171,20 +1184,17 @@ plot(plantsimp_mod1_beta_sim_res)
   - `Site_type` (*p* = 0.16)
   - `majority_class` (all levels *p* > 0.5)
 
----
-
 > Conclusion
 
 The best predictor of floral Simpson diversity in this model is **local-scale vegetation cover** (`Plot_Cover_T`), which has a **significant negative effect**. Broader site type and surrounding land cover context (`majority_class`) do not explain significant variation in flower diversity in this case.
 
---- 
-
-```{r fig.width=8, fig.height=10}
-plot_model(plantsimp_mod1_beta , type = "est", show.values = TRUE, value.offset = .3)
-```
 
 
-## A.6.2. Netting data
+
+
+
+
+## IV.B. Netting data
 
 For the netting data, the predictor variables are:
 - Floral Simpson Index
@@ -1205,10 +1215,7 @@ For the netting data, the predictor variables are:
 Majority class or land cover type (agri, grass, snh, forest, urban, water) were not included in the model.
 Since we have only 5 transects per site (5x9= 45 units), we need to be careful with the number of predictors we include in the model. The following variables were not included in the model, because they were not significant for the floral simpson index, and because they are not very precise (100m resolution), and would not show a meaningful impact on our sites. (For example, for categories like agricultural areas, the type of crop cultivated is not known which could have a big impact on the floral diversity). 
 
-
-## A.6.2.1. Netting data - INTERACTION COUNTS
-
-
+### IV.B.1. NETTING Interaction counts - Poisson
 ```{r prepare data}
 #scale the last envir_data - Floral simpson_index
 scaled_envir_data <- envir_data %>%
@@ -1233,16 +1240,13 @@ netting1 %>%
        y = "Count")
 ```
 
-## A.6.2.1. INTERACTION Netting - POISSON GLMM
-
-
 The first model has too many predictors and is over fitting the data. 
 A lot of the predictors are significant, but the assumptions of the model are not met (overdispersion(p < 0.001), S-shape around qqplot, and the residuals appear to be heteroskedastic (residuals vs predicted plot)). 
 We will be removing predictors one by one and checking the model assumptions after each step. 
 
 The comparison of the models shows that the model with the lowest AICc and BIC is the third model (netting_mod3_full), which has the lowest AICc and BIC values. However, even in this model, the AICc and BIC values are quite high, indicating that the model is not the best fit for the data. In the next step, we will try to run a negative binomial model to see if it improves the fit of the model.
 
-### Interpretation of results for POISSON GLMM
+#### IV.B.1.a. Interpretation of results for POISSON GLMM
 **netting_mod3_full**
 netting_mod3_full <- glmer(total_interaction_T 
                            ~Floral_simpson_index_T 
@@ -1265,7 +1269,8 @@ netting_mod3_full <- glmer(total_interaction_T
 - Correlation is low between predictors (VIF < 2) with the performance package check_collinearity()
 - The binned residuals plot from the arm package shows no clear trend.
 
-## A.6.2.2. INTERACTION Netting - NEGATIVE BINOMIAL GLMM
+
+### IV.B.2. NETTING - Interaction counts NB
 
 We start again with the full model, but this time we use a negative binomial distribution.
 
@@ -1479,8 +1484,7 @@ plot(netting_mod5_NB_sim_res)
 ```
 
 
-
-#### Compare the NB models with the performance package
+#### IV.B.2.a. Compare the NB models with the performance package
 
 ```{r netting_NB_comp1}
 # Compare the models with the performance package
@@ -1493,7 +1497,7 @@ print(netting_NB_comp1)
 
 The comparison of the models shows that the model with the lowest AICc and BIC is the fourth model (netting_mod4_NB), which has the lowest AICc and BIC values. 
 
-#### Visualize the model results
+#### IV.B.2.b. Visualize the model results
 
 **netting_mod4_NB**
 Parameter                  | Log-Mean |   SE |         95% CI |     z |      p
@@ -1609,6 +1613,8 @@ ggplot(pred_plot_cover, aes(x = x_unscaled, y = predicted)) +
 
 ```
 
+#### IV.B.2.c. Interpretation of results
+
 ```{r}
 #removal of unnecessary objects - all starting with netting_
 rm(list = ls(pattern = "^netting_"))
@@ -1616,7 +1622,9 @@ rm(list = ls(pattern = "^plantsimp_"))
 ```
 
 
-## A.6.3. Netting data - Species richness
+
+
+### IV.B.3. NETTING Species richness - Poisson
 
 We don't actually have the insects ID to species level, only some groups, so we'll use the the lowest taxa available to do this step. 
 
@@ -1640,7 +1648,6 @@ netting_richness %>%
 shapiro.test(netting_richness$unique_taxa) # p-value = 0.2197, so it is normally distributed
 ```
 
-## A.6.3.1. RICHNESS Netting - POISSON glmer
 
 ```{r netting_rich_mod1_full, fig.width=8, fig.height=10}
 # full model with family richness as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
@@ -1824,7 +1831,7 @@ plot(netting_rich_mod6_poiss_sim_res)
 
 
 
-#### Compare the models with the performance package
+#### IV.B.3.a. Compare the models with the performance package
 ```{r netting_rich_pois_comp1}
 # Compare the models with the performance package
 netting_rich_pois_comp1 <- compare_performance(netting_rich_mod1_poiss, netting_rich_mod2_poiss, netting_rich_mod3_poiss, netting_rich_mod4_poiss, netting_rich_mod5_poiss, netting_rich_mod6_poiss,
@@ -1835,7 +1842,7 @@ print(netting_rich_pois_comp1)
 
 ```
 
-### Visualize the model results
+#### IV.B.3.b. Visualize the model results
 
 ```{r}
 plot_model(netting_rich_mod1_poiss, type = "est", show.values = TRUE, value.offset = 0.3)
@@ -1894,6 +1901,7 @@ ggplot(pred_minutes, aes(x = x_unscaled, y = predicted)) +
   theme_minimal()
 ```
 
+#### IV.B.3. c. Interpretation of results
 
 ```{r}
 #removal of unnecessary objects - all starting with netting_
@@ -1901,7 +1909,8 @@ rm(list = ls(pattern = "^netting_"))
 ```
 
 
-## A.6.4. SHANNON INDEX - Netting
+
+### IV.B.4. NETTING Shannon Index - Gaussian
 
 ```{r netting_shannon}
 # 1. First, let's aggregate by 'site' and 'transect' and calculate the counts per insect order
@@ -1955,8 +1964,6 @@ datawizard::describe_distribution(netting_diversity$shannon_diversity)
 The shannon index is normally distributed (shapiro test: p-value = 0.1578) and has a skewness of -0.23, indicating a slight left skew. The kurtosis is 2.4, indicating a platykurtic distribution (flatter than normal), but fairly normal. Since the shannon index is a continuous variable, we cannot use a poisson model that expects count based integers, but we can use a Gaussian distribution (aka normal distribution) that is better modeled with a linear mixed model (lmm).
 
 
-
-## A.6.4.1. SHANNON INDEX Netting - GAUSSIAN glmer
 
 ```{r netting_shannon_mod1_gauss, fig.width=8, fig.height=10}
 # full model with shannon index as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
@@ -2133,7 +2140,7 @@ plot(netting_shannon_mod6_gauss_sim_res)
 
 
 
-#### Compare the models with the performance package
+#### IV.B.4.a. Compare the models with the performance package
 ```{r netting_shannon_gauss_comp1}
 # Compare the models with the performance package
 netting_shannon_gauss_comp1 <- compare_performance(netting_shannon_mod1_gauss, netting_shannon_mod2_gauss, netting_shannon_mod3_gauss, netting_shannon_mod4_gauss, netting_shannon_mod5_gauss,netting_shannon_mod6_gauss,
@@ -2141,7 +2148,8 @@ netting_shannon_gauss_comp1 <- compare_performance(netting_shannon_mod1_gauss, n
 # Print the comparison table
 print(netting_shannon_gauss_comp1)
 ```
-#### visualize the model results
+
+#### IV.B.4.b. Visualize the model results
 ```{r}
 plot_model(netting_shannon_mod1_gauss, type = "est", show.values = TRUE, value.offset = 0.3)
 plot_model(netting_shannon_mod2_gauss, type = "est", show.values = TRUE, value.offset = 0.3)
@@ -2196,10 +2204,16 @@ ggplot(pred_minutes, aes(x = x_unscaled, y = predicted)) +
   theme_minimal()
 ```
  
+#### IV.B.4.c. Interpretation of results
 
-## A.6.5. SIMPSON INDEX - Netting
+```{r}
+#removal of unnecessary objects - all starting with netting_shannon
+rm(list = ls(pattern = "^netting_shannon_"))
+```
 
-The simpson index per transect was calculated in the previous section and is stored in the netting_diversity data frame.
+### IV.B.5 NETTING Simpson Index - Beta regression
+
+The Simpson index per transect was calculated in the previous section and is stored in the netting_diversity data frame.
 
 ```{r netting_simpson}
 #histogram of simpson diversity, binwidth =0.01
@@ -2216,14 +2230,10 @@ shapiro.test(netting_diversity$simpson_diversity) # p-value = 0.0034, simpson in
 #testing skewness
 datawizard::describe_distribution(netting_diversity$simpson_diversity)
 ```
-The simpson index is not normally distributed (shapiro test: p-value = 0.0034) and has a skewness of -0.23, indicating a slight left skew. The kurtosis is 2.4, indicating a platykurtic distribution (flatter than normal), but fairly normal. In this case, where simpson index is bounded between 0 and 1, we can use a beta regression or a binomial regression with a logit link function. 
 
-## A.6.5.1. SIMPSON INDEX Netting - BETA glmer
+The Simpson index is not normally distributed (shapiro test: p-value = 0.0034) and has a skewness of -0.23, indicating a slight left skew. The kurtosis is 2.4, indicating a platykurtic distribution (flatter than normal), but fairly normal. In this case, where simpson index is bounded between 0 and 1, we can use a beta regression or a binomial regression with a logit link function. 
 
 ```{r netting_simpson_mod1_beta, fig.width=8, fig.height=10}
-#library(brms)
-library(betareg)
-
 netting_simpson_mod1_beta <- glmmTMB(simpson_diversity 
                                      ~Floral_simpson_index_T 
                                      + minutes_since_9am 
@@ -2407,7 +2417,7 @@ plot(netting_simpson_mod6_beta_sim_res)
 ```
 
 
-#### Compare the models with the performance package
+#### IV.B.5.a. Compare the models with the performance package
 ```{r netting_simpson_beta_comp1}
 # Compare the models with the performance package
 netting_simpson_beta_comp1 <- compare_performance(netting_simpson_mod1_beta, netting_simpson_mod2_beta, netting_simpson_mod3_beta, netting_simpson_mod4_beta, netting_simpson_mod5_beta,netting_simpson_mod6_beta, metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
@@ -2415,11 +2425,8 @@ netting_simpson_beta_comp1 <- compare_performance(netting_simpson_mod1_beta, net
 # Print the comparison table
 print(netting_simpson_beta_comp1)
 ```
-### Interpretation of the model results
-The fourth model is the last one that meets the assumptions of the model (residuals vs fitted from the dharma package). The model is a beta regression with a logit link function, which is appropriate for bounded continuous data like the Simpson index. The model includes floral Simpson index (p=), time of day (p=), wind velocity (p=), site type (p=) and sampling date (p=) as fixed effects, and site as a random effect. 
 
-
-#### visualize the model results
+#### IV.B.5.b. visualize the model results
 
 ```{r}
 plot_model(netting_simpson_mod1_beta, type = "est", show.values = TRUE, value.offset = 0.3)
@@ -2474,6 +2481,8 @@ ggplot(pred_minutes, aes(x = x_unscaled, y = predicted)) +
   theme_minimal()
 ```
 
+#### IV.B.5.c. Interpretation of the model results
+The fourth model is the last one that meets the assumptions of the model (residuals vs fitted from the dharma package). The model is a beta regression with a logit link function, which is appropriate for bounded continuous data like the Simpson index. The model includes floral Simpson index (p=), time of day (p=), wind velocity (p=), site type (p=) and sampling date (p=) as fixed effects, and site as a random effect. 
 
 
 ```{r}  
@@ -2481,11 +2490,14 @@ ggplot(pred_minutes, aes(x = x_unscaled, y = predicted)) +
 rm(list = ls(pattern = "^netting_"))
 ```  
 
-## B. PLATFORM CAMERAS
+
+
+
+## IV.C. PLATFORM CAMERAS
 
 At first, I tried to also have the minutes_since_9am variable for platform cameras, only to realize that it is not relevant in this specific case. We will be able to look at the time at which each insect is captured since it is recorded in the filename of the image, and the starting time of the camera is not a ecologically relevant variable. 
 
-### B.1. Counts - Platform cameras
+### IV.C.1. PLATFORM CAMERAS Counts - Poisson glmer (offset: recording time)
 
 ```{r platform_counts}  
 # count of insect per transect per site
@@ -2514,8 +2526,6 @@ rm(platty)
 
 Since this is count data, it is going to be modeled with a Poisson distribution. However, if the data is overdispersed (variance > mean), we will use a negative binomial distribution instead. 
 
-
-### B.1.1. Counts - Platform cameras - POISSON glmer (offset: recording time)
 
 ```{r platform_count_mod1_poiss, fig.width=8, fig.height=10}
 # full model with insect counts as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
@@ -2727,7 +2737,7 @@ plot(platform_count_mod6_nb_sim_res)
 ```
 
 
-##### Compare the models with the performance package
+##### IV.C.1.a. Compare the models with the performance package
 ```{r platform_count_nb_comp1}
 # Compare the models with the performance package
 platform_count_nb_comp1 <- compare_performance(platform_count_mod1_nb, platform_count_mod2_nb, platform_count_mod3_nb, platform_count_mod4_nb,platform_count_mod5_nb,platform_count_mod6_nb,
@@ -2737,9 +2747,7 @@ print(platform_count_nb_comp1)
 ```
 The third model is the best one because it has lower AICc and BIC values, but still reaches the model's assumptions (dharma plot of fitted vs residual looks ok, no overdispersion, etc). 
 
-#### Interpretation of the model results
-
-#### visualize the model results
+#### IV.C.1.b. visualize the model results
 
 ```{r}
 plot_model(platform_count_mod1_nb , type = "est", show.values = TRUE, value.offset = .3)
@@ -2803,12 +2811,14 @@ ggplot(pred_wind, aes(x = x_unscaled, y = predicted)) +
 
 ```
 
+#### IV.C.1.c. Interpretation of the model results
+
 ```{r}
 #remove all objects starting with platform_count_
 rm(list = ls(pattern = "^platform_count_"))
 ```
 
-### B.2. RICHNESS - Platform cameras
+### IV.C.2. PLATFORM CAMERAS Richness - Poisson glmer
 
 ```{r platform_richness}
 # diversity of insects per transect per site
@@ -2841,7 +2851,7 @@ datawizard::describe_distribution(platform_richness$richness)
 
 The data for richness captured with the platform cameras is normally distributed (shapiro test: p-value = 0.4406) and has a skewness of 0.12, indicating a slight right skew. The kurtosis is -0.67, indicating a platykurtic distribution (flatter than normal), but fairly normal.
 
-## B.2.1. RICHNESS - Platform cameras - POISSON glmer 
+
 ```{r platform_richness_mod1_poiss, fig.width=8, fig.height=10}
 # full model with insect richness as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect
 # Poisson distribution
@@ -3022,6 +3032,7 @@ platform_richness_mod6_poiss_sim_res <- simulateResiduals(fittedModel = platform
 plot(platform_richness_mod6_poiss_sim_res)
 
 ```
+
 ```{r platform_richness_mod7_poiss, fig.width=8, fig.height=10}
 #remove site type (p= 0.376     for platform_richness_mod6_poiss)
 platform_richness_mod7_poiss <- glmmTMB(richness 
@@ -3051,7 +3062,7 @@ plot(platform_richness_mod7_poiss_sim_res)
 ```
 
 
-#### Compare the models with the performance package
+#### IV.C.2.a. Compare the models with the performance package
 ```{r platform_richness_poiss_comp1}
 # Compare the models with the performance package
 platform_richness_poiss_comp1 <- compare_performance(platform_richness_mod1_poiss, platform_richness_mod2_poiss, platform_richness_mod3_poiss, platform_richness_mod4_poiss, platform_richness_mod5_poiss, platform_richness_mod6_poiss, platform_richness_mod7_poiss,
@@ -3061,7 +3072,7 @@ platform_richness_poiss_comp1 <- compare_performance(platform_richness_mod1_pois
 print(platform_richness_poiss_comp1)
 ```
 
-#### Visualize the model results
+#### IV.C.2.b. Visualize the model results
 ```{r}
 plot_model(platform_richness_mod1_poiss , type = "est", show.values = TRUE, value.offset = .3)
 plot_model(platform_richness_mod2_poiss , type = "est", show.values = TRUE, value.offset = .3)
@@ -3117,7 +3128,7 @@ ggplot(pred_wind, aes(x = x_unscaled, y = predicted)) +
 ```
 
 
-#### interpretation of the model results
+#### IV.C.2.c. interpretation of the model results
 
 This model has a Poisson distribution with a log-link, and an offset for the recording time per transect. We can see that the model is a good fit for the data, with no overdispersion and low correlation. The most parsimonious model is the one with the lowest AICc and BIC values, which is the model with only wind velocity and temperature as fixed effects. This model shows that with increasing wind velocity and temperature, the insect richness captured by the camera each minute decreases The previous models also show that the floral Simpson index, time of day, site type and days since start are not significant predictors of insect richness.
 
@@ -3130,7 +3141,7 @@ rm(list = ls(pattern = "^platform_richness_"))
 ```
 
 
-## B.3. SHANNON - Platform cameras
+### IV.C.3. PLATFORM CAMERAS Shannon - GAUSSIAN glmer (rec_time_min as predictor)
 
 ```{r platform_diversity}
 # diversity of insects per transect per site
@@ -3178,8 +3189,6 @@ Since a normal distribution is assumed, we will use a gaussian distribution for 
 
 A first try with rates was not successful. And after some thought, using an index rate doesn't seem to make a lot of sense, so we decided to use a gaussian distribution with the rec_time_min as a predictor. 
 
-#### B.3.1. SHANNON - Platform cameras - GAUSSIAN glmer (rec_time_min as predictor)
-
 ```{r platform_shannon_mod1_gauss, fig.width=8, fig.height=10}
 # full model with insect shannon diversity as response variable and environmental, weather and plant diversity variables as explanatory variables, and site as random effect, and recording time is included to account for sampling effort differences
 
@@ -3213,7 +3222,6 @@ platform_shannon_mod1_gauss_sim_res <- simulateResiduals(fittedModel = platform_
 plot(platform_shannon_mod1_gauss_sim_res)
 
 ```
-
 
 ```{r platform_shannon_mod2_gauss, fig.width=8, fig.height=10}
 #remove top2 ratio (p= 0.898  for platform_shannon_mod1_gauss)
@@ -3361,8 +3369,7 @@ plot(platform_shannon_mod6_gauss_sim_res)
 ```
 
 
-
-#### compare the models with the performance package
+#### IV.C.3.a Compare the models with the performance package
 ```{r platform_shannon_gauss_comp1}
 # Compare the models with the performance package
 platform_shannon_gauss_comp1 <- compare_performance(platform_shannon_mod1_gauss, platform_shannon_mod2_gauss, platform_shannon_mod3_gauss, platform_shannon_mod4_gauss, platform_shannon_mod5_gauss, platform_shannon_mod6_gauss,
@@ -3374,7 +3381,7 @@ print(platform_shannon_gauss_comp1)
 
 The first model platform_shannon_mod1_gauss is the only one that fits the dharma predicted vs residuals plot. The other models show a clear pattern in the residuals, indicating that they might not be a good fit for the data.
 
-#### visualize the model results
+#### IV.C.3.b. Visualize the model results
 ```{r}
 plot_model(platform_shannon_mod1_gauss , type = "est", show.values = TRUE, value.offset = .3)
 plot_model(platform_shannon_mod2_gauss , type = "est", show.values = TRUE, value.offset = .3)
@@ -3486,13 +3493,15 @@ ggplot(pred_rec_time_min, aes(x = x_unscaled, y = predicted)) +
   )
 ```
 
+#### IV.C.3.c. Interpretation of the model results
+
 ```{r}
 #remove all objects starting with platform_shannon_
 rm(list = ls(pattern = "^platform_shannon_"))
 ```
 
 
-## B.4. SIMPSON - Platform cameras
+### IV.C.4. PLATFORM CAMERAS Simpson - beta regression
 
 ```{r platform_simpson}
 #histogram of simpson index
@@ -3680,7 +3689,7 @@ plot(platform_simpson_mod5_beta_sim_res)
 ```
 
 
-#### compare the models with the performance package
+#### IV.C.4.a. Compare the models with the performance package
 ```{r platform_simpson_beta_comp1}
 # Compare the models with the performance package
 platform_simpson_beta_comp1 <- compare_performance(platform_simpson_mod1_beta, platform_simpson_mod2_beta, platform_simpson_mod3_beta, platform_simpson_mod4_beta, platform_simpson_mod5_beta, metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
@@ -3688,13 +3697,15 @@ platform_simpson_beta_comp1 <- compare_performance(platform_simpson_mod1_beta, p
 print(platform_simpson_beta_comp1)
 ``` 
 
-#### visualize the model results
+#### IV.C.4.b. Visualize the model results
 ```{r}
 plot_model(platform_simpson_mod1_beta , type = "est", show.values = TRUE, value.offset = .3)
 
 plot_model(platform_simpson_mod2_beta , type = "est", show.values = TRUE, value.offset = .3)
 
 ```
+#### IV.C.4.c. Interpretation of the model results
+
 # WTF IS HAPPENING HERE
 ```{r}
 #remove all objects starting with platform_simpson_
@@ -3702,7 +3713,8 @@ rm(list = ls(pattern = "^platform_simpson_"))
 ```
 
 
-## C. Flower cameras
+
+## IV.D. Flower cameras
 
 The flower cameras images were taken every 5 seconds, so to account for some of the repeats in the images, we will group together the images taken in the same minute and classified as the same family. We will also remove the images that are not classified as a family, and those that are classified as other families. 
 For now, we put the family confidence at a threshold of 0.5, but we can change that later if needed. 
@@ -3714,10 +3726,7 @@ WED	cam35	pas_sat
 STP	cam31	dau_car
 DES	cam35	tri_pra
 
-
 The flower cameras were not placed on specific transects, but on individual flowers that were representative of the most abundant flower species in the area. We need to calculate the average flower cover per site instead of per transect, as well as the average floral Simpson index per site. 
-
-
 
 ```{r}
 # flower camera data
@@ -3808,7 +3817,7 @@ W = 0.89, p-value = 0.00077 → Also not normal.
 Still skewed (Skewness = 0.90), but much more manageable.
 Lower range: 2 to 57, smaller variance (SD = 15.20).
 
-## C.1. Flower cameras - abundance count full
+### IV.D.1. FLOWER CAMERA FULL Count  - NB
 
 ```{r}
 #histogram of the number of images per flower camera
@@ -3979,7 +3988,7 @@ plot(flower_abundance_mod5_nb_sim_res)
 
 ```
 
-####  Compare the models with the performance package
+#### IV.D.1.a. Compare the models with the performance package
 ```{r flower_abundance_nb_comp1}
 # Compare the models with the performance package
 flower_abundance_nb_comp1 <- compare_performance(flower_abundance_mod1_nb, flower_abundance_mod2_nb, flower_abundance_mod3_nb, flower_abundance_mod4_nb, flower_abundance_mod5_nb,
@@ -3988,7 +3997,7 @@ flower_abundance_nb_comp1 <- compare_performance(flower_abundance_mod1_nb, flowe
 print(flower_abundance_nb_comp1)
 ```
 
-#### visualize the model results
+#### IV.D.1.b. Visualize the model results
 
 ```{r}
 plot_model(flower_abundance_mod1_nb , type = "est", show.values = TRUE, value.offset = .3)
@@ -4044,8 +4053,7 @@ ggplot(pred_avg_flower_cover, aes(x = x_unscaled, y = predicted)) +
   )
 ```
 
-
-
+#### IV.D.1.c. Interpretation of the model results
 
 ```{r}
 #remove all objects starting with flower_abundance_
@@ -4053,7 +4061,8 @@ rm(list = ls(pattern = "^flower_abundance_"))
 ```
 
 
-## C.2. Flower cameras - species richness
+
+### IV.D.2. FLOWER CAMERA FULL Richness - NB
 
 ```{r flower_richness}
 #count all unique families per site
@@ -4215,7 +4224,7 @@ plot(flower_richness_mod5_nb_sim_res)
 
 ```
 
-####  Compare the models with the performance package
+#### IV.D.2.a. Compare the models with the performance package
 ```{r flower_richness_nb_comp1}
 # Compare the models with the performance package
 flower_richness_nb_comp1 <- compare_performance(flower_richness_mod1_nb, flower_richness_mod2_nb, flower_richness_mod3_nb, flower_richness_mod4_nb, flower_richness_mod5_nb,
@@ -4224,8 +4233,7 @@ flower_richness_nb_comp1 <- compare_performance(flower_richness_mod1_nb, flower_
 print(flower_richness_nb_comp1)
 ```
 
-#### visualize the model results
-
+#### IV.D.2.b. Visualize the model results
 ```{r}
 plot_model(flower_richness_mod1_nb , type = "est", show.values = TRUE, value.offset = .3)
 plot_model(flower_richness_mod2_nb , type = "est", show.values = TRUE, value.offset = .3)
@@ -4258,13 +4266,14 @@ ggplot(pred_avg_flower_cover, aes(x = x_unscaled, y = predicted)) +
   )
 
 ```
+#### IV.D.2.c. Interpretation of the model results
 
 ```{r}
 #remove all objects starting with flower_richness_
 rm(list = ls(pattern = "^flower_richness_"))
 ```
 
-## C.3. Flower cameras - Shannon index
+### IV.D.3. FLOWER CAMERA FULL Shannon index - Gaussian distribution
 
 ```{r flower_cam_diversity}
 #transform flower_camera_modelling into wide format to use vegan package to get the shannon and simpson index
@@ -4337,7 +4346,6 @@ plot(flower_cam_diversity_mod1_gauss_sim_res)
 
 
 ```
-
 
 ```{r flower_cam_diversity_mod2_gauss, fig.width=8, fig.height=10}
 #remove dm temperature (p= 0.857       for flower_cam_diversity_mod1_gauss)
@@ -4435,7 +4443,7 @@ flower_cam_diversity_mod5_gauss_sim_res <- simulateResiduals(fittedModel = flowe
 plot(flower_cam_diversity_mod5_gauss_sim_res)
 ```
 
-#### Compare the models with the performance package
+#### IV.D.3.a. Compare the models with the performance package
 ```{r flower_cam_diversity_gauss_comp1}
 # Compare the models with the performance package
 flower_cam_diversity_gauss_comp1 <- compare_performance(flower_cam_diversity_mod1_gauss, flower_cam_diversity_mod2_gauss, flower_cam_diversity_mod3_gauss, flower_cam_diversity_mod4_gauss, flower_cam_diversity_mod5_gauss,
@@ -4444,7 +4452,7 @@ flower_cam_diversity_gauss_comp1 <- compare_performance(flower_cam_diversity_mod
 print(flower_cam_diversity_gauss_comp1)
 ```
 
-#### visualize the model results
+#### IV.D.3.b. Visualize the model results
 
 ```{r}
 plot_model(flower_cam_diversity_mod1_gauss , type = "est", show.values = TRUE, value.offset = .3)
@@ -4456,7 +4464,10 @@ plot_model(flower_cam_diversity_mod5_gauss , type = "est", show.values = TRUE, v
 
 No predictor seems to significantly affect the shannon index captured by flower cameras. 
 
-## C.4. Flower cameras - Simpson index
+#### IV.D.3.c. Interpretation of the model results
+
+
+### IV.D.4. FLOWER CAMERA FULL Simpson index - Beta regression
 
 ```{r flower_cam_simpson}
 # histogram of the simpson index
@@ -4604,7 +4615,7 @@ plot(flower_cam_diversity_simpson_mod5_beta_sim_res)
 ```
 
 
-#### Compare the models with the performance package
+#### IV.D.4.a. Compare the models with the performance package
 ```{r flower_cam_diversity_simpson_comp1}
 # Compare the models with the performance package
 flower_cam_diversity_simpson_comp1 <- compare_performance(flower_cam_diversity_simpson_mod1_beta, flower_cam_diversity_simpson_mod2_beta, flower_cam_diversity_simpson_mod3_beta, flower_cam_diversity_simpson_mod4_beta, flower_cam_diversity_simpson_mod5_beta,
@@ -4612,7 +4623,7 @@ flower_cam_diversity_simpson_comp1 <- compare_performance(flower_cam_diversity_s
 # Print the comparison table
 print(flower_cam_diversity_simpson_comp1)
 ```
-#### visualize the model results
+#### IV.D.4.b. Visualize the model results
 
 ```{r}
 plot_model(flower_cam_diversity_simpson_mod1_beta , type = "est", show.values = TRUE, value.offset = .3)
@@ -4644,13 +4655,15 @@ ggplot(pred_wind, aes(x = x_unscaled, y = predicted)) +
   )
 ```
 
+#### IV.D.4.c. Interpretation of the model results
+
 ```{r}
 #remove all objects starting with flower_cam_diversity_
 rm(list = ls(pattern = "^flower_cam_diversity_"))
 ```
 
 
-## C.5. Flower cameras - abundance count REDUCED
+### IV.D.5. FLOWER CAMERA REDUCED abundance count - NB
 
 ```{r}
 flower_cam_count_reduced %>%
@@ -4789,7 +4802,7 @@ flower_cam_count_reduced_mod5_nb_sim_res <- simulateResiduals(fittedModel = flow
 plot(flower_cam_count_reduced_mod5_nb_sim_res)
 ```
 
-#### Compare the models with the performance package
+#### IV.D.5.a. Compare the models with the performance package
 ```{r flower_cam_count_reduced_nb_comp1}
 # Compare the models with the performance package
 flower_cam_count_reduced_nb_comp1 <- compare_performance(flower_cam_count_reduced_mod1_nb, flower_cam_count_reduced_mod2_nb, flower_cam_count_reduced_mod3_nb, flower_cam_count_reduced_mod4_nb, flower_cam_count_reduced_mod5_nb,
@@ -4797,7 +4810,7 @@ flower_cam_count_reduced_nb_comp1 <- compare_performance(flower_cam_count_reduce
 # Print the comparison table
 print(flower_cam_count_reduced_nb_comp1)
 ```
-#### visualize the model results
+#### IV.D.5.b. Visualize the model results
 
 ```{r}
 plot_model(flower_cam_count_reduced_mod1_nb , type = "est", show.values = TRUE, value.offset = .3)
@@ -4830,10 +4843,9 @@ ggplot(pred_avg_flower_cover, aes(x = x_unscaled, y = predicted)) +
     y = "Predicted Insect Abundance"
   )
 ```
+#### IV.D.5.c. Interpretation of the model results
 
-
-
-## C.6 Flower cameras - species richness REDUCED
+### IV.D.6. FLOWER CAMERA REDUCED Richness
 
 ```{r flower_cam_richness_reduced}
 #count unique families per flower_sp per site
@@ -4849,7 +4861,7 @@ flower_richness$family_count
 
 By creating this new datafram based on the flower_camera_famcount_reduced, we can now calculate the richness of insect found on each flower camera. We also notice that the values are the exact same than for the full dataset, because one of the arguments for the reduction was that the insect family was repeated for the same flower camera in the same minute. This means we don't have to calculate the richness again. 
 
-## C.7. Flower cameras - Shannon index REDUCED
+### IV.D.7. FLOWER CAMERA REDUCED Shannon index - Gaussian distribution
 
 ```{r flower_cam_diversity_reduced}
 #transform flower_camera_famcount_reduced into wide format to use vegan package to get the shannon and simpson index
@@ -4883,7 +4895,6 @@ flower_cam_diversity_reduced$shannon_diversity==flower_cam_diversity$shannon_div
 flower_cam_diversity_reduced$simpson_diversity==flower_cam_diversity$simpson_diversity # simpson indices are not identical between full and reduced dataset
 
 ```
-
 
 ```{r }
 #histogram of the shannon index
@@ -4925,8 +4936,6 @@ flower_cam_diversity_reduced_mod1_gauss_sim_res <- simulateResiduals(fittedModel
 plot(flower_cam_diversity_reduced_mod1_gauss_sim_res)
 ```
 
-
-
 ```{r flower_cam_diversity_reduced_mod2_gauss, fig.width=8, fig.height=10}
 #remove days since start (p= 0.683 for flower_cam_diversity_reduced_mod1_gauss)
 flower_cam_diversity_reduced_mod2_gauss <- lmer(shannon_diversity 
@@ -4949,6 +4958,7 @@ check_collinearity(flower_cam_diversity_reduced_mod2_gauss)
 flower_cam_diversity_reduced_mod2_gauss_sim_res <- simulateResiduals(fittedModel = flower_cam_diversity_reduced_mod2_gauss)
 plot(flower_cam_diversity_reduced_mod2_gauss_sim_res)
 ```
+
 ```{r flower_cam_diversity_reduced_mod3_gauss, fig.width=8, fig.height=10}
 #remove dm temperature (p= 0.609  for flower_cam_diversity_reduced_mod2_gauss)
 flower_cam_diversity_reduced_mod3_gauss <- lmer(shannon_diversity 
@@ -5021,7 +5031,7 @@ plot(flower_cam_diversity_reduced_mod5_gauss_sim_res)
 ```
 
 
-#### Compare the models with the performance package
+#### IV.D.7.a. Compare the models with the performance package
 ```{r flower_cam_diversity_reduced_gauss_comp1}
 # Compare the models with the performance package
 flower_cam_diversity_reduced_gauss_comp1 <- compare_performance(flower_cam_diversity_reduced_mod1_gauss, flower_cam_diversity_reduced_mod2_gauss, flower_cam_diversity_reduced_mod3_gauss, flower_cam_diversity_reduced_mod4_gauss, flower_cam_diversity_reduced_mod5_gauss,
@@ -5030,7 +5040,7 @@ flower_cam_diversity_reduced_gauss_comp1 <- compare_performance(flower_cam_diver
 print(flower_cam_diversity_reduced_gauss_comp1)
 ```
 
-#### visualize the model results
+#### IV.D.7.b Visualize the model results
 
 ```{r}
 plot_model(flower_cam_diversity_reduced_mod1_gauss , type = "est", show.values = TRUE, value.offset = .3)
@@ -5082,7 +5092,10 @@ ggplot(pred_avg_flower_cover, aes(x = x_unscaled, y = predicted)) +
   )
 ```
 
-## C.8. Flower cameras - Simpson index REDUCED
+#### IV.D.7.c. Interpretation of the model results
+
+
+### IV.D.8. FLOWER CAMERA REDUCED Simpson index - Beta distribution
 
 ```{r flower_cam_diversity_reduced_simpson}
 #histogram of the simpson index
@@ -5128,7 +5141,7 @@ flower_cam_diversity_simpson_mod1_beta_sim_res <- simulateResiduals(fittedModel 
 plot(flower_cam_diversity_simpson_mod1_beta_sim_res)
 ```
 
-```{r flower_cam_diversity_simpson_mod2_beta, fig.width=8, fig.height=10}
+```{r flower_cam_diversity_reduced_simpson_mod2_beta, fig.width=8, fig.height=10}
 #remove days since start (p= 0.747  for flower_cam_diversity_simpson_mod1_beta)
 flower_cam_diversity_simpson_mod2_beta <- glmmTMB(simpson_diversity 
                                          ~ average_flower_cover 
@@ -5155,7 +5168,7 @@ plot(flower_cam_diversity_simpson_mod2_beta_sim_res)
 
 ```
 
-```{r flower_cam_diversity_simpson_mod3_beta, fig.width=8, fig.height=10}
+```{r flower_cam_diversity_reduced_simpson_mod3_beta, fig.width=8, fig.height=10}
 #remove dm tempertaure (p= 0.490  for flower_cam_diversity_simpson_mod2_beta)
 flower_cam_diversity_simpson_mod3_beta <- glmmTMB(simpson_diversity 
                                          ~ average_flower_cover 
@@ -5181,8 +5194,7 @@ flower_cam_diversity_simpson_mod3_beta_sim_res <- simulateResiduals(fittedModel 
 plot(flower_cam_diversity_simpson_mod3_beta_sim_res)
 ```
 
-
-```{r flower_cam_diversity_simpson_mod4_beta, fig.width=8, fig.height=10}
+```{r flower_cam_diversity_reduced_simpson_mod4_beta, fig.width=8, fig.height=10}
 #remove wind velocity (p= 0.228   for flower_cam_diversity_simpson_mod3_beta)
 flower_cam_diversity_simpson_mod4_beta <- glmmTMB(simpson_diversity 
                                          ~ average_flower_cover 
@@ -5208,15 +5220,15 @@ flower_cam_diversity_simpson_mod4_beta_sim_res <- simulateResiduals(fittedModel 
 plot(flower_cam_diversity_simpson_mod4_beta_sim_res)
 ```
 
-#### Compare the models with the performance package
-```{r flower_cam_diversity_simpson_comp1}
+#### IV.D.8.a. Compare the models with the performance package
+```{r flower_cam_diversity_reduced_simpson_comp1}
 # Compare the models with the performance package
 flower_cam_diversity_simpson_comp1 <- compare_performance(flower_cam_diversity_simpson_mod1_beta, flower_cam_diversity_simpson_mod2_beta, flower_cam_diversity_simpson_mod3_beta, flower_cam_diversity_simpson_mod4_beta,
                                                  metrics = c("AICc", "BIC", "R2", "ICC", "RMSE"))
 # Print the comparison table
 print(flower_cam_diversity_simpson_comp1)
 ```
-#### visualize the model results
+#### IV.D.8.b. Visualize the model results
 
 ```{r}
 plot_model(flower_cam_diversity_simpson_mod1_beta , type = "est", show.values = TRUE, value.offset = .3)
@@ -5225,7 +5237,7 @@ plot_model(flower_cam_diversity_simpson_mod3_beta , type = "est", show.values = 
 plot_model(flower_cam_diversity_simpson_mod4_beta , type = "est", show.values = TRUE, value.offset = .3)
 ```
 
-```{r plot flower_cam_diversity_simpson_mod4_beta predictions}
+```{r plot flower_cam_diversity_reduced_simpson_mod4_beta predictions}
 ## floral simpson index flower_cam_diversity_simpson_mod4_beta---------
 # Get the original mean and SD of floral simpson index site  before scaling
 floral_simpson_mean <- mean(planty$Floral_simpson_index_site, na.rm = TRUE)
@@ -5266,3 +5278,5 @@ ggplot(pred_avg_flower_cover, aes(x = x_unscaled, y = predicted)) +
     y = "Predicted Simpson Diversity Index"
   )
 ```
+
+#### IV.D.8.c. Interpretation of the model results
