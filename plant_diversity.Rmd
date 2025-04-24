@@ -127,7 +127,7 @@ bicolor_bg <- c(
 
 ```{r selecting columns & cleaning}
 plants <- plant_data_load %>%
-  select(1:7) %>%
+  dplyr::select(1:7) %>%
   
   # Rename columns for consistency
   rename(Site_type = Age,  # Change "Age" to "Site_type" for standardization with other scripts
@@ -136,7 +136,7 @@ plants <- plant_data_load %>%
     Transect= transect,
     Plot=plot) %>%
   
-  select(-notes)%>% #remove notes column
+  dplyr::select(-notes)%>% #remove notes column
   #filter(Plant_sp != "no flowers")%>% #remove "no flowers" rows in Plant_sp col
 
   #rm NA in Site
@@ -758,7 +758,7 @@ relative_flower <- relative_flower %>%
 group_by(Site, Site_type, Transect, Plant_sp) %>%
   mutate(Relative_cover_transect = sum(Relative_cover_plot, na.rm = TRUE) / 3) %>% # Average relative cover per species per transect
   ungroup()%>%
-  select(-Plot,-Plot_Cover, -Relative_cover_plot, -Cover_percentage) %>%
+  select(-Plot, -Relative_cover_plot, -Cover_percentage) %>%
   #keep only unique rows
   distinct()
 
@@ -774,12 +774,38 @@ ggplot(relative_flower, aes(x = reorder(Plant_sp, Relative_cover_transect), y = 
     fill = "Site") +
   scale_fill_manual(values = custom_colors) +  # Apply custom colors to the plot
   theme(legend.position = "top")
+
+ggplot(relative_flower, aes(x = reorder(Plant_sp, Plot_Cover), y = Plot_over, fill = Site)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Plot Cover % per Species per Transect",
+    x = "Plant Species",
+    y = "Plot cover",
+    fill = "Site") +
+  scale_fill_manual(values = custom_colors) +  # Apply custom colors to the plot
+  theme(legend.position = "top")
+```
+  
+Additionally, for the flower cameras, we will need to have plant metrics but at a **site-level**. Here, we will add a column for the average cover of flower per site, and then we will calculate the average flower cover ratio per species per site. sum of plot_cover per transect divided by 5 (number of transect per site).
+
+$$\sum_{site} \text{Plot_Cover}/5$$
+
+
+```{r relative cover ratios per site}
+# Calculate the average cover ratio per site
+site_avg_cover <- relative_flower %>%
+  group_by(Site) %>%
+  summarise(average_flower_cover = mean(Plot_Cover, na.rm = TRUE))
 ```
 
 
 ## D. Gradient of plant diversity
 
 ### diversity index
+
+
 
 ```{r diversity index with relative cover}
 # wide format for relative_flower
@@ -790,11 +816,10 @@ relative_flower_w <- relative_flower %>%
 # Calculate diversity indices with the vegan package - Simpson and Shannon indices
 diversity_indices <- relative_flower_w %>%
   mutate(
-    Floral_simpson_index = diversity(.[, -(1:3)], index = "simpson"),
-    Floral_shannon_index = diversity(.[, -(1:3)], index = "shannon")
+    Floral_simpson_index = vegan::diversity(.[, -(1:3)], index = "simpson"),
+    Floral_shannon_index = vegan::diversity(.[, -(1:3)], index = "shannon")
   ) %>%
-  select(1:3, Floral_simpson_index, Floral_shannon_index
-         )  # Keep only relevant columns
+  select(1:3, Floral_simpson_index, Floral_shannon_index)  # Keep only relevant columns
 
 # Calculate species richness per transect
 richness <- plants3 %>%
@@ -808,6 +833,9 @@ diversity_indices <- left_join(diversity_indices, richness, by = c("Site", "Tran
 #add the gradient of plant diversity to the relative_flower data (there will be repeated rows for those 3 new columns)
 relative_flower <- left_join(relative_flower, diversity_indices, by = c("Site", "Transect", "Site_type"))
 
+#add site_avg_cover to the relative_flower data
+relative_flower <- left_join(relative_flower, site_avg_cover, by = "Site")
+
 #remove the wide format data and the richness data
 rm(relative_flower_w, richness)
 ```
@@ -815,10 +843,10 @@ rm(relative_flower_w, richness)
 
 ### Plotting the diversity indices
 
-```{r plot diversity indices}
+```{r scatterplot diversity indices}
 #point plot the species richness per site
 (sp <- ggplot(diversity_indices, aes(x = Site, y = Floral_species_richness, color = Site)) +
-  geom_point(position = position_jitter(width = 0.1, height = 0),size = 3) +
+  geom_point(position = position_jitter(width = 0.5, height = 0),size = 3) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
@@ -866,6 +894,72 @@ combined_plot <- sp + simp + shann + plot_annotation(title = "Relative Flower Di
 print(combined_plot)
 
 ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/diversity_metrics.png", width = 16, height = 8)
+
+rm(sp, simp, shann, combined_plot)
+```
+
+```{r boxplot diversity indices}
+# Reorder Site levels by mean Floral_species_richness
+diversity_indices <- diversity_indices %>%
+  mutate(Site = fct_reorder(Site, Floral_species_richness, .fun = mean, .desc = FALSE))
+
+# Boxplot: species richness per site
+(sp <- ggplot(diversity_indices, aes(x = Site, y = Floral_species_richness, fill = Site)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) + 
+  #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
+  scale_color_manual(values = custom_colors) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Floral Species Richness",
+    x = "Site",
+    y = "Number of Flower Species",
+    fill = "Site"
+  ) +
+  ylim(0, 30) +
+  scale_fill_manual(values = custom_colors) +
+  theme(legend.position = "none"))
+
+# Boxplot: simpson index per site
+(simp <- ggplot(diversity_indices, aes(x = Site, y = Floral_simpson_index, fill = Site)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
+  scale_color_manual(values = custom_colors) +
+   theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Floral Simpson Diversity Index",
+    x = "Site",
+    y = "Simpson Diversity Index",
+    fill = "Site"
+  ) +
+  scale_fill_manual(values = custom_colors) +
+  theme(legend.position = "none"))
+
+# Boxplot: shannon index per site
+(shann <- ggplot(diversity_indices, aes(x = Site, y = Floral_shannon_index, fill = Site)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.7) +
+  #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
+  scale_color_manual(values = custom_colors) +
+   theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  labs(
+    title = "Floral Shannon Diversity Index",
+    x = "Site",
+    y = "Shannon Diversity Index",
+    fill = "Site"
+  ) +
+  scale_fill_manual(values = custom_colors) +
+  theme(legend.position = "right"))
+
+# Combine the plots
+combined_plot <- sp + simp + shann + plot_annotation(title = "Relative Flower Diversity Metrics per Site") & 
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
+
+# Print and save
+print(combined_plot)
+
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/plant_diversity_metrics.png", width = 16, height = 8)
 
 rm(sp, simp, shann, combined_plot)
 ```
@@ -1051,7 +1145,7 @@ ggplot(combined_data, aes(x = total_interaction)) +
 # find out which plant species are the most visited by pollinators
 top_plants <- combined_data %>%
   #remove outliers in total interactions per transect
-  filter(total_interaction < 80) %>%
+  #filter(total_interaction < 80) %>%
   group_by(Plant_sp) %>%
   summarise(total_interactions = sum(total_interaction, na.rm = TRUE)) %>%
   arrange(desc(total_interactions)) %>%
@@ -1071,12 +1165,23 @@ ggplot(top_plants, aes(x = reorder(Plant_sp, total_interactions), y = total_inte
 ### abundance of the 2 most visited plant species
 
 ```{r top2}
-top2 <- relative_flower%>%
-  #keep only rows that are top 2 plant species: Daucus carota, Pastinaca sativa
+str(relative_flower)
+
+library(tidyverse)
+
+top2 <- relative_flower %>%
+  # Remove extra columns
+  select(-Floral_species_richness, -Floral_simpson_index, -Floral_shannon_index, -Plot_Cover) %>%
+  # Keep only rows that are top 2 plant species: Daucus carota, Pastinaca sativa
   filter(Plant_sp %in% c("Daucus carota", "Pastinaca sativa")) %>%
-  #make wider with Plant_sp as column names
-  pivot_wider(names_from = Plant_sp, values_from = Relative_cover_transect, values_fill = 0) %>%
-  #add the percentages of the 2 plant species into a column named top2_ratio
+  # Pivot wider, using `values_fn` to handle missing values
+  pivot_wider(
+    names_from = Plant_sp,
+    values_from = Relative_cover_transect,
+    values_fill = 0,
+    values_fn = list(Relative_cover_transect = sum)
+  ) %>%
+  # Add the percentages of the 2 plant species into a column named top2_ratio
   rowwise() %>%
   mutate(top2_ratio = sum(c(`Daucus carota`, `Pastinaca sativa`)))
 ```

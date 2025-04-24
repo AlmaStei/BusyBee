@@ -2,24 +2,47 @@
 title: "trad_comparison"
 author: "Alma Steireif"
 date: "`r Sys.Date()`"
-output: html_document
+output: 
+  html_document:
+      toc: TRUE
 ---
 
-## libraries
+## 1. libraries
 ```{r, include=FALSE}
-library(tidyverse)
 library(stringr)
 library(vegan)
+
+library(gridExtra)
+library(grid)
+library(tidyverse)
 ```
 
-## data
 ```{r}
-load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250120_netdata.RData")
+theme_new <- theme_classic(base_size = 12) +
+  theme(axis.line = element_blank(),
+        axis.text = element_text(colour = "black"),
+        axis.ticks = element_line(linewidth = 0.4, colour = "black"),
+        legend.key.size = unit(0.5, "cm"),
+        legend.margin = margin(t = 0),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        panel.border = element_rect(linewidth = 0.4, colour = "black", fill = NA),
+        panel.grid.major.y = element_line(colour = "grey90", linewidth = 0.2),
+        plot.margin = margin(2, 2, 2, 2, "pt"),
+        plot.title = element_text(size = 10))
+theme_set(theme_new)
+```
+
+
+## 2. data
+```{r}
+#load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250120_netdata.RData")
+net_data <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_long.csv")
 load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250203_full_bowltrap.RData")
 ```
 
 
-## data preparation
+## 3. data preparation
 ```{r}
 bowltrap <- bowltrap_clean %>% 
   #select all columns except "small_"
@@ -63,8 +86,7 @@ full_data <- rbind(bowltrap, netting)
 rm(bowltrap_clean, net_data)
 ```
 
-
-# NMDS analysis for family composition between the sites
+## 4. NMDS analysis for family composition between the sites - combined traditional methods
 
 ```{r}
 # Create a community matrix
@@ -81,7 +103,6 @@ nmds_result <- metaMDS(community_matrix, distance = "bray", k = 2, trymax = 100)
 # View results
 print(nmds_result)
 ```
-
 
 
 ```{r}
@@ -124,6 +145,8 @@ ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) 
        color = "Site Type") # Update legend title
 ```
 
+
+## splitting methods
 ```{r}
 # Create a community matrix with Site and Transect combined
 community_matrix2 <- full_data %>%
@@ -198,7 +221,9 @@ ggplot(site_scores2, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site, 
        shape = "Method") # Update legend title
 ```
 
-## again, but removing outliers in pan traps
+
+
+## 5. again, but removing outliers in pan traps
 
 - in two bowls in Dessau, there were >10 individuals of a single family (Mordellidae), which is very likely skewing the results.
 - let's see what happens if we remove these two bowls 
@@ -261,5 +286,221 @@ ggplot(site_scores3, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site))
        y = "NMDS2",
        color = "Site Type") # Update legend title
 
+```
+
+
+## 6. Flower camera data 
+
+```{r}
+
+th <- 0.5
+flower_cam <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/bioclip_flower_cams.csv")%>%
+  #filter out Classification_Category == "other_families"
+  filter(Classification_Category != "other_families") %>%
+  select(-Image_Path, -Classification_Category , -Order)%>%
+  #remove all rows that have a family confidence below set threshold th
+  filter(Family_Confidence >= th)%>%
+    mutate(Site_Type = ifelse(site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+  
+
+
+```
+
+```{r}
+# Step 1: Create the community matrix
+community_matrix <- flower_cam %>%
+  group_by(site, Family) %>%
+  summarize(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "site") # Convert 'site' column to row names
+
+# Step 2: Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result <- metaMDS(community_matrix, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result)
+
+# Step 3: Extract site scores for plotting
+site_scores <- as.data.frame(scores(nmds_result, display = "sites"))
+site_scores$Site <- rownames(site_scores)
+
+# Step 4: Add Site_Type (Young Restored vs. Reference) to the site scores
+site_scores <- site_scores %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange")
+
+# Step 5: Plot with customized colors
+ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3, show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  theme_minimal() +
+  labs(title = "Flower Cameras: NMDS of Pollinator Family Diversity",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+
+```
+
+```{r}
+# Step 1: Calculate the Bray-Curtis distance matrix
+community_matrix <- flower_cam %>%
+  group_by(site, Family) %>%
+  summarize(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "site")
+
+# Calculate Bray-Curtis distance
+bc_distance <- vegdist(community_matrix, method = "bray")
+
+# Step 2: Run PERMANOVA (adonis) to test for differences between Site_Type (Young Restored vs Reference)
+# First, we need to create a factor indicating the site type
+site_scores <- data.frame(Site = rownames(community_matrix)) %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Run PERMANOVA
+set.seed(123)
+permanova_result <- adonis2(bc_distance ~ Site_Type, data = site_scores, permutations = 999)
+
+# View PERMANOVA result
+print(permanova_result)
+
+```
+
+```{r}
+# Step 1: Run ANOSIM to test for differences between Site_Type (Young Restored vs Reference)
+# We already have the Bray-Curtis distance matrix and Site_Type factor from above
+
+# Run ANOSIM
+set.seed(123)
+anosim_result <- anosim(bc_distance, site_scores$Site_Type, permutations = 999)
+
+# View ANOSIM result
+print(anosim_result)
+
+```
+
+### Hill numbers flower camera
+
+```{r}
+#calculate species richness, shannon and simpson index for flower camera data with vegan package
+# Calculate Hill numbers (species richness, Shannon, and Simpson index)
+hill_numbers <- flower_cam %>%
+  group_by(Site_Type, Family) %>%
+  summarize(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site_Type") %>%
+  # Calculate Hill numbers
+  mutate(Species_Richness = specnumber(.),
+         Shannon_Index = diversity(., index = "shannon"),
+         Simpson_Index = diversity(., index = "simpson"))%>%
+  #remove all columns that are not "Species_Richness", "Shannon_Index" or "Simpson_Index"
+  select(Species_Richness, Shannon_Index, Simpson_Index) %>%
+  #add column "Site_Type" with value "Young Restored" or "Reference"
+  mutate(Site_Type = rownames(.))
+
+# Hill numbers long format
+hill_numbers_long <- hill_numbers %>%
+  pivot_longer(cols = c(Species_Richness, Shannon_Index, Simpson_Index), 
+               names_to = "Index", 
+               values_to = "Value")
+
+#index labels 
+facet_labels <- c("Species_Richness" = "Species Richness", 
+                  "Shannon_Index" = "Shannon Index", 
+                  "Simpson_Index" = "Simpson Index")
+
+# Barplot of Shannon and Simpson indices (filtered out species richness)
+shan_simp <- hill_numbers_long %>%
+  filter(Index != "Species_Richness") %>%
+  ggplot(aes(x = Site_Type, y = Value, fill = Site_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  facet_wrap(~ Index, labeller = labeller(Index = facet_labels)) +  # Apply custom facet labels
+  scale_fill_manual(values = custom_colors) +   # Apply custom colors
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(),   # Remove x-axis title
+    axis.title.y = element_blank(),   # Remove y-axis title
+  ) +
+  scale_x_discrete(labels = function(x) gsub("Young Restored", "Young\nRestored", x))  # Split label into two lines
+
+# Barplot of Species Richness
+rich <- hill_numbers_long %>%
+  filter(Index == "Species_Richness") %>%
+  ggplot(aes(x = Site_Type, y = Value, fill = Site_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  theme_minimal() +
+  facet_wrap(~ Index, labeller = labeller(Index = facet_labels)) +  # Apply custom facet labels
+  scale_fill_manual(values = custom_colors, name = "Site Type") +   # Apply custom colors
+  theme(
+    legend.position = "right",
+    axis.title.x = element_blank(),   # Remove x-axis title
+    axis.title.y = element_blank(),   # Remove y-axis title
+    scale_y_continuous(position = "left"),# Put y-axis on the left side instead of right
+    legend.title = element_text(size = 10),  # Adjust legend title font size
+    legend.text = element_text(size = 8)    # Adjust legend text font size
+  ) +
+  scale_x_discrete(labels = function(x) gsub("Young Restored", "Young\nRestored", x))  # Split label into two lines
+
+# Combine the two plots into one layout
+
+combined_plot <- grid.arrange(
+  shan_simp, 
+  rich, 
+  ncol = 2,
+  top = textGrob("Flower Cameras: Diversity Indices by Site Type", 
+                 gp = gpar(fontface = "bold", fontsize = 14)),  # Make title bold
+  widths = c(1, 1)   # Control width of each column (both equal here)
+)
+
+# Save the combined plot
+ggsave("combined_diversity_indices.png", plot = combined_plot, width = 12, height = 6, dpi = 300)
+
+```
+
+
+## Flower camera - NMDS flower species 
+```{r}
+# Step 1: Create the community matrix
+community_matrix_flo <- flower_cam %>%
+  group_by(flower_sp, Family) %>%
+  summarize(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "flower_sp") # Convert 'site' column to row names
+
+# Step 2: Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_flo <- metaMDS(community_matrix_flo, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_flo)
+
+# Step 3: Extract site scores for plotting
+site_scores_flo <- as.data.frame(scores(nmds_result_flo, display = "sites"))
+site_scores_flo$flower <- rownames(site_scores_flo)
+
+# Step 5: Plot with customized colors
+ggplot(site_scores_flo, aes(x = NMDS1, y = NMDS2, color = flower, label = flower)) +
+  geom_point(size = 4, alpha = 0.8, shape=19) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  theme_minimal() +
+  labs(title = "Flower Cameras: NMDS of Pollinator Family Diversity",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Flower Species") # Update legend title
+
+```
 ```
 
