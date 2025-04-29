@@ -116,8 +116,78 @@ bicolor_palette <- c(
 steelorange <- c("Young Restored" = "steelblue", "Reference" = "darkorange", "1-5 y"="steelblue")
 
 bicolor_bg <- c(
-  "DES" = "lightyellow",  "HLI" = "lightyellow",  "JEP" = "lightyellow",  "STP" = "lightyellow",  "WUP" = "lightyellow",
-  "BUH" = "lightblue1",    "KOT" = "lightblue1",    "WDG" = "lightblue1",    "WED" = "lightblue1")
+  "DES" = "lightblue", "HLI" = "lightblue", "JEP" = "lightblue", "STP" = "lightblue",  "WUP" = "lightblue",
+  "BUH" = "#D3D5AEFF", "KOT" = "#D3D5AEFF", "WDG" = "#D3D5AEFF", "WED" = "#D3D5AEFF")
+
+```
+
+```{r custom colors}
+#define custom colors for plotting
+
+steelorange <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+steelorange1 <- c("Young Restored" = "#C8DC9D", "Reference" = "#8DB4D9")
+
+#saturated_pal <- c(
+  #reference site "DES" = "#7F3B19FF",    "HLI" = "#FDB863FF",    "JEP" = "#E08214FF",    "STP" = "#B35806FF",  "WUP" = "#FEE0B6FF",  
+  # restored sites  "BUH" = "#93C6E1FF",   "KOT" = "#5F93ACFF",    "WDG" = "#2E627AFF",    "WED" = "#00344AFF"  )
+
+custom_colors <- c(
+  #reference sites
+  "DES" = "#93C6E1FF",  
+  "HLI" = "#5F93ACFF",  
+  "JEP" = "#2E627AFF",  
+  "STP" = "#00344AFF",
+  "WUP" = "#1F78B4",
+  # restored sites
+  "BUH" = "#5C7424",  
+  "KOT" = "#C3D69B",  
+  "WDG" = "#9BB655",  
+  "WED" = "#6D8F3C"  
+)
+
+pastel_colors <- c(
+  "DES" = "#CFE4F1",  # lighter pastel blue
+  "HLI" = "#A9C4D6",  
+  "JEP" = "#7FA1B4",  
+  "STP" = "#557788",  
+  "WUP" = "#8DB4D9",  
+  "BUH" = "#A8B98A",  
+  "KOT" = "#E4F0D5",  
+  "WDG" = "#C8DC9D",  
+  "WED" = "#A0B687"   
+)
+
+
+# bicolor palette
+bicolor_palette <- c(
+  "DES" = "#1F78B4",  
+  "HLI" = "#1F78B4",  
+  "JEP" = "#1F78B4",  
+  "STP" = "#1F78B4",
+  "WUP" = "#1F78B4",
+  "BUH" = "#9BB655FF",  
+  "KOT" = "#9BB655FF",  
+  "WDG" = "#9BB655FF",  
+  "WED" = "#9BB655FF" 
+)
+
+bicolor_bg <- c(
+  "DES" = "lightblue", "HLI" = "lightblue", "JEP" = "lightblue", "STP" = "lightblue",  "WUP" = "lightblue",
+  "BUH" = "#D3D5AEFF", "KOT" = "#D3D5AEFF", "WDG" = "#D3D5AEFF", "WED" = "#D3D5AEFF")
+
+theme_new <- theme_classic(base_size = 12) +
+  theme(axis.line = element_blank(),
+        axis.text = element_text(colour = "black"),
+        axis.ticks = element_line(linewidth = 0.4, colour = "black"),
+        legend.key.size = unit(0.5, "cm"),
+        legend.margin = margin(t = 0),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        panel.border = element_rect(linewidth = 0.4, colour = "black", fill = NA),
+        panel.grid.major.y = element_line(colour = "grey90", linewidth = 0.2),
+        plot.margin = margin(2, 2, 2, 2, "pt"),
+        plot.title = element_text(size = 14)) #, face = "bold"
+theme_set(theme_new)
 ```
 
 
@@ -252,7 +322,7 @@ plants3 <- plants3 %>%
 #barplot of coverage per Site
 ggplot(plants3, aes(x = Site, y = Cover_percentage, fill= Plant_sp)) +
   geom_bar(stat = "identity") +
-  theme_minimal() +
+#theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Plant Species Coverage",
@@ -324,8 +394,8 @@ ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) 
                aes(group = Site_Type, fill = Site_Type), 
                alpha = 0.3,show.legend = FALSE) + # Add convex hull  
   scale_fill_manual(values = steelorange) + # Apply fill colors to polygons
-  theme_minimal() +
-  labs(title = "NMDS of Plant Species Diversity by Site",
+theme_minimal() +
+  labs(title = "NMDS of Plant Species by Site",
        x = "NMDS1",
        y = "NMDS2",
        color = "Site Type") # Update legend title
@@ -458,8 +528,8 @@ ggplot(simper_df[1:10,], aes(x = reorder(Species, -Contrib), y = Contrib, fill =
   coord_flip() +  # Flip for better readability
   labs(title = "Top 10 Species Driving Differences",
        x = "Species",
-       y = "Contribution (%)") +
-  theme_minimal()
+       y = "Contribution (%)")
+#+  theme_minimal()
 
 # Cumulative contribution plot, reorder()
 ggplot(simper_df, aes(x = reorder(Species, -Contrib), y = Contrib, fill = Contrib)) +
@@ -467,8 +537,8 @@ ggplot(simper_df, aes(x = reorder(Species, -Contrib), y = Contrib, fill = Contri
   coord_flip() +  # Flip for better readability
   labs(title = "Species Contribution to Dissimilarity",
        x = "Species",
-       y = "Contribution (%)") +
-  theme_minimal()
+       y = "Contribution (%)") 
+#+  theme_minimal()
 
 #scatter plot of average dissimilarity vs. contribution
 ggplot(simper_df[54:69,], aes(x = AvDiss, y = Contrib, label = Species)) +
@@ -476,8 +546,8 @@ ggplot(simper_df[54:69,], aes(x = AvDiss, y = Contrib, label = Species)) +
   geom_text(vjust = 1.5, size = 3) +
   labs(title = "Species Contribution vs. Dissimilarity",
        x = "Average Dissimilarity",
-       y = "Contribution (%)") +
-  theme_minimal()
+       y = "Contribution (%)") 
+#+  theme_minimal()
 
 length(simper_df$Species) # 69 species in total
 ```
@@ -592,7 +662,7 @@ set.seed(2022);iNEXT_output_plants <- iNEXT(matrix_plant,
     scale_color_manual(values = custom_colors) + # Assign custom colors to sites (curves)
     scale_fill_manual(values = pastel_colors) + # Assign custom colors to sites (confidence intervals)
     scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+  # Assign different shapes for each site
-    theme_minimal()+
+  #theme_minimal() +
     theme(legend.position = "bottom")
   )
 
@@ -711,10 +781,10 @@ set.seed(2022);iNEXT_output_pooled <- iNEXT(matrix_pooled,
                                      facet.var="Order.q")+
   ggtitle("Plants: Rarefaction curves for pooled data")+
   labs(y= "Flower species diversity", x="Number of plots")+
-    #scale_color_manual(values = bicolor_palette) + # Assign custom colors to sites (curves)
-    #scale_fill_manual(values = bicolor_bg) + # Assign custom colors to sites (confidence intervals)
+    scale_color_manual(values = steelorange) + # Assign custom colors to sites (curves)
+    scale_fill_manual(values = steelorange1) + # Assign custom colors to sites (confidence intervals)
     #scale_shape_manual(values = c(0, 1, 2, 3, 4, 5, 6, 7, 8))+  # Assign different shapes for each site
-    theme_minimal()+
+  #theme_minimal() +
     theme(legend.position = "bottom")
   )
 ```
@@ -765,7 +835,7 @@ group_by(Site, Site_type, Transect, Plant_sp) %>%
 # plot the relative cover ratios per species, reorder the species by average cover
 ggplot(relative_flower, aes(x = reorder(Plant_sp, Relative_cover_transect), y = Relative_cover_transect, fill = Site)) +
   geom_bar(stat = "identity") +
-  theme_minimal() +
+#theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Average Relative Cover Ratios per Species per Transect",
@@ -775,9 +845,9 @@ ggplot(relative_flower, aes(x = reorder(Plant_sp, Relative_cover_transect), y = 
   scale_fill_manual(values = custom_colors) +  # Apply custom colors to the plot
   theme(legend.position = "top")
 
-ggplot(relative_flower, aes(x = reorder(Plant_sp, Plot_Cover), y = Plot_over, fill = Site)) +
+ggplot(relative_flower, aes(x = reorder(Plant_sp, Plot_Cover), y = Plot_Cover, fill = Site)) +
   geom_bar(stat = "identity") +
-  theme_minimal() +
+#theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Plot Cover % per Species per Transect",
@@ -847,7 +917,7 @@ rm(relative_flower_w, richness)
 #point plot the species richness per site
 (sp <- ggplot(diversity_indices, aes(x = Site, y = Floral_species_richness, color = Site)) +
   geom_point(position = position_jitter(width = 0.5, height = 0),size = 3) +
-  theme_minimal() +
+#theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Plant Species Richness",
@@ -863,7 +933,7 @@ rm(relative_flower_w, richness)
 #point plot the simpson index per site with jitter
 (simp <-ggplot(diversity_indices, aes(x = Site, y = Floral_simpson_index, color = Site)) +
   geom_point(position = position_jitter(width = 0.1, height = 0), size = 3) +
-  theme_minimal() +
+#theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Simpson Div. Index",
@@ -877,7 +947,7 @@ rm(relative_flower_w, richness)
 #point plot the shannon index per site with jitter
 (shann <- ggplot(diversity_indices, aes(x = Site, y = Floral_shannon_index, color = Site)) +
   geom_point(position = position_jitter(width = 0.1, height = 0), size = 3) +
-  theme_minimal() +
+#theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Shannon Div. Index",
@@ -908,7 +978,7 @@ diversity_indices <- diversity_indices %>%
   geom_boxplot(outlier.shape = NA, alpha = 0.7) + 
   #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
   scale_color_manual(values = custom_colors) +
-  theme_minimal() +
+#theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Floral Species Richness",
@@ -925,7 +995,7 @@ diversity_indices <- diversity_indices %>%
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
   scale_color_manual(values = custom_colors) +
-   theme_minimal() +
+ #theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Floral Simpson Diversity Index",
@@ -941,7 +1011,7 @@ diversity_indices <- diversity_indices %>%
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
   scale_color_manual(values = custom_colors) +
-   theme_minimal() +
+ #theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
     title = "Floral Shannon Diversity Index",
@@ -993,7 +1063,7 @@ ggplot(pol_floral_diversity, aes(x = Floral_species_richness, y = total_interact
   labs(title = "Plant Species Richness vs. Total Interactions",
        x = "Flower Species Richness",
        y = "Total Interactions") +
-  theme_minimal() +
+#theme_minimal() +
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
   theme(legend.position = "bottom")
 
@@ -1010,7 +1080,7 @@ ggplot(pol_div, aes(x = Floral_species_richness, y = total_interaction)) +
   labs(title = "Plant species Richness vs. Total Interactions",
        x = "Flower species Richness",
        y = "Total Interactions") +
-  theme_minimal()+
+#theme_minimal() +
   #adding colors to the point according to Site
   geom_point(aes(color = Site))+
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
@@ -1026,7 +1096,7 @@ ggplot(pol_floral_diversity, aes(x = Floral_shannon_index, y = total_interaction
   labs(title = "Plant Shannon Index vs. Total Interactions",
        x = "Relative Flower Shannon Index",
        y = "Total Interactions") +
-  theme_minimal()+
+#theme_minimal() +
   #adding colors to the point according to Site
   geom_point(aes(color = Site))+
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
@@ -1039,7 +1109,7 @@ ggplot(pol_div, aes(x = Floral_shannon_index, y = total_interaction)) +
   labs(title = "Plant Shannon Index vs. Total Interactions",
        x = "Relative Flower Shannon Index",
        y = "Total Interactions") +
-  theme_minimal()+
+#theme_minimal() +
   #adding colors to the point according to Site
   geom_point(aes(color = Site))+
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
@@ -1054,7 +1124,7 @@ ggplot(pol_floral_diversity, aes(x = Floral_simpson_index, y = total_interaction
   labs(title = "Plant Simpson Index vs. Total Interactions",
        x = "Relative Flower Simpson Index",
        y = "Total Interactions") +
-  theme_minimal()+
+#theme_minimal() +
   #adding colors to the point according to Site
   geom_point(aes(color = Site))+
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
@@ -1067,7 +1137,7 @@ ggplot(pol_div, aes(x = Floral_simpson_index, y = total_interaction)) +
   labs(title = "Plant Simpson Index vs. Total Interactions",
        x = "Relative Flower Simpson Index",
        y = "Total Interactions") +
-  theme_minimal()+
+#theme_minimal() +
   #adding colors to the point according to Site
   geom_point(aes(color = Site))+
   scale_color_manual(values = custom_colors) +  # Apply the custom colors to the plot
@@ -1120,7 +1190,7 @@ ggplot(combined_data, aes(x = Relative_cover_transect, y = total_interaction)) +
   labs(title = "Flower Cover vs. Pollinator Interactions (1 point = 1 transect)",
        x = "Average Flower Cover (%)",
        y = "Number of Pollinator Interactions") +
-  theme_minimal()+
+#theme_minimal() +
   ylim(0, 60)+
   #adding colors to the point according to Site
   geom_point(aes(color = Plant_sp))+
@@ -1139,8 +1209,8 @@ print(cor_test)
 # Pollinator Interaction Distribution
 ggplot(combined_data, aes(x = total_interaction)) +
   geom_histogram(binwidth = 2, fill = "red", alpha = 0.5) +
-  labs(title = "Distribution of Pollinator Interactions per Flower Species", x = "Number of Interactions", y = "Count") +
-  theme_minimal()
+  labs(title = "Distribution of Pollinator Interactions per Flower Species", x = "Number of Interactions", y = "Count") 
+#+ theme_minimal()
 
 # find out which plant species are the most visited by pollinators
 top_plants <- combined_data %>%
@@ -1151,15 +1221,20 @@ top_plants <- combined_data %>%
   arrange(desc(total_interactions)) %>%
   head(10)
   
-#plot the top 10 plant species
-ggplot(top_plants, aes(x = reorder(Plant_sp, total_interactions), y = total_interactions)) +
-  geom_bar(stat = "identity", fill = "pink") +
-  labs(title = "Top 10 Most Visited Plant Species by Pollinators",
-       x = "Plant Species",
-       y = "Total Interactions") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+# Add a column to define the color category
+top_plants$fill_color <- ifelse(top_plants$Plant_sp == "Daucus carota", "#A9CCE3",
+                          ifelse(top_plants$Plant_sp == "Pastinaca sativa", "#DABD61FF", "#A3A380"))
 
+#Plot the top 10 plant species
+ggplot(top_plants, aes(x = reorder(Plant_sp, total_interactions), 
+                       y = total_interactions, 
+                       fill = fill_color)) +
+  geom_bar(stat = "identity", width = 1, color ="black", size= 0.2) +
+  scale_fill_identity() +
+  labs(title = "Netting: Most Visited Flower Species",
+       x = "Plant Species",
+       y = "Total flower/pollinator interactions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, face = "italic"))
 ```
 
 ### abundance of the 2 most visited plant species
@@ -1346,7 +1421,7 @@ site_scores_pol$Site <- rownames(site_scores_pol)
 ggplot(site_scores_pol, aes(x = NMDS1, y = NMDS2, label = Site)) +
   geom_point(size = 3, color = "blue") +
   geom_text(vjust = -0.5, size = 4) +
-  theme_minimal() +
+#theme_minimal() +
   labs(title = "NMDS of Pollinator Lowest_taxa Diversity by Site",
        x = "NMDS1",
        y = "NMDS2")
@@ -1367,7 +1442,7 @@ ggplot(site_scores_pol, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Sit
                aes(group = Site_Type, fill = Site_Type), 
                alpha = 0.3,show.legend = FALSE) + # Add convex hull  
   scale_fill_manual(values = steelorange) + # Apply fill colors to polygons
-  theme_minimal() +
+#theme_minimal() +
   labs(title = "NMDS of Pollinator lowest_taxa Diversity by Site",
        x = "NMDS1",
        y = "NMDS2",
