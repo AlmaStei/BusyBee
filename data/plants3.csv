@@ -1,0 +1,657 @@
+"Site","Site_type","Transect","Plot","Plant_sp","Cover_percentage","BB"
+"WED","1-5 y","T1",1,"Lotus corniculatus",1,3
+"WED","1-5 y","T1",1,"Leucanthemum vulgare",0.3,1
+"WED","1-5 y","T1",1,"Trifolium pratense",2,3
+"WED","1-5 y","T1",1,"Knautia arvensis",0.3,1
+"WED","1-5 y","T1",1,"Trifolium campestre",2,3
+"WED","1-5 y","T1",1,"Pastinaca sativa",0.3,1
+"WED","1-5 y","T1",2,"Knautia arvensis",0.3,1
+"WED","1-5 y","T1",2,"Lotus corniculatus",1,3
+"WED","1-5 y","T1",2,"Trifolium pratense",1,3
+"WED","1-5 y","T1",2,"Prunella vulgaris",0.3,1
+"WED","1-5 y","T1",3,"Lathyrus pratensis",1,3
+"WED","1-5 y","T1",3,"Galium album",0.75,2
+"WED","1-5 y","T1",3,"Daucus carota",5,4
+"WED","1-5 y","T1",3,"Achillea millefolium",0.3,1
+"WED","1-5 y","T1",3,"Galium verum",1,3
+"WED","1-5 y","T1",3,"Knautia arvensis",0.3,1
+"WED","1-5 y","T2",1,"Pastinaca sativa",10,4
+"WED","1-5 y","T2",1,"Leucanthemum vulgare",0.1,1
+"WED","1-5 y","T2",2,"Trifolium pratense",0.1,1
+"WED","1-5 y","T2",2,"Pastinaca sativa",0.1,1
+"WED","1-5 y","T2",3,"Daucus carota",5,4
+"WED","1-5 y","T2",3,"Knautia arvensis",0.1,1
+"WED","1-5 y","T2",3,"Achillea millefolium",0.1,1
+"WED","1-5 y","T3",1,"Trifolium pratense",0.3,1
+"WED","1-5 y","T3",1,"Knautia arvensis",0.3,1
+"WED","1-5 y","T3",1,"Pastinaca sativa",0.75,2
+"WED","1-5 y","T3",2,"Lotus corniculatus",1,3
+"WED","1-5 y","T3",2,"Leucanthemum vulgare",0.3,1
+"WED","1-5 y","T3",2,"Pastinaca sativa",0.3,1
+"WED","1-5 y","T3",3,"Daucus carota",0.3,1
+"WED","1-5 y","T3",3,"Lathyrus pratensis",5,4
+"WED","1-5 y","T3",3,"Achillea millefolium",1,3
+"WED","1-5 y","T3",3,"Galium verum",2,3
+"WED","1-5 y","T3",3,"Galium album",NA,NA
+"WED","1-5 y","T4",1,"Lotus corniculatus",0.3,1
+"WED","1-5 y","T4",1,"Plantago lanceolata",0.3,1
+"WED","1-5 y","T4",2,"Lotus corniculatus",0.75,2
+"WED","1-5 y","T4",3,"Daucus carota",0.3,1
+"WED","1-5 y","T4",3,"Achillea millefolium",0.3,1
+"WED","1-5 y","T4",3,"Lotus corniculatus",3,3
+"WED","1-5 y","T5",1,"Daucus carota",0,NA
+"WED","1-5 y","T5",2,"Daucus carota",0,NA
+"WED","1-5 y","T5",3,"Cirsium arvense",1,3
+"WED","1-5 y","T5",3,"Lathyrus pratensis",3,3
+"WED","1-5 y","T5",3,"Daucus carota",0.3,1
+"WDG","1-5 y","T1",1,"Daucus carota",5,4
+"WDG","1-5 y","T1",1,"Dianthus carthusianorum",4,3
+"WDG","1-5 y","T1",1,"Trifolium pratense",1,3
+"WDG","1-5 y","T1",1,"Scabiosa ochroleuca",0.3,1
+"WDG","1-5 y","T1",1,"Silene vulgaris",0.75,2
+"WDG","1-5 y","T1",2,"Daucus carota",1,3
+"WDG","1-5 y","T1",2,"Scabiosa ochroleuca",2,3
+"WDG","1-5 y","T1",2,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T1",2,"Silene vulgaris",4,3
+"WDG","1-5 y","T1",2,"Origanum vulgare",1,3
+"WDG","1-5 y","T1",2,"Hypericum perforatum",0.3,1
+"WDG","1-5 y","T1",2,"Centaurea jacea",1,3
+"WDG","1-5 y","T1",2,"Trifolium pratense",1,3
+"WDG","1-5 y","T1",2,"Lotus corniculatus",1,3
+"WDG","1-5 y","T1",3,"Daucus carota",1,3
+"WDG","1-5 y","T1",3,"Trifolium pratense",2,3
+"WDG","1-5 y","T1",3,"Scabiosa ochroleuca",2,3
+"WDG","1-5 y","T1",3,"Centaurea jacea",1,3
+"WDG","1-5 y","T1",3,"Achillea millefolium",0.3,1
+"WDG","1-5 y","T1",3,"Silene vulgaris",0.75,2
+"WDG","1-5 y","T1",3,"Medicago lupulina",0.3,1
+"WDG","1-5 y","T1",3,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T2",1,"Trifolium pratense",2,3
+"WDG","1-5 y","T2",1,"Lotus corniculatus",1,3
+"WDG","1-5 y","T2",1,"Dianthus carthusianorum",1,3
+"BUH","1-5 y","T1",1,"Galium album",1,3
+"BUH","1-5 y","T1",1,"Lotus corniculatus",1,3
+"BUH","1-5 y","T1",1,"Silene vulgaris",0.75,2
+"BUH","1-5 y","T1",1,"Trifolium pratense",5,4
+"BUH","1-5 y","T1",2,"Galium album",2,3
+"BUH","1-5 y","T1",2,"Lotus corniculatus",0.75,2
+"BUH","1-5 y","T1",2,"Silene vulgaris",0.75,2
+"BUH","1-5 y","T1",2,"Trifolium pratense",10,4
+"BUH","1-5 y","T1",3,"Centaurea jacea",0.3,1
+"BUH","1-5 y","T1",3,"Galium album",2,3
+"BUH","1-5 y","T1",3,"Lotus corniculatus",2,3
+"BUH","1-5 y","T1",3,"Pastinaca sativa",0.3,1
+"BUH","1-5 y","T1",3,"Trifolium pratense",12,4
+"BUH","1-5 y","T2",1,"Daucus carota",0.3,1
+"BUH","1-5 y","T2",1,"Galium album",1,3
+"BUH","1-5 y","T2",1,"Lotus corniculatus",1,3
+"BUH","1-5 y","T2",1,"Plantago media",0.3,1
+"BUH","1-5 y","T2",1,"Silene vulgaris",0.3,1
+"BUH","1-5 y","T2",1,"Trifolium pratense",0.3,1
+"BUH","1-5 y","T2",2,"Galium album",2,3
+"BUH","1-5 y","T2",2,"Lotus corniculatus",1,3
+"BUH","1-5 y","T2",2,"Silene vulgaris",0.75,2
+"BUH","1-5 y","T2",2,"Trifolium pratense",1,3
+"BUH","1-5 y","T2",3,"Clinopodium vulgare",0.3,1
+"BUH","1-5 y","T2",3,"Galium album",1,3
+"BUH","1-5 y","T2",3,"Silene vulgaris",1,3
+"BUH","1-5 y","T2",3,"Trifolium pratense",0.3,1
+"BUH","1-5 y","T3",1,"Galium album",1,3
+"BUH","1-5 y","T3",1,"Lotus corniculatus",3,3
+"BUH","1-5 y","T3",1,"Silene vulgaris",1,3
+"BUH","1-5 y","T3",2,"Centaurea jacea",NA,NA
+"BUH","1-5 y","T3",2,"Galium album",3,3
+"BUH","1-5 y","T3",2,"Lathyrus pratensis",3,3
+"BUH","1-5 y","T3",2,"Lotus corniculatus",6,4
+"BUH","1-5 y","T3",2,"Silene vulgaris",2,3
+"BUH","1-5 y","T3",3,"Clinopodium vulgare",0.3,1
+"BUH","1-5 y","T3",3,"Galium album",0.3,1
+"BUH","1-5 y","T3",3,"Lotus corniculatus",8,4
+"BUH","1-5 y","T3",3,"Silene vulgaris",0.3,1
+"BUH","1-5 y","T3",3,"Trifolium pratense",1,3
+"BUH","1-5 y","T4",1,"Geranium pratense",0.3,1
+"BUH","1-5 y","T4",1,"Lotus corniculatus",20,4
+"BUH","1-5 y","T4",1,"Malva moschata",0.3,1
+"BUH","1-5 y","T4",1,"Silene vulgaris",0.3,1
+"BUH","1-5 y","T4",2,"Crepis biennis",0.3,1
+"BUH","1-5 y","T4",2,"Galium album",4,3
+"BUH","1-5 y","T4",2,"Geranium pratense",1,3
+"BUH","1-5 y","T4",2,"Lathyrus pratensis",4,3
+"BUH","1-5 y","T4",2,"Lotus corniculatus",10,4
+"BUH","1-5 y","T4",2,"Silene vulgaris",0.3,1
+"BUH","1-5 y","T4",3,"Centaurea jacea",0.3,1
+"BUH","1-5 y","T4",3,"Cichorium intybus",0.3,1
+"BUH","1-5 y","T4",3,"Galium album",1,3
+"BUH","1-5 y","T4",3,"Lotus corniculatus",5,4
+"BUH","1-5 y","T4",3,"Silene vulgaris",0.3,1
+"BUH","1-5 y","T4",3,"Trifolium pratense",40,5
+"BUH","1-5 y","T5",1,"Galium album",1,3
+"BUH","1-5 y","T5",1,"Lotus corniculatus",20,4
+"BUH","1-5 y","T5",1,"Silene vulgaris",1,3
+"BUH","1-5 y","T5",1,"Trifolium pratense",0.3,1
+"BUH","1-5 y","T5",2,"Galium album",1,3
+"BUH","1-5 y","T5",2,"Lotus corniculatus",15,4
+"BUH","1-5 y","T5",2,"Malva moschata",0.75,2
+"BUH","1-5 y","T5",2,"Trifolium pratense",0.75,2
+"BUH","1-5 y","T5",3,"Galium album",2,3
+"BUH","1-5 y","T5",3,"Lotus corniculatus",12,4
+"BUH","1-5 y","T5",3,"Silene vulgaris",0.3,1
+"BUH","1-5 y","T5",3,"Trifolium pratense",8,4
+"DES","Reference","T1",1,"Daucus carota",0.3,1
+"DES","Reference","T1",1,"Lotus corniculatus",1,3
+"DES","Reference","T1",1,"Prunella vulgaris",2,3
+"DES","Reference","T1",1,"Trifolium pratense",1,3
+"DES","Reference","T1",1,"Trifolium repens",0.3,1
+"DES","Reference","T1",2,"Centaurea jacea",0.3,1
+"DES","Reference","T1",2,"Cerastium fontanum",0.75,2
+"DES","Reference","T1",2,"Daucus carota",20,4
+"DES","Reference","T1",2,"Lotus corniculatus",5,4
+"DES","Reference","T1",2,"Trifolium pratense",6,4
+"DES","Reference","T1",2,"Trifolium repens",4,3
+"DES","Reference","T1",3,"Campanula patula",3,3
+"DES","Reference","T1",3,"Centaurea jacea",0.3,1
+"DES","Reference","T1",3,"Daucus carota",10,4
+"DES","Reference","T1",3,"Dianthus deltoides",0.75,2
+"DES","Reference","T1",3,"Galium album",2,3
+"DES","Reference","T1",3,"Lotus corniculatus",1,3
+"DES","Reference","T2",1,"Ranunculus flammula",4,3
+"DES","Reference","T2",2,"Crepis biennis",2,3
+"DES","Reference","T2",2,"Daucus carota",15,4
+"DES","Reference","T2",2,"Dianthus deltoides",0.3,1
+"DES","Reference","T2",2,"Galium album",2,3
+"DES","Reference","T2",2,"Lotus corniculatus",15,4
+"DES","Reference","T2",2,"Plantago lanceolata",1,3
+"DES","Reference","T2",2,"Prunella vulgaris",1,3
+"DES","Reference","T2",2,"Scorzoneroides autumnalis",0.75,2
+"DES","Reference","T2",2,"Silaum silaus",0.3,1
+"DES","Reference","T2",2,"Trifolium pratense",8,4
+"DES","Reference","T2",2,"Trifolium repens",2,3
+"DES","Reference","T2",2,"Vicia cracca",0.3,1
+"DES","Reference","T2",3,"Campanula rotundifolia",3,3
+"DES","Reference","T2",3,"Crepis capillaris",0.75,2
+"DES","Reference","T2",3,"Daucus carota",10,4
+"DES","Reference","T2",3,"Dianthus deltoides",0.75,2
+"DES","Reference","T2",3,"Galium album",2,3
+"DES","Reference","T2",3,"Hypochaeris radicata",0.3,1
+"DES","Reference","T2",3,"Lotus corniculatus",2,3
+"DES","Reference","T2",3,"Prunella vulgaris",0.3,1
+"DES","Reference","T3",1,"Ranunculus flammula",15,4
+"DES","Reference","T3",2,"Crepis capillaris",0.3,1
+"DES","Reference","T3",2,"Daucus carota",4,3
+"DES","Reference","T3",2,"Galium album",0.3,1
+"DES","Reference","T3",2,"Lotus corniculatus",3,3
+"DES","Reference","T3",2,"Plantago lanceolata",1,3
+"DES","Reference","T3",2,"Prunella vulgaris",1,3
+"DES","Reference","T3",2,"ranunculus sp",0.3,1
+"DES","Reference","T3",2,"Trifolium pratense",3,3
+"DES","Reference","T3",3,"Agrimonia eupatoria",0.3,1
+"DES","Reference","T3",3,"Campanula rotundifolia",0.75,2
+"DES","Reference","T3",3,"Cerastium fontanum",0.3,1
+"DES","Reference","T3",3,"Crepis biennis",0.3,1
+"DES","Reference","T3",3,"Crepis capillaris",0.3,1
+"DES","Reference","T3",3,"Daucus carota",2,3
+"DES","Reference","T3",3,"Dianthus deltoides",0.3,1
+"DES","Reference","T3",3,"Galium album",1,3
+"DES","Reference","T3",3,"Lotus corniculatus",17,4
+"DES","Reference","T3",3,"Plantago lanceolata",0.3,1
+"DES","Reference","T3",3,"Trifolium pratense",5,4
+"DES","Reference","T3",3,"Trifolium repens",1,3
+"DES","Reference","T3",3,"Vicia cracca",0.75,2
+"DES","Reference","T4",1,"Daucus carota",0.75,2
+"DES","Reference","T4",1,"Lotus corniculatus",1,3
+"DES","Reference","T4",1,"Plantago lanceolata",0.75,2
+"DES","Reference","T4",1,"Polygala serpyllifolia",0.75,2
+"DES","Reference","T4",1,"Prunella vulgaris",0.3,1
+"DES","Reference","T4",1,"ranunculus sp",0.75,2
+"DES","Reference","T4",1,"Trifolium pratense",2,3
+"DES","Reference","T4",1,"Trifolium repens",2,3
+"DES","Reference","T4",2,"Crepis biennis",1,3
+"DES","Reference","T4",2,"Crepis capillaris",0.75,2
+"DES","Reference","T4",2,"Daucus carota",5,4
+"DES","Reference","T4",2,"Galium album",1,3
+"DES","Reference","T4",2,"Lotus corniculatus",3,3
+"DES","Reference","T4",2,"Prunella vulgaris",0.3,1
+"DES","Reference","T4",2,"Trifolium pratense",2,3
+"DES","Reference","T4",2,"Trifolium repens",1,3
+"DES","Reference","T4",3,"Lotus corniculatus",1,3
+"DES","Reference","T4",3,"Plantago lanceolata",0.75,2
+"DES","Reference","T4",3,"Ranunculus flammula",0.3,1
+"DES","Reference","T4",3,"ranunculus sp",0.3,1
+"DES","Reference","T4",3,"Trifolium pratense",0.75,2
+"DES","Reference","T4",3,"Trifolium repens",1,3
+"DES","Reference","T5",1,"Campanula rotundifolia",3,3
+"DES","Reference","T5",1,"Centaurea jacea",0.75,2
+"DES","Reference","T5",1,"Crepis biennis",1,3
+"DES","Reference","T5",1,"Crepis capillaris",2,3
+"DES","Reference","T5",1,"Daucus carota",60,6
+"DES","Reference","T5",1,"Dianthus deltoides",3,3
+"DES","Reference","T5",1,"Galium album",2,3
+"DES","Reference","T5",1,"Lotus corniculatus",1,3
+"DES","Reference","T5",1,"Trifolium pratense",5,4
+"DES","Reference","T5",1,"Trifolium repens",0.3,1
+"DES","Reference","T5",2,"Agrimonia eupatoria",0.3,1
+"DES","Reference","T5",2,"Campanula rotundifolia",3,3
+"DES","Reference","T5",2,"Centaurea jacea",0.3,1
+"DES","Reference","T5",2,"Crepis capillaris",2,3
+"DES","Reference","T5",2,"Daucus carota",20,4
+"DES","Reference","T5",2,"Dianthus deltoides",0.75,2
+"DES","Reference","T5",2,"Galium album",1,3
+"DES","Reference","T5",2,"Galium verum",0.3,1
+"DES","Reference","T5",2,"Lotus corniculatus",0.3,1
+"DES","Reference","T5",2,"Trifolium pratense",5,4
+"DES","Reference","T5",3,"Centaurea jacea",0.3,1
+"DES","Reference","T5",3,"Crepis biennis",0.3,1
+"DES","Reference","T5",3,"Crepis capillaris",1,3
+"DES","Reference","T5",3,"Daucus carota",35,5
+"DES","Reference","T5",3,"Dianthus deltoides",2,3
+"DES","Reference","T5",3,"Galium album",2,3
+"DES","Reference","T5",3,"Lotus corniculatus",1,3
+"DES","Reference","T5",3,"Trifolium pratense",2,3
+"HLI","Reference","T1",1,"Agrimonia eupatoria",0.75,2
+"HLI","Reference","T1",1,"Daucus carota",10,4
+"HLI","Reference","T1",1,"Plantago lanceolata",0.75,2
+"HLI","Reference","T1",1,"Trifolium pratense",2,3
+"HLI","Reference","T1",1,"Trifolium repens",0.3,1
+"HLI","Reference","T1",2,"Daucus carota",1,3
+"HLI","Reference","T1",2,"Lotus corniculatus",0.75,2
+"HLI","Reference","T1",2,"Plantago lanceolata",0.3,1
+"HLI","Reference","T1",2,"Trifolium pratense",1,3
+"HLI","Reference","T1",2,"Trifolium repens",0.75,2
+"HLI","Reference","T1",3,"Daucus carota",10,4
+"HLI","Reference","T1",3,"Galium album",0.75,2
+"HLI","Reference","T1",3,"Lotus corniculatus",1,3
+"HLI","Reference","T1",3,"Plantago lanceolata",2,3
+"HLI","Reference","T1",3,"Trifolium pratense",3,3
+"HLI","Reference","T1",3,"Trifolium repens",0.3,1
+"HLI","Reference","T2",1,"Achillea millefolium",0.3,1
+"HLI","Reference","T2",1,"Daucus carota",2,3
+"HLI","Reference","T2",1,"Plantago lanceolata",1,3
+"HLI","Reference","T2",1,"Trifolium pratense",2.5,3
+"HLI","Reference","T2",1,"Trifolium repens",1,3
+"HLI","Reference","T2",2,"Galium album",10,4
+"HLI","Reference","T2",2,"Plantago lanceolata",0.3,1
+"HLI","Reference","T2",2,"Trifolium pratense",0.3,1
+"HLI","Reference","T2",3,"Achillea millefolium",0.3,1
+"HLI","Reference","T2",3,"Daucus carota",1,3
+"HLI","Reference","T2",3,"Plantago lanceolata",1,3
+"HLI","Reference","T2",3,"Trifolium pratense",1,3
+"HLI","Reference","T2",3,"Trifolium repens",0.3,1
+"HLI","Reference","T3",1,"Daucus carota",1,3
+"HLI","Reference","T3",1,"Galium album",2,3
+"HLI","Reference","T3",1,"Pastinaca sativa",2,3
+"HLI","Reference","T3",1,"Plantago lanceolata",0.75,2
+"HLI","Reference","T3",1,"Trifolium pratense",1,3
+"HLI","Reference","T3",2,"Crepis biennis",0.3,1
+"HLI","Reference","T3",2,"Galium album",0.3,1
+"HLI","Reference","T3",2,"Lotus corniculatus",1,3
+"HLI","Reference","T3",2,"Pastinaca sativa",1,3
+"HLI","Reference","T3",2,"Plantago lanceolata",1,3
+"HLI","Reference","T3",2,"Trifolium pratense",1,3
+"HLI","Reference","T3",3,"Crepis biennis",0.75,2
+"HLI","Reference","T3",3,"Daucus carota",0.3,1
+"HLI","Reference","T3",3,"Galium album",0.3,1
+"HLI","Reference","T3",3,"Pastinaca sativa",0.3,1
+"HLI","Reference","T3",3,"Plantago lanceolata",1,3
+"HLI","Reference","T3",3,"Ranunculus polyanthemos",0.3,1
+"HLI","Reference","T3",3,"Trifolium pratense",2,3
+"HLI","Reference","T3",3,"Trifolium repens",0.3,1
+"HLI","Reference","T4",1,"Crepis biennis",0.3,1
+"HLI","Reference","T4",1,"Daucus carota",7,4
+"HLI","Reference","T4",1,"Lotus corniculatus",0.75,2
+"HLI","Reference","T4",1,"Plantago lanceolata",1,3
+"HLI","Reference","T4",1,"Trifolium pratense",4,3
+"HLI","Reference","T4",2,"Daucus carota",0.3,1
+"HLI","Reference","T4",2,"Galium album",5,4
+"HLI","Reference","T4",2,"Lotus corniculatus",0.3,1
+"HLI","Reference","T4",2,"Pastinaca sativa",6,4
+"HLI","Reference","T4",2,"Plantago lanceolata",0.3,1
+"HLI","Reference","T4",2,"Ranunculus polyanthemos",0.3,1
+"HLI","Reference","T4",2,"Trifolium pratense",1,3
+"HLI","Reference","T4",3,"Galium album",5,4
+"HLI","Reference","T4",3,"Pastinaca sativa",1.5,3
+"HLI","Reference","T4",3,"Plantago lanceolata",0.3,1
+"HLI","Reference","T4",3,"Trifolium pratense",0.3,1
+"HLI","Reference","T5",1,"Agrimonia eupatoria",0.75,2
+"HLI","Reference","T5",1,"Bellis perennis",0.3,1
+"HLI","Reference","T5",1,"Daucus carota",3,3
+"HLI","Reference","T5",1,"Galium album",1,3
+"HLI","Reference","T5",1,"Lotus corniculatus",1,3
+"HLI","Reference","T5",2,"Daucus carota",1,3
+"HLI","Reference","T5",2,"Galium album",3,3
+"HLI","Reference","T5",3,"Galium album",1,3
+"HLI","Reference","T5",3,"Plantago lanceolata",0.3,1
+"JEP","Reference","T1",1,"Achillea millefolium",0.3,1
+"JEP","Reference","T1",1,"Lotus corniculatus",3,3
+"JEP","Reference","T1",1,"Ranunculus tuberosus",0.3,1
+"JEP","Reference","T1",2,"Daucus carota",0,NA
+"JEP","Reference","T1",3,"Campanula patula",0.3,1
+"JEP","Reference","T1",3,"Dianthus carthusianorum",1,3
+"JEP","Reference","T1",3,"Galium boreale",5,4
+"JEP","Reference","T1",3,"Plantago lanceolata",0.3,1
+"JEP","Reference","T1",3,"Ranunculus tuberosus",0.75,2
+"JEP","Reference","T1",3,"Trifolium campestre",NA,NA
+"JEP","Reference","T2",1,"Daucus carota",0,NA
+"JEP","Reference","T2",2,"Convolvulus arvensis",0.75,2
+"JEP","Reference","T2",2,"Galium boreale",30,5
+"JEP","Reference","T2",3,"Peucedanum officinale",8,4
+"JEP","Reference","T3",1,"Galium boreale",5,4
+"JEP","Reference","T3",2,"Galium boreale",0.75,2
+"JEP","Reference","T3",2,"Peucedanum officinale",2,3
+"JEP","Reference","T3",3,"Peucedanum officinale",6,4
+"JEP","Reference","T4",1,"Campanula patula",0.3,1
+"JEP","Reference","T4",1,"Galium boreale",0.75,2
+"JEP","Reference","T4",2,"Galium boreale",0.3,1
+"JEP","Reference","T4",2,"Galium verum",0.3,1
+"JEP","Reference","T4",2,"Vicia cracca",0.75,2
+"JEP","Reference","T4",3,"Crepis capillaris",0.3,1
+"JEP","Reference","T4",3,"Galium verum",0.3,1
+"JEP","Reference","T4",3,"Hypericum perforatum",0.3,1
+"JEP","Reference","T4",3,"Peucedanum officinale",15,4
+"JEP","Reference","T5",1,"Achillea millefolium",3,3
+"JEP","Reference","T5",1,"Plantago lanceolata",0.75,2
+"JEP","Reference","T5",1,"Potentilla argentea",3,3
+"JEP","Reference","T5",2,"Achillea millefolium",7,4
+"JEP","Reference","T5",2,"Convolvulus arvensis",3,3
+"JEP","Reference","T5",2,"Plantago lanceolata",2,3
+"JEP","Reference","T5",2,"Stellaria graminea",1,3
+"JEP","Reference","T5",3,"Achillea millefolium",30,5
+"JEP","Reference","T5",3,"Cerastium fontanum",0.3,1
+"JEP","Reference","T5",3,"Convolvulus arvensis",1,3
+"JEP","Reference","T5",3,"Plantago lanceolata",1,3
+"JEP","Reference","T5",3,"Potentilla argentea",0.75,2
+"KOT","1-5 y","T1",1,"Galium album",15,4
+"KOT","1-5 y","T1",1,"Knautia arvensis",0.3,1
+"KOT","1-5 y","T1",1,"Lotus corniculatus",0.75,2
+"KOT","1-5 y","T1",1,"Plantago lanceolata",15,4
+"KOT","1-5 y","T1",1,"Trifolium pratense",5,4
+"KOT","1-5 y","T1",2,"Galium album",10,4
+"KOT","1-5 y","T1",2,"Geranium pratense",0.75,2
+"KOT","1-5 y","T1",2,"Lotus corniculatus",0.75,2
+"KOT","1-5 y","T1",2,"Pastinaca sativa",0.75,2
+"KOT","1-5 y","T1",2,"Plantago lanceolata",2,3
+"KOT","1-5 y","T1",2,"Trifolium pratense",7,4
+"KOT","1-5 y","T1",3,"Cichorium intybus",2,3
+"KOT","1-5 y","T1",3,"Cirsium arvense",0.3,1
+"KOT","1-5 y","T1",3,"Crepis biennis",0.75,2
+"KOT","1-5 y","T1",3,"Daucus carota",1,3
+"KOT","1-5 y","T1",3,"Hypericum perforatum",6,4
+"KOT","1-5 y","T1",3,"Lotus corniculatus",3,3
+"KOT","1-5 y","T1",3,"Pastinaca sativa",1,3
+"KOT","1-5 y","T1",3,"Picris hieracioides",0.75,2
+"KOT","1-5 y","T1",3,"Trifolium pratense",3,3
+"KOT","1-5 y","T2",1,"Crepis biennis",1,3
+"KOT","1-5 y","T2",1,"Galium album",2,3
+"KOT","1-5 y","T2",1,"Lotus corniculatus",1,3
+"KOT","1-5 y","T2",1,"Medicago lupulina",1,3
+"KOT","1-5 y","T2",1,"Plantago lanceolata",4,3
+"KOT","1-5 y","T2",1,"Silene vulgaris",0.3,1
+"KOT","1-5 y","T2",1,"Trifolium pratense",2,3
+"KOT","1-5 y","T2",2,"Crepis biennis",0.3,1
+"KOT","1-5 y","T2",2,"Galium album",7,4
+"KOT","1-5 y","T2",2,"Leucanthemum vulgare",0.3,1
+"KOT","1-5 y","T2",2,"Lotus corniculatus",1,3
+"KOT","1-5 y","T2",2,"Pastinaca sativa",30,5
+"KOT","1-5 y","T2",2,"Plantago lanceolata",5,4
+"KOT","1-5 y","T2",2,"Silene vulgaris",0.3,1
+"KOT","1-5 y","T2",2,"Trifolium campestre",1,3
+"KOT","1-5 y","T2",3,"Galium album",4,3
+"KOT","1-5 y","T2",3,"Lotus corniculatus",0.3,1
+"KOT","1-5 y","T2",3,"Medicago lupulina",0.3,1
+"KOT","1-5 y","T2",3,"Plantago lanceolata",3,3
+"KOT","1-5 y","T2",3,"Silene vulgaris",0.3,1
+"KOT","1-5 y","T2",3,"Trifolium campestre",0.3,1
+"KOT","1-5 y","T2",3,"Trifolium pratense",6,4
+"KOT","1-5 y","T3",1,"Galium album",4,3
+"KOT","1-5 y","T3",1,"Pastinaca sativa",5,4
+"KOT","1-5 y","T3",1,"Trifolium pratense",7,4
+"KOT","1-5 y","T3",2,"Galium album",2,3
+"KOT","1-5 y","T3",2,"Pastinaca sativa",6,4
+"KOT","1-5 y","T3",2,"Plantago lanceolata",0.3,1
+"KOT","1-5 y","T3",2,"Trifolium pratense",4,3
+"KOT","1-5 y","T3",3,"Galium album",1,3
+"KOT","1-5 y","T3",3,"Pastinaca sativa",10,4
+"KOT","1-5 y","T3",3,"Trifolium pratense",2,3
+"KOT","1-5 y","T4",1,"Galium album",1,3
+"KOT","1-5 y","T4",1,"Lotus corniculatus",0.3,1
+"KOT","1-5 y","T4",1,"Pastinaca sativa",0.75,2
+"KOT","1-5 y","T4",1,"Trifolium pratense",1,3
+"KOT","1-5 y","T4",2,"Galium album",20,4
+"KOT","1-5 y","T4",2,"Geranium pratense",0.3,1
+"KOT","1-5 y","T4",2,"Pastinaca sativa",10,4
+"KOT","1-5 y","T4",2,"Trifolium pratense",4,3
+"KOT","1-5 y","T4",3,"Crepis biennis",NA,NA
+"KOT","1-5 y","T4",3,"Galium album",2,3
+"KOT","1-5 y","T4",3,"Geranium pratense",0.75,2
+"KOT","1-5 y","T4",3,"Pastinaca sativa",10,4
+"KOT","1-5 y","T4",3,"Silene vulgaris",0.3,1
+"KOT","1-5 y","T4",3,"Trifolium pratense",2,3
+"KOT","1-5 y","T5",1,"Galium album",3,3
+"KOT","1-5 y","T5",1,"Lotus corniculatus",0.3,1
+"KOT","1-5 y","T5",1,"Pastinaca sativa",10,4
+"KOT","1-5 y","T5",1,"Plantago lanceolata",1,3
+"KOT","1-5 y","T5",1,"Trifolium pratense",4,3
+"KOT","1-5 y","T5",2,"Cichorium intybus",0.3,1
+"KOT","1-5 y","T5",2,"Galium album",8,4
+"KOT","1-5 y","T5",2,"Lotus corniculatus",1,3
+"KOT","1-5 y","T5",2,"Pastinaca sativa",5,4
+"KOT","1-5 y","T5",2,"Plantago lanceolata",0.75,2
+"KOT","1-5 y","T5",2,"Trifolium pratense",2,3
+"KOT","1-5 y","T5",3,"Galium album",2,3
+"KOT","1-5 y","T5",3,"Lotus corniculatus",0.3,1
+"KOT","1-5 y","T5",3,"Pastinaca sativa",0.3,1
+"KOT","1-5 y","T5",3,"Plantago lanceolata",1,3
+"KOT","1-5 y","T5",3,"Trifolium pratense",2,3
+"STP","Reference","T1",1,"Campanula patula",0.3,1
+"STP","Reference","T1",1,"Crepis capillaris",0.75,2
+"STP","Reference","T1",1,"Daucus carota",10,4
+"STP","Reference","T1",1,"Galium album",0.3,1
+"STP","Reference","T1",2,"Campanula patula",0.3,1
+"STP","Reference","T1",2,"Crepis capillaris",0.75,2
+"STP","Reference","T1",2,"Galium boreale",0.3,1
+"STP","Reference","T1",2,"Plantago lanceolata",0.75,2
+"STP","Reference","T1",2,"Ranunculus polyanthemos",0.3,1
+"STP","Reference","T1",2,"Trifolium pratense",2,3
+"STP","Reference","T1",3,"Galium boreale",0.3,1
+"STP","Reference","T1",3,"Ranunculus polyanthemos",0.3,1
+"STP","Reference","T1",3,"Trifolium pratense",0.3,1
+"STP","Reference","T2",1,"Campanula patula",0.3,1
+"STP","Reference","T2",1,"Daucus carota",1,3
+"STP","Reference","T2",1,"Galium boreale",20,4
+"STP","Reference","T2",1,"Trifolium pratense",0.3,1
+"STP","Reference","T2",1,"Trifolium repens",1,3
+"STP","Reference","T2",2,"Campanula patula",0.3,1
+"STP","Reference","T2",2,"Crepis capillaris",0.75,2
+"STP","Reference","T2",2,"Galium album",0.75,2
+"STP","Reference","T2",2,"Trifolium pratense",0.75,2
+"STP","Reference","T2",3,"Campanula patula",0.3,1
+"STP","Reference","T2",3,"Galium album",1,3
+"STP","Reference","T2",3,"Galium boreale",0.75,2
+"STP","Reference","T2",3,"Plantago lanceolata",0.3,1
+"STP","Reference","T2",3,"Ranunculus polyanthemos",0.3,1
+"STP","Reference","T2",3,"Trifolium pratense",0.75,2
+"STP","Reference","T3",1,"Campanula patula",0.3,1
+"STP","Reference","T3",1,"Cerastium fontanum",0.75,2
+"STP","Reference","T3",1,"Crepis capillaris",0.75,2
+"STP","Reference","T3",1,"Galium album",2,3
+"STP","Reference","T3",1,"Galium boreale",5,4
+"STP","Reference","T3",1,"Plantago lanceolata",0.75,2
+"STP","Reference","T3",1,"Ranunculus polyanthemos",0.3,1
+"STP","Reference","T3",1,"Trifolium pratense",0.75,2
+"STP","Reference","T3",2,"Crepis biennis",0.3,1
+"STP","Reference","T3",2,"Crepis capillaris",0.75,2
+"STP","Reference","T3",2,"Galium album",2,3
+"STP","Reference","T3",2,"Plantago lanceolata",0.75,2
+"STP","Reference","T3",2,"Ranunculus polyanthemos",0.3,1
+"STP","Reference","T3",2,"Trifolium pratense",0.75,2
+"STP","Reference","T3",3,"Campanula patula",0.3,1
+"STP","Reference","T3",3,"Crepis capillaris",0.75,2
+"STP","Reference","T3",3,"Galium album",2,3
+"STP","Reference","T4",1,"Campanula patula",0.3,1
+"STP","Reference","T4",1,"Crepis capillaris",1,3
+"STP","Reference","T4",1,"Daucus carota",22,4
+"STP","Reference","T4",1,"Galium album",8,4
+"STP","Reference","T4",1,"Plantago lanceolata",1,3
+"STP","Reference","T4",1,"Ranunculus polyanthemos",0.3,1
+"STP","Reference","T4",1,"Trifolium pratense",3,3
+"STP","Reference","T4",2,"Campanula patula",0.3,1
+"STP","Reference","T4",2,"Crepis capillaris",4,3
+"STP","Reference","T4",2,"Daucus carota",8,4
+"STP","Reference","T4",2,"Galium album",4,3
+"STP","Reference","T4",2,"Plantago lanceolata",0.3,1
+"STP","Reference","T4",2,"Trifolium campestre",0.3,1
+"STP","Reference","T4",2,"Trifolium pratense",0.3,1
+"STP","Reference","T4",3,"Campanula patula",0.3,1
+"STP","Reference","T4",3,"Crepis capillaris",3,3
+"STP","Reference","T4",3,"Galium album",5,4
+"STP","Reference","T4",3,"Plantago lanceolata",0.75,2
+"STP","Reference","T5",1,"Scorzoneroides autumnalis",40,5
+"STP","Reference","T5",1,"Tripleurospermum maritimum",0.3,1
+"STP","Reference","T5",1,"Veronica scutellata",0.75,2
+"STP","Reference","T5",2,"Linaria vulgaris",NA,NA
+"STP","Reference","T5",2,"Myosotis scorpioides",0.3,1
+"STP","Reference","T5",2,"Myosoton aquaticum",0.75,2
+"STP","Reference","T5",2,"Plantago lanceolata",NA,NA
+"STP","Reference","T5",2,"Rumex maritimus",0.3,1
+"STP","Reference","T5",2,"Scorzoneroides autumnalis",50,6
+"STP","Reference","T5",3,"Lamium purpureum",0.3,1
+"STP","Reference","T5",3,"Rumex maritimus",0.3,1
+"STP","Reference","T5",3,"Scorzoneroides autumnalis",30,5
+"STP","Reference","T5",3,"Trifolium repens",0.3,1
+"STP","Reference","T5",3,"Veronica scutellata",0.3,1
+"STP","Reference","T5",3,"Vicia tetrasperma",0.3,1
+"WDG","1-5 y","T2",1,"Centaurea jacea",1,3
+"WDG","1-5 y","T2",2,"Campanula rotundifolia",0.75,2
+"WDG","1-5 y","T2",2,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T2",2,"Lotus corniculatus",1,3
+"WDG","1-5 y","T2",2,"Origanum vulgare",1,3
+"WDG","1-5 y","T2",2,"Plantago media",0.3,1
+"WDG","1-5 y","T2",2,"Scabiosa ochroleuca",1,3
+"WDG","1-5 y","T2",2,"Silene vulgaris",0.75,2
+"WDG","1-5 y","T2",2,"Trifolium pratense",1,3
+"WDG","1-5 y","T2",3,"Daucus carota",1,3
+"WDG","1-5 y","T2",3,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T2",3,"Silene vulgaris",1,3
+"WDG","1-5 y","T2",3,"Trifolium arvense",0.75,2
+"WDG","1-5 y","T2",3,"Trifolium pratense",0.3,1
+"WDG","1-5 y","T3",1,"Centaurea jacea",2,3
+"WDG","1-5 y","T3",1,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T3",1,"Lathyrus pratensis",1,3
+"WDG","1-5 y","T3",1,"Lotus corniculatus",2,3
+"WDG","1-5 y","T3",1,"Scabiosa ochroleuca",1,3
+"WDG","1-5 y","T3",1,"Silene vulgaris",0.3,1
+"WDG","1-5 y","T3",1,"Trifolium pratense",1,3
+"WDG","1-5 y","T3",2,"Centaurea jacea",0.3,1
+"WDG","1-5 y","T3",2,"Daucus carota",1,3
+"WDG","1-5 y","T3",2,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T3",2,"Scabiosa ochroleuca",0.3,1
+"WDG","1-5 y","T3",2,"Trifolium pratense",0.75,2
+"WDG","1-5 y","T3",3,"Centaurea jacea",1,3
+"WDG","1-5 y","T3",3,"Daucus carota",1,3
+"WDG","1-5 y","T3",3,"Dianthus carthusianorum",0.75,2
+"WDG","1-5 y","T3",3,"Lotus corniculatus",1,3
+"WDG","1-5 y","T3",3,"Scabiosa ochroleuca",0.3,1
+"WDG","1-5 y","T3",3,"Silene vulgaris",0.75,2
+"WDG","1-5 y","T3",3,"Trifolium pratense",1,3
+"WDG","1-5 y","T4",1,"Centaurea jacea",1,3
+"WDG","1-5 y","T4",1,"Crepis capillaris",1,3
+"WDG","1-5 y","T4",1,"Daucus carota",0.3,1
+"WDG","1-5 y","T4",1,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T4",1,"Lathyrus pratensis",3,3
+"WDG","1-5 y","T4",1,"Silene vulgaris",0.75,2
+"WDG","1-5 y","T4",1,"Trifolium pratense",2,3
+"WDG","1-5 y","T4",2,"Campanula rotundifolia",0.3,1
+"WDG","1-5 y","T4",2,"Centaurea jacea",1,3
+"WDG","1-5 y","T4",2,"Cichorium intybus",0.3,1
+"WDG","1-5 y","T4",2,"Daucus carota",2,3
+"WDG","1-5 y","T4",2,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T4",2,"Lotus corniculatus",2,3
+"WDG","1-5 y","T4",2,"Scabiosa ochroleuca",1,3
+"WDG","1-5 y","T4",2,"Silene vulgaris",1,3
+"WDG","1-5 y","T4",2,"Trifolium pratense",2,3
+"WDG","1-5 y","T4",3,"Centaurea jacea",1,3
+"WDG","1-5 y","T4",3,"Daucus carota",1,3
+"WDG","1-5 y","T4",3,"Dianthus carthusianorum",0.75,2
+"WDG","1-5 y","T4",3,"Lathyrus pratensis",0.3,1
+"WDG","1-5 y","T4",3,"Medicago lupulina",0.3,1
+"WDG","1-5 y","T4",3,"Prunella vulgaris",1,3
+"WDG","1-5 y","T4",3,"Scabiosa ochroleuca",0.75,2
+"WDG","1-5 y","T4",3,"Silene vulgaris",1,3
+"WDG","1-5 y","T4",3,"Trifolium pratense",1,3
+"WDG","1-5 y","T5",1,"Centaurea jacea",1,3
+"WDG","1-5 y","T5",1,"Dianthus carthusianorum",1,3
+"WDG","1-5 y","T5",1,"Lotus corniculatus",30,5
+"WDG","1-5 y","T5",1,"Trifolium pratense",0.3,1
+"WDG","1-5 y","T5",2,"Achillea millefolium",0.3,1
+"WDG","1-5 y","T5",2,"Centaurea jacea",1,3
+"WDG","1-5 y","T5",2,"Crepis biennis",0.75,2
+"WDG","1-5 y","T5",2,"Daucus carota",1,3
+"WDG","1-5 y","T5",2,"Galium album",2,3
+"WDG","1-5 y","T5",2,"Trifolium pratense",0.75,2
+"WDG","1-5 y","T5",3,"Centaurea jacea",2,3
+"WDG","1-5 y","T5",3,"Cichorium intybus",0.75,2
+"WDG","1-5 y","T5",3,"Daucus carota",1,3
+"WDG","1-5 y","T5",3,"Lotus corniculatus",3,3
+"WDG","1-5 y","T5",3,"Melilotus albus",0.3,1
+"WDG","1-5 y","T5",3,"Prunella vulgaris",0.3,1
+"WDG","1-5 y","T5",3,"Trifolium pratense",0.3,1
+"WUP","Reference","T1",1,"Galium album",2,3
+"WUP","Reference","T1",1,"Pastinaca sativa",6,4
+"WUP","Reference","T1",1,"Picris hieracioides",0.3,1
+"WUP","Reference","T1",1,"Plantago lanceolata",1,3
+"WUP","Reference","T1",1,"Trifolium pratense",1,3
+"WUP","Reference","T1",2,"Galium album",1,3
+"WUP","Reference","T1",2,"Pastinaca sativa",15,4
+"WUP","Reference","T1",2,"Plantago lanceolata",1,3
+"WUP","Reference","T1",2,"Potentilla anserina",0.3,1
+"WUP","Reference","T1",2,"Ranunculus polyanthemos",0.3,1
+"WUP","Reference","T1",2,"Trifolium pratense",2,3
+"WUP","Reference","T1",3,"Daucus carota",6,4
+"WUP","Reference","T1",3,"Galium album",2,3
+"WUP","Reference","T1",3,"Pastinaca sativa",8,4
+"WUP","Reference","T1",3,"Plantago lanceolata",0.75,2
+"WUP","Reference","T1",3,"Trifolium pratense",1,3
+"WUP","Reference","T2",1,"Campanula patula",1,3
+"WUP","Reference","T2",1,"Galium album",1,3
+"WUP","Reference","T2",2,"Achillea millefolium",0.3,1
+"WUP","Reference","T2",2,"Galium album",0.3,1
+"WUP","Reference","T2",3,"Achillea millefolium",0.3,1
+"WUP","Reference","T2",3,"Erigeron annuus",0.75,2
+"WUP","Reference","T3",1,"Potentilla anserina",0.3,1
+"WUP","Reference","T3",1,"Symphytum officinale",0.75,2
+"WUP","Reference","T3",1,"Trifolium pratense",0.3,1
+"WUP","Reference","T3",2,"Pastinaca sativa",0.75,2
+"WUP","Reference","T3",2,"Potentilla anserina",1,3
+"WUP","Reference","T3",2,"Trifolium pratense",2,3
+"WUP","Reference","T3",3,"Centaurium erythraea",1,3
+"WUP","Reference","T3",3,"Galium album",0.75,2
+"WUP","Reference","T3",3,"Mentha aquatica",0.3,1
+"WUP","Reference","T3",3,"Pastinaca sativa",6,4
+"WUP","Reference","T3",3,"Potentilla anserina",1,3
+"WUP","Reference","T4",1,"Centaurea jacea",0.3,1
+"WUP","Reference","T4",1,"Centaurium erythraea",0.75,2
+"WUP","Reference","T4",1,"Cerastium fontanum",0.3,1
+"WUP","Reference","T4",1,"Daucus carota",0.75,2
+"WUP","Reference","T4",1,"Trifolium pratense",0.3,1
+"WUP","Reference","T4",2,"Anagallis arvensis",0.3,1
+"WUP","Reference","T4",2,"Campanula patula",1,3
+"WUP","Reference","T4",2,"Cerastium fontanum",0.75,2
+"WUP","Reference","T4",2,"Daucus carota",0.75,2
+"WUP","Reference","T4",2,"Erigeron acris",0.75,2
+"WUP","Reference","T4",2,"Galium album",1,3
+"WUP","Reference","T4",2,"Pastinaca sativa",2,3
+"WUP","Reference","T4",2,"Pentanema britannica",1,3
+"WUP","Reference","T4",3,"Achillea millefolium",0.3,1
+"WUP","Reference","T4",3,"Cerastium fontanum",0.75,2
+"WUP","Reference","T4",3,"Galium album",0.75,2
+"WUP","Reference","T4",3,"Pastinaca sativa",25,5
+"WUP","Reference","T4",3,"Pentanema britannica",0.3,1
+"WUP","Reference","T4",3,"Trifolium pratense",1,3
+"WUP","Reference","T5",1,"Galium album",0.75,2
+"WUP","Reference","T5",1,"Potentilla anserina",1,3
+"WUP","Reference","T5",1,"Rumex acetosa",0.3,1
+"WUP","Reference","T5",1,"Silene flos-cuculi",0.3,1
+"WUP","Reference","T5",1,"Trifolium pratense",0.3,1
+"WUP","Reference","T5",2,"Daucus carota",6,4
+"WUP","Reference","T5",3,"Daucus carota",15,4
+"WUP","Reference","T5",3,"Galium album",0.75,2
+"WUP","Reference","T5",3,"Trifolium pratense",1,3
