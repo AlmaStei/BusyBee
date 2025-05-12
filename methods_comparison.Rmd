@@ -1,0 +1,1437 @@
+---
+title: "trad_comparison"
+author: "Alma Steireif"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+      toc: TRUE
+---
+
+# 1. libraries
+```{r, include=FALSE}
+library(stringr)
+library(vegan)
+
+library(gridExtra)
+library(grid)
+library(tidyverse)
+library(dplyr)
+```
+
+```{r}
+theme_new <- theme_classic(base_size = 12) +
+  theme(axis.line = element_blank(),
+        axis.text = element_text(colour = "black"),
+        axis.ticks = element_line(linewidth = 0.4, colour = "black"),
+        legend.key.size = unit(0.5, "cm"),
+        legend.margin = margin(t = 0),
+        legend.text = element_text(size = 8),
+        legend.title = element_text(size = 9),
+        panel.border = element_rect(linewidth = 0.4, colour = "black", fill = NA),
+        panel.grid.major.y = element_line(colour = "grey90", linewidth = 0.2),
+        plot.margin = margin(2, 2, 2, 2, "pt"),
+        plot.title = element_text(size = 10))
+theme_set(theme_new)
+```
+
+
+# 2. data
+```{r}
+#load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250120_netdata.RData")
+net_data <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_long.csv")
+load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250203_full_bowltrap.RData")
+```
+
+
+# 3. data preparation
+
+```{r flower cam data}
+th <- 0.5
+
+flower_cam <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/bioclip_flower_cams.csv")%>%
+  #filter out Classification_Category == "other_families"
+  filter(Classification_Category != "other_families") %>%
+  dplyr::select(-Image_Path, -Classification_Category , -Order)%>%
+  #remove all rows that have a family confidence below set threshold th
+  filter(Family_Confidence >= th)%>%
+    mutate(Site_Type = ifelse(site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+```
+
+
+```{r traditional method data}
+bowltrap <- bowltrap_clean %>% 
+  #select all columns except "small_"
+  dplyr::select(Site:acalyptrate, -Color, -Site_type) %>%
+  #pivot into long format
+  pivot_longer(cols =  apidae:acalyptrate,  
+               names_to = "Family", 
+               values_to = "Count") %>%
+  
+  #remove all rows that have a 0 "count" value
+  filter(Count != 0) %>%
+  
+  #remove rows that have null values in the "Family" column
+  filter(!is.na(Family)) %>%
+  
+   # change every family name to first letter uppercase to have uniformity
+  mutate(Family = str_to_title(Family)) %>%
+  
+  #add column "Method" with value "Bowltrap"
+  mutate(Method = "Bowltrap")
+
+netting <- net_data %>% 
+  #select the six columns in common with the bowltrap data
+  dplyr::select(Site=site, Transect=transect, Date = date, Family=family, Count=total_interaction) %>%
+  
+  # change every family name to first letter uppercase to have uniformity
+  mutate(Family = str_to_title(Family)) %>%
+  
+  #remove rows that have null values in the "Family" column
+  filter(!is.na(Family)) %>%
+  
+  #combine rows with the same site, transect, date and family and sum up the "Count" values
+  group_by(Site, Transect, Date, Family) %>%
+  summarise(Count = sum(Count)) %>%
+  
+  #add column "Method" with value "Netting"
+  mutate(Method = "Netting")
+
+
+#combine the two datasets
+trad_meth<- rbind(bowltrap, netting)
+rm(bowltrap_clean, net_data)
+```
+
+# 4. Combined traditional methods - trad_meth
+
+## 4.1. NMDS analysis for family composition between the sites
+
+```{r}
+# Create a community matrix
+community_matrix_trad_meth <- trad_meth%>%
+  group_by(Site, Family) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site") # Convert 'Site' column to row names
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_trad_meth <- metaMDS(community_matrix_trad_meth, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_trad_meth)
+```
+
+```{r}
+# Extract site scores for plotting
+site_scores_trad_meth <- as.data.frame(scores(nmds_result_trad_meth, display = "sites"))
+site_scores_trad_meth$Site <- rownames(site_scores_trad_meth)
+
+# Create a scatterplot
+ggplot(site_scores_trad_meth, aes(x = NMDS1, y = NMDS2, label = Site)) +
+  geom_point(size = 3, color = "blue") +
+  geom_text(vjust = -0.5, size = 4) +
+  #  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2")
+
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores_trad_meth <- site_scores_trad_meth %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+
+# Plot with customized colors
+ggplot(site_scores_trad_meth, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_trad_meth %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "Traditional Methods: NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+```
+
+
+## 4.2. NMDS - Splitting traditional methods
+
+```{r}
+# Create a community matrix with Site and Transect combined
+community_matrix_trad_meth_split <- trad_meth%>%
+  mutate(Site_Meth = paste(Site, Method, sep = "_")) %>% # Combine Site and Method
+  group_by(Site_Meth, Family) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site_Meth") # Use combined Site_Transect as row names
+
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_trad_meth_split <- metaMDS(community_matrix_trad_meth_split, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_trad_meth_split)
+```
+
+
+```{r}
+# Extract site scores for plotting
+site_scores_trad_meth_split <- as.data.frame(scores(nmds_result_trad_meth_split, display = "sites"))
+site_scores_trad_meth_split$Site <- rownames(site_scores_trad_meth_split)
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores_trad_meth_split <- site_scores_trad_meth_split %>%
+  #if the site names begins with "WED_", "KOT_", "WDG_", "BUH_" then it is a "Young Restored" site, otherwise it is a "Reference" site
+  mutate(Site_Type = ifelse(str_detect(Site, "WED_|KOT_|WDG_|BUH_"), "Young Restored", "Reference")) %>%
+  #if the site names ends with "_Bowltrap" then it is a "Bowltrap" site, otherwise it is a "Netting" site
+  mutate(Method = ifelse(str_detect(Site, "_Bowltrap"), "Bowltrap", "Netting"))%>%
+  #only keep first 3 letters of the site name
+  mutate(Site = str_sub(Site, 1, 3))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+custom_shapes <- c("Bowltrap" = 1, "Netting" = 18) # 16 = solid circle, 17 = triangle
+
+# Plot with customized colors and shapes for Method
+ggplot(site_scores_trad_meth_split, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site, shape = Method)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 3) +  # Adjust text position
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  scale_shape_manual(values = custom_shapes) + # Apply custom shapes
+  geom_polygon(data = site_scores_trad_meth_split %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #geom_polygon(data = site_scores2 %>% 
+  #               group_by(Site) %>%
+  #               slice(chull(NMDS1, NMDS2)), 
+  #             aes(group = Site, fill = Site), 
+  #             alpha = 0.3,show.legend = FALSE,color = "white") + # Add convex hull  
+  
+  #  theme_minimal() +
+  labs(title = "Traditional Methods: NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type",
+       shape = "Method") # Update legend title
+```
+
+
+## 4.3. again, but removing outliers in pan traps
+
+- in two bowls in Dessau, there were >10 individuals of a single family (Mordellidae), which is very likely skewing the results.
+- let's see what happens if we remove these two bowls 
+```{r}
+# Remove the two bowls with >10 individuals of Mordellidae using the bowltrap method
+#if count is less than 10, keep the row, otherwise remove it
+trad_meth_clean <- trad_meth%>%
+  filter(!(Site == "DES" & Method == "Bowltrap" & Family == "Mordellidae" & Count > 10)) 
+
+# Create a community matrix with Site and Transect combined
+community_matrix_trad_meth_clean <- trad_meth_clean %>%
+  group_by(Site, Family) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site") # Convert 'Site' column to row names
+  
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_trad_meth_clean <- metaMDS(community_matrix_trad_meth_clean, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_trad_meth_clean)
+
+# Extract site scores for plotting
+site_scores_trad_meth_clean <- as.data.frame(scores(nmds_result_trad_meth_clean, display = "sites"))
+site_scores_trad_meth_clean$Site <- rownames(site_scores_trad_meth_clean)
+
+# Create a scatterplot
+ggplot(site_scores_trad_meth_clean, aes(x = NMDS1, y = NMDS2, label = Site)) +
+  geom_point(size = 3, color = "blue") +
+  geom_text(vjust = -0.5, size = 4) +
+  #  theme_minimal() +
+  labs(title = "NMDS of Family Diversity by Site",
+       x = "NMDS1",
+       y = "NMDS2")
+
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores_trad_meth_clean <- site_scores_trad_meth_clean %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+
+# Plot with customized colors
+ggplot(site_scores_trad_meth_clean, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_trad_meth_clean %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3,show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "Traditional methods (no OL): NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+
+```
+
+
+# 5. NETTING
+
+## 5.1. Netting - NMDS
+
+```{r}
+# Step 1: Create the community matrix
+community_matrix_net <- trad_meth%>%
+  filter(Method == "Netting") %>% # Filter for Netting method only
+  group_by(Site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site") # Convert 'site' column to row names
+
+# Step 2: Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_net <- metaMDS(community_matrix_net, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_net)
+
+# Step 3: Extract site scores for plotting
+site_scores_net <- as.data.frame(scores(nmds_result_net, display = "sites"))
+site_scores_net$Site <- rownames(site_scores_net)
+
+# Step 4: Add Site_Type (Young Restored vs. Reference) to the site scores
+site_scores_net <- site_scores_net %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+
+# Step 5: Plot with customized colors
+(nmds_netting <- ggplot(site_scores_net, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_net %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3, show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  labs(title = "NMDS of Pollinator Family Composition",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type")+
+    #make title font 14
+  theme(plot.title = element_text(size = 14))) # Update legend title
+
+```
+
+Stress: tells us how well the NMDS represents the data in the reduced dimensions (2D in this case). A stress value of 0.2 or lower is considered good, while a value above 0.3 indicates a poor representation. 
+- In this case: Stress < 0.12, so a 2D solution is adequate.
+
+
+## 5.2. Netting - PERMANOVA & ANOSIM
+
+```{r}
+#netting community matrix
+community_matrix_net <- trad_meth %>%
+  filter(Method == "Netting") %>% # Filter for Netting method only
+  group_by(Site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site") # Convert 'site' column to row names
+
+#Compute the Bray-Curtis distance
+bc_distance_net <- vegdist(community_matrix_net, method = "bray")
+
+# Create a metadata table
+site_metadata_net <- data.frame(
+  Site = rownames(community_matrix_net),
+  Site_Type = ifelse(rownames(community_matrix_net) %in% c("WED", "KOT", "WDG", "BUH"),
+                     "Young restored", "Reference")
+)
+
+#make sure rownames match the order in bc_distance:
+site_metadata_net <- site_metadata_net[match(rownames(community_matrix_net), site_metadata_net$Site), ]
+
+#Run PERMANOVA using adonis2()
+permanova_net <- adonis2(bc_distance_net ~ Site_Type, data = site_metadata_net, permutations = 999)
+print(permanova_net)
+
+#ANOSIM for additional insight
+anosim_result_net <- anosim(bc_distance_net, grouping = site_metadata_net$Site_Type, permutations = 999)
+summary(anosim_result_net)
+```
+
+## 5.3. Netting - Hill numbers
+
+```{r}
+#calculate species richness, shannon and simpson index for netting data with vegan package
+# Calculate Hill numbers (species richness, Shannon, and Simpson index)
+hill_numbers_net <- netting%>%
+  #add Site_type column 
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference")) %>%
+  group_by(Site_Type, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site_Type") %>%
+  # Calculate Hill numbers
+  mutate(Species_Richness = specnumber(.),
+         Shannon_Index = diversity(., index = "shannon"),
+         Simpson_Index = diversity(., index = "simpson"))%>%
+  #remove all columns that are not "Species_Richness", "Shannon_Index" or "Simpson_Index"
+  dplyr::select(Species_Richness, Shannon_Index, Simpson_Index) %>%
+  #add column "Site_Type" with value "Young Restored" or "Reference"
+  mutate(Site_Type = rownames(.))
+
+# Hill numbers long format
+hill_numbers_long_net <- hill_numbers_net %>%
+  pivot_longer(cols = c(Species_Richness, Shannon_Index, Simpson_Index), 
+               names_to = "Index", 
+               values_to = "Value")
+#index labels
+facet_labels_net <- c("Species_Richness" = "Family Richness", 
+                  "Shannon_Index" = "Shannon Index", 
+                  "Simpson_Index" = "Simpson Index")
+# Barplot of Shannon and Simpson indices (filtered out species richness)
+shan_simp_net <- hill_numbers_long_net %>%
+  filter(Index != "Species_Richness") %>%
+  ggplot(aes(x = Site_Type, y = Value, fill = Site_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  #  theme_minimal() +
+  facet_wrap(~ Index, labeller = labeller(Index = facet_labels_net)) +  # Apply custom facet labels
+  scale_fill_manual(values = custom_colors) +   # Apply custom colors
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(),   # Remove x-axis title
+    axis.title.y = element_blank(),   # Remove y-axis title
+  ) +
+  scale_x_discrete(labels = function(x) gsub("Young Restored", "Young\nRestored", x))  # Split label into two lines
+
+# Barplot of Species Richness
+rich_net <- hill_numbers_long_net %>%
+  filter(Index == "Species_Richness") %>%
+  ggplot(aes(x = Site_Type, y = Value, fill = Site_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  #  theme_minimal() +
+  facet_wrap(~ Index, labeller = labeller(Index = facet_labels_net)) +  # Apply custom facet labels
+  scale_fill_manual(values = custom_colors, name = "Site Type") +   # Apply custom colors
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(),   # Remove x-axis title
+    axis.title.y = element_blank(),   # Remove y-axis title
+    scale_y_continuous(position = "left"),# Put y-axis on the left side instead of right
+    legend.title = element_text(size = 10),  # Adjust legend title font size
+    legend.text = element_text(size = 8)    # Adjust legend text font size
+  ) +
+  scale_x_discrete(labels = function(x) gsub("Young Restored", "Young\nRestored", x))  # Split label into two lines
+
+# Combine the two plots into one layout
+
+title <- textGrob(
+  "Pollinator Diversity Indices", 
+  gp = gpar(fontsize = 14),
+  vjust = 1,
+  x = unit(0.25, "npc"),  # Slight shift to the right
+  y = unit(0.95, "npc")   # Position title vertically
+)
+
+# Combine the plots with the left-aligned title
+combined_plot_net <- grid.arrange(
+  shan_simp_net, 
+  rich_net, 
+  ncol = 2,
+  top = title,
+  widths = c(1.33, 0.7)
+)
+
+```
+
+```{r}
+#combine nmds_netting and hill numbers plots 
+library(cowplot)
+(combi2<- cowplot::plot_grid(
+  nmds_netting+theme(legend.position = "top"), 
+  combined_plot_net,
+  ncol =2,
+  labels = c("A", "B"),
+  label_size = 12
+  #proportional height
+  #rel_widths = c(0.8, 1.1)
+))
+
+(combi_final <- ggdraw() +
+  draw_label("Transect walk: Pollinator Diversity", fontface = 'bold', x = 0.5, y = 0.98, hjust = 0.5, size = 14) +
+  draw_plot(combi2, y = 0, height = 0.95))
+#save the combined plot
+
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/combi_netting2.png", 
+       plot = combi_final, 
+       width = 12, height = 6, dpi = 600)
+```
+
+
+## 5.4. Netting - Site type counts
+
+```{r}
+# bar plot of count the number of individuals per site type, color by family
+netting %>%
+  #add Site_type column
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference")) %>%
+  group_by(Site_Type, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  ggplot(aes(x = Site_Type, y = Count, fill = Family)) +
+  geom_bar(stat = "identity", position = "stack") +
+  #  theme_minimal() +
+  labs(title = "Netting: Number of Individuals by Site Type and Family",
+       x = "Site Type",
+       y = "Number of Individuals") +
+  #scale_fill_manual(values = custom_colors) +   # Apply custom colors
+  theme(
+    legend.position = "right",
+    #axis.title.x = element_blank(),   # Remove x-axis title
+    #axis.title.y = element_blank(),   # Remove y-axis title
+    scale_y_continuous(position = "left"),# Put y-axis on the left side instead of right
+    legend.title = element_text(size = 10),  # Adjust legend title font size
+    legend.text = element_text(size = 8)    # Adjust legend text font size
+  )
+```
+
+
+# 6. PAN TRAPS
+
+## 6.1. Bowltrap - NMDS
+
+```{r}
+# Step 1: Create the community matrix
+community_matrix_bowltrap <- trad_meth%>%
+  filter(Method == "Bowltrap") %>% # Filter for Bowltrap method only
+  group_by(Site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site") # Convert 'site' column to row names
+
+# Step 2: Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_bowltrap <- metaMDS(community_matrix_bowltrap, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_bowltrap)
+
+# Step 3: Extract site scores for plotting
+site_scores_bowltrap <- as.data.frame(scores(nmds_result_bowltrap, display = "sites"))
+site_scores_bowltrap$Site <- rownames(site_scores_bowltrap)
+
+# Step 4: Add Site_Type (Young Restored vs. Reference) to the site scores
+site_scores_bowltrap <- site_scores_bowltrap %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+# Step 5: Plot with customized colors
+ggplot(site_scores_bowltrap, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_bowltrap %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3, show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "Pan traps: NMDS of Pollinator Family Diversity",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+```
+
+
+For the pan traps, we have too little data to get a good NMDS solution. Even though the stress value is close to zero, there is a warning that "Warning: stress is (nearly) zero: you may have insufficient data".
+
+
+## 6.2. Bowltrap - PERMANOVA & ANOSIM
+
+```{r}
+#bowltrap community matrix
+community_matrix_bowl <- trad_meth %>%
+  filter(Method == "Bowltrap") %>% # Filter for Bowltrap method only
+  group_by(Site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site") # Convert 'site' column to row names
+
+#Compute the Bray-Curtis distance
+bc_distance_bowl <- vegdist(community_matrix_bowl, method = "bray")
+
+# Create a metadata table
+site_metadata_bowl <- data.frame(
+  Site = rownames(community_matrix_bowl),
+  Site_Type = ifelse(rownames(community_matrix_bowl) %in% c("WED", "KOT", "WDG", "BUH"),
+                     "Young restored", "Reference")
+)
+
+#Make sure rownames match the order in bc_distance:
+site_metadata_bowl <- site_metadata_bowl[match(rownames(community_matrix_bowl), site_metadata_bowl$Site), ]
+
+#Run PERMANOVA using adonis2()
+permanova_bowl <- adonis2(bc_distance_bowl ~ Site_Type, data = site_metadata_bowl, permutations = 999)
+print(permanova_bowl)
+
+#ANOSIM for additional insight
+anosim_result_bowl <- anosim(bc_distance_bowl, grouping = site_metadata_bowl$Site_Type, permutations = 999)
+summary(anosim_result_bowl)
+
+```
+
+
+# 7. Flower camera 
+
+## 7.1. Flower camera - NMDS
+
+```{r}
+# Step 1: Create the community matrix
+community_matrix_cam <- flower_cam %>%
+  group_by(site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "site") # Convert 'site' column to row names
+
+# Step 2: Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_cam <- metaMDS(community_matrix_cam, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_cam)
+
+# Step 3: Extract site scores for plotting
+site_scores_cam <- as.data.frame(scores(nmds_result_cam, display = "sites"))
+site_scores_cam$Site <- rownames(site_scores_cam)
+
+# Step 4: Add Site_Type (Young Restored vs. Reference) to the site scores
+site_scores_cam <- site_scores_cam %>%
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+
+# Step 5: Plot with customized colors
+(nmds_flowercam <- ggplot(site_scores_cam, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_cam %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3, show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "NMDS of Pollinator Family Diversity",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type")+
+  #make title font 14
+  theme(plot.title = element_text(size = 14))) # Update legend title
+   # Update legend title
+
+```
+
+Stress = 0.09, this indicates that the 2D solution is a good representation of the data.
+
+## 7.2. Flower camera - PERMANOVA & ANOSIM
+
+```{r}
+#cam community matrix
+community_matrix_cam <- flower_cam %>%
+  group_by(site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "site")
+
+#Compute the Bray-Curtis distance
+bc_distance_cam <- vegdist(community_matrix_cam, method = "bray")
+
+# Create a metadata table
+site_metadata_cam <- data.frame(
+  Site = rownames(community_matrix_cam),
+  Site_Type = ifelse(rownames(community_matrix_cam) %in% c("WED", "KOT", "WDG", "BUH"),
+                     "Young restored", "Reference")
+)
+
+#Make sure rownames match the order in bc_distance:
+site_metadata_cam <- site_metadata_cam[match(rownames(community_matrix_cam), site_metadata_cam$Site), ]
+
+#Run PERMANOVA using adonis2()
+permanova_cam <- adonis2(bc_distance_cam ~ Site_Type, data = site_metadata_cam, permutations = 999)
+print(permanova_cam)
+
+#ANOSIM for additional insight
+anosim_result_cam <- anosim(bc_distance_cam, grouping = site_metadata_cam$Site_Type, permutations = 999)
+summary(anosim_result_cam)
+
+```
+
+The PERMANOVA results will show whether there are significant differences in community composition between the two site types (Young Restored and Reference) based on the flower camera data. It answers this question: Is there a significant difference in overall community composition between “Young restored” and “Reference” sites?   
+- Concerning the pollinator compostion captured by the flower cameras, only 7.5% ($R^2$) of the variation could be explained by the site type, however the p-value is 0.812, indicating no significant difference in community composition between the two site types. 
+
+The ANOSIM results will provide additional insight into the strength of these differences, by comparing the between-group vs within-group dissimilarities.    
+- The anosim shows that the differences between site_types are not greater than expected by chance (p=0.706). 
+
+## 7.3. Flower Cameras - Hill numbers 
+
+```{r}
+#calculate species richness, shannon and simpson index for flower camera data with vegan package
+# Calculate Hill numbers (species richness, Shannon, and Simpson index)
+hill_numbers <- flower_cam %>%
+  group_by(Site_Type, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site_Type") %>%
+  # Calculate Hill numbers
+  mutate(Species_Richness = specnumber(.),
+         Shannon_Index = diversity(., index = "shannon"),
+         Simpson_Index = diversity(., index = "simpson"))%>%
+  #remove all columns that are not "Species_Richness", "Shannon_Index" or "Simpson_Index"
+  dplyr::select(Species_Richness, Shannon_Index, Simpson_Index) %>%
+  #add column "Site_Type" with value "Young Restored" or "Reference"
+  mutate(Site_Type = rownames(.))
+
+# Hill numbers long format
+hill_numbers_long <- hill_numbers %>%
+  pivot_longer(cols = c(Species_Richness, Shannon_Index, Simpson_Index), 
+               names_to = "Index", 
+               values_to = "Value")
+
+#index labels 
+facet_labels <- c("Species_Richness" = "Family Richness", 
+                  "Shannon_Index" = "Shannon Index", 
+                  "Simpson_Index" = "Simpson Index")
+
+# Barplot of Shannon and Simpson indices (filtered out species richness)
+shan_simp <- hill_numbers_long %>%
+  filter(Index != "Species_Richness") %>%
+  ggplot(aes(x = Site_Type, y = Value, fill = Site_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  #  theme_minimal() +
+  facet_wrap(~ Index, labeller = labeller(Index = facet_labels)) +  # Apply custom facet labels
+  scale_fill_manual(values = custom_colors) +   # Apply custom colors
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(),   # Remove x-axis title
+    axis.title.y = element_blank(),   # Remove y-axis title
+  ) +
+  scale_x_discrete(labels = function(x) gsub("Young Restored", "Young\nRestored", x))  # Split label into two lines
+
+# Barplot of Species Richness
+rich <- hill_numbers_long %>%
+  filter(Index == "Species_Richness") %>%
+  ggplot(aes(x = Site_Type, y = Value, fill = Site_Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  #  theme_minimal() +
+  facet_wrap(~ Index, labeller = labeller(Index = facet_labels)) +  # Apply custom facet labels
+  scale_fill_manual(values = custom_colors, name = "Site Type") +   # Apply custom colors
+  theme(
+    legend.position = "none",
+    axis.title.x = element_blank(),   # Remove x-axis title
+    axis.title.y = element_blank(),   # Remove y-axis title
+    scale_y_continuous(position = "left"),# Put y-axis on the left side instead of right
+    legend.title = element_text(size = 10),  # Adjust legend title font size
+    legend.text = element_text(size = 8)    # Adjust legend text font size
+  ) +
+  scale_x_discrete(labels = function(x) gsub("Young Restored", "Young\nRestored", x))  # Split label into two lines
+
+# Create a left-aligned title grob
+left_title <- textGrob(
+  "Pollinator Diversity Indices by Site Type", 
+  gp = gpar(fontsize = 14), # <- left-align horizontally
+  x = unit(0.35, "npc") # Slight shift to the right
+  #y = unit(0.95, "npc")   # Position title vertically
+)
+
+
+# Plot the 2 plots side by side, and add the title defined right above
+combined_plot_flowcam <- grid.arrange(
+  shan_simp, 
+  rich, 
+  ncol = 2,
+  top = left_title,
+  widths = c(1.33, 0.7)
+)
+
+# Save the combined plot
+#ggsave("combined_diversity_indices.png", plot = combined_plot, width = 12, height = 6, dpi = 300)
+
+```
+
+```{r}
+#combine nmds_netting and hill numbers plots 
+library(cowplot)
+(combi3<- cowplot::plot_grid(
+  nmds_flowercam+theme(legend.position = "top"), 
+  combined_plot_flowcam,
+  ncol =2,
+  labels = c("A", "B"),
+  label_size = 12
+  #proportional height
+  #rel_widths = c(0.8, 1.1)
+))
+
+(combi_final <- ggdraw() +
+  draw_label("Flower cameras: Pollinator Diversity", fontface = 'bold', x = 0.5, y = 0.98, hjust = 0.5, size = 14) +
+  draw_plot(combi3, y = 0, height = 0.95))
+#save the combined plot
+
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/combi_flowercam.png", 
+       plot = combi_final, 
+       width = 12, height = 6, dpi =600) 
+```
+       
+
+## 7.4. Flower camera - NMDS flower species 
+
+```{r}
+# Step 1: Create the community matrix
+community_matrix_flo <- flower_cam %>%
+  group_by(flower_sp, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "flower_sp") # Convert 'site' column to row names
+
+# Step 2: Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_flo <- metaMDS(community_matrix_flo, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_flo)
+
+# Step 3: Extract site scores for plotting
+site_scores_flo <- as.data.frame(scores(nmds_result_flo, display = "sites"))
+site_scores_flo$flower <- rownames(site_scores_flo)
+
+# Step 5: Plot with customized colors
+ggplot(site_scores_flo, aes(x = NMDS1, y = NMDS2, color = flower, label = flower)) +
+  geom_point(size = 4, alpha = 0.8, shape=19) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "Flower Cameras: NMDS of Pollinator Family Diversity",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Flower Species")+ # Update legend title
+  theme(legend.position = "none") 
+
+
+```
+
+
+# 8. Comparison of the three methods
+
+## 8.1. NMDS - all methods
+
+
+```{r all_meth dataframe}
+#create a dataframe called flower with these columns Site Date Family Count Method 
+flower <- flower_cam %>%
+  dplyr::select(site, date, Family) %>%
+  rename(Site = site, Date = date)%>%
+  group_by(Site, Family) %>%
+  summarise(Count = n(), .groups = "drop")%>%
+  mutate(Method = "Flower camera")
+
+
+# Combine all three methods into one dataframe
+all_meth <- trad_meth %>%
+  #remove date, transect columns
+  dplyr::select(-Date, -Transect) %>%
+  #combine with flower data
+  rbind(flower)
+```
+
+
+```{r}
+# Create a community matrix with Site and Transect combined
+community_matrix_all_meth <- all_meth %>%
+  group_by(Site, Family) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site") # Convert 'Site' column to row names
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_all_meth <- metaMDS(community_matrix_all_meth, distance = "bray", k = 2, trymax = 100)
+# View results
+print(nmds_result_all_meth)
+
+# Extract site scores for plotting
+site_scores_all_meth <- as.data.frame(scores(nmds_result_all_meth, display = "sites"))
+site_scores_all_meth$Site <- rownames(site_scores_all_meth)
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores_all_meth <- site_scores_all_meth %>%
+  #if the site names begins with "WED_", "KOT_", "WDG_", "BUH_" then it is a "Young Restored" site, otherwise it is a "Reference" site
+  mutate(Site_Type = ifelse(str_detect(Site, "WED|KOT|WDG|BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange")
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+
+# Plot with customized colors
+ggplot(site_scores_all_meth, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_all_meth %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3, show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "All Methods: NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") # Update legend title
+```
+
+
+## 8.2. All methods - PERMANOVA & ANOSIM
+
+```{r}
+#all methods community matrix
+community_matrix_all_meth <- all_meth %>%
+  group_by(Site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site") # Convert 'site' column to row names
+
+#Compute the Bray-Curtis distance
+bc_distance_all_meth <- vegdist(community_matrix_all_meth, method = "bray")
+# Create a metadata table
+site_metadata_all_meth <- data.frame(
+  Site = rownames(community_matrix_all_meth),
+  Site_Type = ifelse(rownames(community_matrix_all_meth) %in% c("WED", "KOT", "WDG", "BUH"),
+                     "Young restored", "Reference")
+)
+#Make sure rownames match the order in bc_distance:
+site_metadata_all_meth <- site_metadata_all_meth[match(rownames(community_matrix_all_meth), site_metadata_all_meth$Site), ]
+#Run PERMANOVA using adonis2()
+permanova_all_meth <- adonis2(bc_distance_all_meth ~ Site_Type, data = site_metadata_all_meth, permutations = 999)
+print(permanova_all_meth)
+#ANOSIM for additional insight
+anosim_result_all_meth <- anosim(bc_distance_all_meth, grouping = site_metadata_all_meth$Site_Type, permutations = 999)
+summary(anosim_result_all_meth)
+
+```
+
+## 8.3. All methods - NMDS split
+
+```{r}
+# Create a community matrix with Site and Method combined
+community_matrix_all_meth_split <- all_meth %>%
+  mutate(Site_Meth = paste(Site, Method, sep = "_")) %>% # Combine Site and Method
+  group_by(Site_Meth, Family) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site_Meth") # Use combined Site_Transect as row names
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_all_meth_split <- metaMDS(community_matrix_all_meth_split, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_all_meth_split)
+
+# Extract site scores for plotting
+site_scores_all_meth_split <- as.data.frame(scores(nmds_result_all_meth_split, display = "sites"))
+site_scores_all_meth_split$Site <- rownames(site_scores_all_meth_split)
+
+# Create a vector indicating site type (restored vs. reference)
+site_scores_all_meth_split <- site_scores_all_meth_split %>%
+  #if the site names begins with "WED_", "KOT_", "WDG_", "BUH_" then it is a "Young Restored" site, otherwise it is a "Reference" site
+  mutate(Site_Type = ifelse(str_detect(Site, "WED|KOT|WDG|BUH"), "Young Restored", "Reference")) %>%
+  #if the site names ends with "_Bowltrap" then it is a "Bowltrap" site, if it ends with "_Netting" then it is a "Netting" site, otherwise it is a "Flower camera" site
+  mutate(Method = ifelse(str_detect(Site, "_Bowltrap"), "Bowltrap", 
+                         ifelse(str_detect(Site, "_Netting"), "Netting", "Flower camera"))) %>%
+  #only keep first 3 letters of the site name
+  mutate(Site = str_sub(Site, 1, 3))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+custom_shapes <- c("Bowltrap" = 1, "Netting" = 18, "Flower camera" = 17) # 16 = solid circle, 17 = triangle
+# Plot with customized colors and shapes for Method
+ggplot(site_scores_all_meth_split, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site, shape = Method)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 3) +  # Adjust text position
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  scale_shape_manual(values = custom_shapes) + # Apply custom shapes
+  geom_polygon(data = site_scores_all_meth_split %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3, show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "All Methods: NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type",
+       shape = "Method") # Update legend title
+  
+
+```
+
+
+# 9. NETTING AND FLOWER CAMERA
+## 9.1. Netting and flower camera - NMDS split
+
+```{r}
+# Create a community matrix with Site and Transect combined
+community_matrix_net_flo <- all_meth %>%
+  filter(Method %in% c("Netting", "Flower camera")) %>% # Filter for Netting and Flower camera methods only
+  mutate(Site_Meth = paste(Site, Method, sep = "_")) %>% # Combine Site and Method
+  group_by(Site_Meth, Family) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site_Meth") # Use combined Site_Transect as row names
+
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_net_flo <- metaMDS(community_matrix_net_flo, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_net_flo)
+# Extract site scores for plotting
+site_scores_net_flo <- as.data.frame(scores(nmds_result_net_flo, display = "sites"))
+site_scores_net_flo$Site <- rownames(site_scores_net_flo)
+# Create a vector indicating site type (restored vs. reference)
+site_scores_net_flo <- site_scores_net_flo %>%
+  #if the site names begins with "WED_", "KOT_", "WDG_", "BUH_" then it is a "Young Restored" site, otherwise it is a "Reference" site
+  mutate(Site_Type = ifelse(str_detect(Site, "WED|KOT|WDG|BUH"), "Young Restored", "Reference")) %>%
+  #if the site names ends with "_Netting" then it is a "Netting" site, otherwise it is a "Flower camera" site
+  mutate(Method = ifelse(str_detect(Site, "_Netting"), "Netting", "Flower camera")) %>%
+  #only keep first 3 letters of the site name
+  mutate(Site = str_sub(Site, 1, 3))
+
+# Custom color palette
+#custom_colors <- c("Young Restored" = "steelblue", "Reference" = "darkorange") 
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+custom_shapes <- c("Netting" = 1, "Flower camera" = 18) # 16 = solid circle, 17 = triangle
+# Plot with customized colors and shapes for Method
+ggplot(site_scores_net_flo, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site, shape = Method)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 3) +  # Adjust text position
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  scale_shape_manual(values = custom_shapes) + # Apply custom shapes
+  geom_polygon(data = site_scores_net_flo %>%                  group_by(Site_Type) %>%                 slice(chull(NMDS1, NMDS2)),               aes(group = Site_Type, fill = Site_Type),               alpha = 0.3, show.legend = FALSE) + # Add convex hull
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "Netting and Flower Camera: NMDS of Family Diversity by Site and Type",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type",
+       shape = "Method") # Update legend title
+
+
+```
+
+## 9.2. Netting and flower camera - PERMANOVA & ANOSIM
+
+```{r}
+#netting and flower camera community matrix
+community_matrix_net_flo <- all_meth %>%
+  filter(Method %in% c("Netting", "Flower camera")) %>% # Filter for Netting and Flower camera methods only
+  group_by(Site, Family) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "Site") # Convert 'site' column to row names
+#Compute the Bray-Curtis distance
+bc_distance_net_flo <- vegdist(community_matrix_net_flo, method = "bray")
+# Create a metadata table
+site_metadata_net_flo <- data.frame(
+  Site = rownames(community_matrix_net_flo),
+  Site_Type = ifelse(rownames(community_matrix_net_flo) %in% c("WED", "KOT", "WDG", "BUH"),
+                     "Young restored", "Reference")
+)
+#Make sure rownames match the order in bc_distance:
+site_metadata_net_flo <- site_metadata_net_flo[match(rownames(community_matrix_net_flo), site_metadata_net_flo$Site), ]
+#Run PERMANOVA using adonis2()
+permanova_net_flo <- adonis2(bc_distance_net_flo ~ Site_Type, data = site_metadata_net_flo, permutations = 999)
+print(permanova_net_flo)
+#ANOSIM for additional insight
+anosim_result_net_flo <- anosim(bc_distance_net_flo, grouping = site_metadata_net_flo$Site_Type, permutations = 999)
+summary(anosim_result_net_flo)
+```
+
+## 9.3. Netting vs flower camera
+
+
+```{r}
+# Extract Site and Method from rownames
+site_metadata_net_flo <- data.frame(
+  Site_Meth = rownames(community_matrix_net_flo),
+  Site = sub("_.*", "", rownames(community_matrix_net_flo)),  # get the part before "_"
+  Method = ifelse(grepl("_Netting", rownames(community_matrix_net_flo)), "Netting", "Flower camera")
+)
+
+# Correct Site_Type assignment
+site_metadata_net_flo$Site_Type <- ifelse(site_metadata_net_flo$Site %in% c("WED", "KOT", "WDG", "BUH"),
+                                          "Young restored", "Reference")
+
+# Make sure rownames match
+rownames(site_metadata_net_flo) <- site_metadata_net_flo$Site_Meth
+
+# Run PERMANOVA to test difference in community composition between methods
+permanova_net_flo <- adonis2(bc_distance_net_flo ~ Method, data = site_metadata_net_flo, permutations = 999)
+print(permanova_net_flo)
+
+# Run ANOSIM
+anosim_result_net_flo <- anosim(bc_distance_net_flo, grouping = site_metadata_net_flo$Method, permutations = 999)
+summary(anosim_result_net_flo)
+
+```
+
+```{r}
+library(vegan)
+library(ggplot2)
+library(dplyr)
+
+# First, compute NMDS again (or reuse your existing nmds_result_net_flo)
+# Assuming you already have:
+# nmds_result_net_flo and site_scores_net_flo
+
+# Compute group centroids (average NMDS position per Method)
+centroids <- site_scores_net_flo %>%
+  group_by(Method) %>%
+  summarise(NMDS1 = mean(NMDS1), NMDS2 = mean(NMDS2))
+
+
+# Rename "Netting" to "Transect walk" in Method column
+site_scores_net_flo <- site_scores_net_flo %>%
+  mutate(Method = recode(Method, "Netting" = "Transect walk"))
+
+# Plot
+ggplot(site_scores_net_flo, aes(x = NMDS1, y = NMDS2, color = Method, shape = Method)) +
+  geom_point(size = 4, alpha = 0.8) +
+  stat_ellipse(aes(fill = Method), geom = "polygon", alpha = 0.2, color = NA) +
+  scale_color_manual(values = c("Transect walk" = "#263D5DFF", "Flower camera" = "#9D3A5EFF")) +
+  scale_fill_manual(values = c("Transect walk" = "#263D5DFF", "Flower camera" = "#9D3A5EFF")) +
+  scale_shape_manual(values = c("Transect walk" = 20, "Flower camera" = 18)) +
+  labs(
+    title = "NMDS of Pollinator Communities: Transect walk vs. Flower Camera",
+    x = "NMDS1", y = "NMDS2",
+    color = "Method", shape = "Method", fill = "Method"
+  )
+
+
+# Ensure "Netting" is renamed to "Transect walk"
+site_scores_net_flo <- site_scores_net_flo %>%
+  mutate(Method = recode(Method, "Netting" = "Transect walk"))%>%
+  #add Site_type
+  mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
+
+library(ggrepel)
+
+# Plot
+(plot1 <-ggplot(site_scores_net_flo, aes(x = NMDS1, y = NMDS2)) +
+  # Points: color by Method, shape by Site Type
+  geom_point(aes(color = Method, shape = Site_Type), size = 4, alpha = 0.8) +
+  # Ellipses by Method
+  stat_ellipse(aes(fill = Method), geom = "polygon", alpha = 0.2, color = NA) +
+  # Site labels at the same spot as dots
+  geom_text_repel(aes(label = Site, color = Method), size = 3.5, fontface = "bold", max.overlaps = 20) +
+  # Manual colors and shapes
+  scale_color_manual(values = c("Transect walk" = "#263D5DFF", "Flower camera" = "#9D3A5EFF")) +
+  scale_fill_manual(values = c("Transect walk" = "#263D5DFF", "Flower camera" = "#9D3A5EFF")) +
+  scale_shape_manual(values = c("Young Restored" = 1, "Reference" = 18)) +  # circle for restored, lozange for reference
+  labs(
+    title = "Flower centered methods: NMDS of Pollinator Communities",
+    x = "NMDS1", y = "NMDS2",
+    color = "Method", shape = "Site Type", fill = "Method"
+  )+
+  # legend position
+  theme(legend.position = "bottom"))
+
+# Save the plot
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/nmds_netting_flower.png", 
+       plot = plot1, 
+       width = 8, height = 6, dpi =600) 
+```
+
+```{r}
+# Assuming you have your community matrix (same one used for NMDS)
+# and that 'Method' is in your metadata (site_scores_net_flo)
+
+# Create a community matrix with Site and Transect combined
+community_matrix_net_flo <- all_meth %>%
+  filter(Method %in% c("Netting", "Flower camera")) %>% # Filter for Netting and Flower camera methods only
+  mutate(Site_Meth = paste(Site, Method, sep = "_")) %>% # Combine Site and Method
+  group_by(Site_Meth, Family) %>%
+  summarise(Count = sum(Count), .groups = "drop") %>%
+  pivot_wider(names_from = Family, values_from = Count, values_fill = 0) %>%
+  column_to_rownames(var = "Site_Meth") # Use combined Site_Transect as row names
+
+
+# Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_net_flo <- metaMDS(community_matrix_net_flo, distance = "bray", k = 2, trymax = 100)
+# Compute Bray-Curtis distance
+bc_distance <- vegdist(community_matrix_net_flo, method = "bray")
+
+# View results
+print(nmds_result_net_flo)
+# Extract site scores for plotting
+site_scores_net_flo <- as.data.frame(scores(nmds_result_net_flo, display = "sites"))
+site_scores_net_flo$Site <- rownames(site_scores_net_flo)
+# Create a vector indicating site type (restored vs. reference)
+site_scores_net_flo <- site_scores_net_flo %>%
+  #if the site names begins with "WED_", "KOT_", "WDG_", "BUH_" then it is a "Young Restored" site, otherwise it is a "Reference" site
+  mutate(Site_Type = ifelse(str_detect(Site, "WED|KOT|WDG|BUH"), "Young Restored", "Reference")) %>%
+  #if the site names ends with "_Netting" then it is a "Netting" site, otherwise it is a "Flower camera" site
+  mutate(Method = ifelse(str_detect(Site, "_Netting"), "Netting", "Flower camera")) %>%
+  #only keep first 3 letters of the site name
+  mutate(Site = str_sub(Site, 1, 3))
+
+# Run PERMANOVA testing difference between Methods
+permanova_method <- adonis2(bc_distance ~ Method, 
+                            data = site_scores_net_flo, 
+                            permutations = 999)
+
+# Run ANOSIM testing difference between Methods
+anosim_result_method <- anosim(bc_distance, grouping = site_scores_net_flo$Method, permutations = 999)
+
+#view results
+print(permanova_method)
+summary(anosim_result_method)
+
+
+```
+
+
+
+## 9.3. Netting vs flower camera VENN DIAGRAM
+
+```{r}
+# Dark colors per site
+dark_colors <- c(
+  "DES" = "#1F78B4",    "HLI" = "#1F78B4",    "JEP" = "#1F78B4",    "STP" = "#1F78B4",  "WUP" = "#1F78B4",
+  "BUH" = "#9BB655FF",    "KOT" = "#9BB655FF",    "WDG" = "#9BB655FF",    "WED" = "#9BB655FF" 
+)
+
+# Light colors per site
+light_colors <- c(
+  "DES" = "lightblue",    "HLI" = "lightblue",    "JEP" = "lightblue",    "STP" = "lightblue",  "WUP" = "lightblue",
+  "BUH" = "#D3D5AEFF",    "KOT" = "#D3D5AEFF",  "WDG" = "#D3D5AEFF",    "WED" = "#D3D5AEFF"  
+)
+
+```
+
+
+```{r}
+library(ggVennDiagram)
+library(patchwork)  # for arranging plots
+
+# Step 1: Get list of families per Site x Method
+family_lists <- all_meth %>%
+  filter(Method %in% c("Netting", "Flower camera")) %>% # Filter for Netting and Flower camera methods only
+  group_by(Site, Method) %>%
+  summarise(Families = list(unique(Family)), .groups = 'drop')
+
+# Step 2: Function to draw Venn per site
+draw_site_venn <- function(site_name) {
+  site_data <- family_lists %>% filter(Site == site_name)
+  
+  # Only proceed if there are at least 2 methods with data
+  if (nrow(site_data) < 2 || any(sapply(site_data$Families, length) == 0)) return(NULL)
+  
+  fam_list <- setNames(site_data$Families, site_data$Method)
+  
+  ggVennDiagram(fam_list, label_alpha = 0) +
+    # Use site-specific dark color
+    scale_fill_gradient(low = light_colors[site_name], high = dark_colors[site_name]) +
+    labs(title = site_name) +
+    theme(
+      plot.margin = margin(10, 20, 10, 20),
+      plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+      plot.background = element_rect(fill = "white", color = NA)
+    ) +
+    coord_cartesian(clip = "off")
+}
+
+# Step 3: Draw Venns for each site
+plots <- lapply(unique(all_meth$Site), draw_site_venn)
+
+# Remove NULLs (sites with missing data)
+plots <- plots[!sapply(plots, is.null)]
+
+# Step 4: Arrange in grid
+wrap_plots(plots, ncol = 3)
+
+# Step 5: Save the plot
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/net_flo_venn.png", 
+       width = 12, height = 12, dpi = 600)
+```
+
+
+```{r}
+library(tidyverse)
+library(ggVennDiagram)
+
+# Step 1: Define your method renaming
+method_names <- c(
+  "Bowltrap" = "Pan Traps",
+  "Netting" = "Transect \nwalk",
+  "Flower camera" = "Flower \ncamera"
+)
+
+# Step 2: Get unique families per Method (across all sites)
+method_lists <- all_meth %>%
+  filter(Method %in% c("Netting", "Flower camera")) %>% # Filter for Netting and Flower camera methods only
+  group_by(Method) %>%
+  summarise(Families = list(unique(Family)), .groups = 'drop')
+
+# Step 3: Rename methods
+method_lists <- method_lists %>%
+  mutate(Method = method_names[Method])
+
+# Step 4: Convert to named list
+fam_list <- setNames(method_lists$Families, method_lists$Method)
+
+# Step 5: Draw Venn diagram with renamed methods
+(plot2 <-ggVennDiagram(fam_list, label_alpha = 0) +
+  scale_fill_gradient(low = "#C3D69B", high = "#5C7424") +
+  labs(title = "Overall Comparison: Methods Combined") +
+  guides(fill = guide_colorbar(title = "Number of \nunique Families")) +
+  theme(
+    plot.margin = margin(10, 20, 10, 20),
+    plot.title = element_text(hjust = 0.5, size = 14),
+    plot.background = element_rect(fill = "white", color = NA)
+  ) +
+  coord_cartesian(clip = "off"))
+
+
+# Step : Save the plot
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/venn_combined.png", 
+       width = 5, height = 5, dpi = 600)
+```
+
+
+# 10. Platform cameras
+## 10.1. Platform cameras - NMDS
+
+```{r}
+#load data from "C:\Users\Almas\Desktop\UNI_LEIPSI\Thesis\Thesis_Rproject\data\InsectDetect_platform_cams.csv"
+platform <- read.csv("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/InsectDetect_platform_cams.csv")%>%
+    #filter out top1 that start with none_ as they are not real taxa
+  filter(!grepl("none_", top1))
+
+# Step 1: Create the community matrix
+community_matrix_platform <- platform %>%
+  group_by(location, top1) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = top1, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "location") # Convert 'site' column to row names
+
+# Step 2: Perform NMDS using Bray-Curtis distance
+set.seed(123)
+nmds_result_platform <- metaMDS(community_matrix_platform, distance = "bray", k = 2, trymax = 100)
+
+# View results
+print(nmds_result_platform)
+
+# Step 3: Extract site scores for plotting
+site_scores_platform <- as.data.frame(scores(nmds_result_platform, display = "sites"))
+site_scores_platform$location <- rownames(site_scores_platform)
+
+# Step 4: Add Site_Type (Young Restored vs. Reference) to the site scores
+site_scores_platform <- site_scores_platform %>%
+  #if the site names begins with "WED_", "KOT_", "WDG_", "BUH_" then it is a "Young Restored" site, otherwise it is a "Reference" site
+  mutate(Site_Type = ifelse(str_detect(location, "WED|KOT|WDG|BUH"), "Young Restored", "Reference"))
+
+# Custom color palette
+custom_colors <- c("Young Restored" = "#9BB655FF", "Reference" = "#1F78B4")
+
+# Step 5: Plot with customized colors
+ggplot(site_scores_platform, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = location)) +
+  geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
+  geom_text(vjust = -0.5, size = 4) +
+  scale_color_manual(values = custom_colors) + # Apply custom colors
+  geom_polygon(data = site_scores_platform %>% 
+                 group_by(Site_Type) %>%
+                 slice(chull(NMDS1, NMDS2)), 
+               aes(group = Site_Type, fill = Site_Type), 
+               alpha = 0.3, show.legend = FALSE) + # Add convex hull  
+  scale_fill_manual(values = custom_colors) + # Apply fill colors to polygons
+  #  theme_minimal() +
+  labs(title = "Platform cameras: NMDS of Pollinator Diversity",
+       x = "NMDS1",
+       y = "NMDS2",
+       color = "Site Type") +# Update legend title
+  #change title to font 14
+  theme(plot.title = element_text(size = 14))+
+  # legend position
+  theme(legend.position = "right") 
+
+#save plot 
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/platform_cams_nmds.png", 
+       width = 8, height = 4, dpi = 600)
+
+```
+Stress:  0.086, indicating a good representation of the data in 2D space.
+
+## 10.2. Platform cameras - PERMANOVA & ANOSIM
+
+```{r}
+#platform community matrix
+community_matrix_platform <- platform %>%
+  group_by(location, top1) %>%
+  summarise(Count = n(), .groups = "drop") %>%
+  pivot_wider(names_from = top1, values_from = Count, values_fill = list(Count = 0)) %>%
+  column_to_rownames(var = "location") # Convert 'site' column to row names
+
+#Compute the Bray-Curtis distance
+bc_distance_platform <- vegdist(community_matrix_platform, method = "bray")
+# Create a metadata table
+site_metadata_platform <- data.frame(
+  Site = rownames(community_matrix_platform),
+  Site_Type = ifelse(rownames(community_matrix_platform) %in% c("WED", "KOT", "WDG", "BUH"),
+                     "Young restored", "Reference")
+)
+#Make sure rownames match the order in bc_distance:
+site_metadata_platform <- site_metadata_platform[match(rownames(community_matrix_platform), site_metadata_platform$Site), ]
+#Run PERMANOVA using adonis2()
+permanova_platform <- adonis2(bc_distance_platform ~ Site_Type, data = site_metadata_platform, permutations = 999)
+print(permanova_platform)
+#ANOSIM for additional insight
+anosim_result_platform <- anosim(bc_distance_platform, grouping = site_metadata_platform$Site_Type, permutations = 999)
+summary(anosim_result_platform)
+
+```
