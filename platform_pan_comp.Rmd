@@ -23,7 +23,7 @@ load("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/20250130_pla
 ```{r}
 bowltrap <- bowltrap_clean %>% 
   #select all columns except "small_" and "Color"
-  select(1:31, -Color, -SITE) %>%
+  dplyr::select(1:31, -Color, -SITE) %>%
 
    #pivot into long format
    pivot_longer(cols =  apidae:acalyptrate,  
@@ -53,7 +53,7 @@ bowltrap <- bowltrap_clean %>%
   summarise(Count = sum(Count))
 
 platform <- platform_cams_save %>%
-  select(Site=site, Site_type=site_type, Transect=transect,Date= date, Category= top1) %>%
+  dplyr::select(Site=site, Site_type=site_type, Transect=transect,Date= date, Category= top1) %>%
   #create a new "Count" column that sums up the identical rows
   group_by(Site, Site_type,Transect, Date, Category)%>%
   summarise(Count = n())
@@ -73,6 +73,16 @@ rm(bowltrap_clean, platform_cams_save)
 
 ```{r plotting}
 #plotting the data
+BP_combined %>%
+  ggplot(aes(x = Site, y = Count, fill = Category)) +
+  geom_bar(stat = "identity", position = "stack") +
+  facet_wrap(~Method) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Comparison of the two sampling methods",
+       x = "Site",
+       y = "Count")
+
 BP_combined %>%
   ggplot(aes(x = Site, y = Count, fill = Category)) +
   geom_bar(stat = "identity", position = "stack") +
@@ -114,7 +124,7 @@ BP_combined_wide <- BP_combined %>%
   group_by(Site, Site_type,Transect, Date) %>%
   pivot_wider(names_from = Category, values_from = Count, values_fill = 0) %>%
   ungroup()%>%
-  select(-Transect)%>%
+  dplyr::select(-Transect)%>%
   #move Date column to the first position
   relocate(Date, .before = Site)
 
@@ -122,8 +132,8 @@ colnames(BP_combined_wide)
 
 #adding a column for species richness and shannon index
 BP_combined_wide <- BP_combined_wide %>%
-  mutate(Richness = rowSums(select(., -Site, -Site_type, -Date, -Method)),
-         Shannon = diversity(select(., -Site, -Site_type, -Date, -Method), index = "shannon"))
+  mutate(Richness = rowSums(dplyr::select(., -Site, -Site_type, -Date, -Method)),
+         Shannon = diversity(dplyr::select(., -Site, -Site_type, -Date, -Method), index = "shannon"))
 
 #checking distribution and normality of shannon index
 hist(BP_combined_wide$Shannon)  # Histogram

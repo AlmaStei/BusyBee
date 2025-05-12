@@ -71,6 +71,9 @@ An approximation of the distance between the stations and the experimental sites
 
 For BUH and HLI, the Brocken station is the closest, for WDG, WED, STP, WUP, and JEP the Magdeburg station is the closest, and for KOT and DES the Leipzig/Halle station is the closest.
 
+
+## DWD WEATHER 
+
 ```{r data loading}
 # load Brocken 
 brocken <- read.table("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/Weather/00722_Brocken/produkt_klima_tag_20230910_20250312_00722.txt", sep = ";", header = TRUE, dec = ",", na.strings = "-999.0")
@@ -129,7 +132,9 @@ magdeburg_dates <- magdeburg_dates %>%
     MESS_DATUM == 20240718 ~ "JEP"    #when MESS_DATUM is 20240718 then the site is JEP
   ))
 ```  
-### Combine the data frames
+
+
+### Combine the weather stations
 
 ```{r}
 # combine the data frames
@@ -158,7 +163,7 @@ weather_data <- weather_data %>% select(-SHK_TAG)
 weather_data <- weather_data %>% select(SITE, STATION, DISTANCE, everything())
 ```
 
-### Data from the field work
+## FIELD WEATHER
 
 We also wrote down some weather variables during the field work (wind speed, temperature and overall weather conditions). We will add this data to the weather data frame.
 
@@ -202,10 +207,6 @@ field_data <- field_data %>%
   #mutate to numeric
   mutate(start_time = as.numeric(start_time))
 
-
-#create new column that combines transect and site
-field_data <- field_data %>% 
-    mutate(SITE_T = paste(transect, SITE, sep = "_"))
 
 str(field_data)
 ```

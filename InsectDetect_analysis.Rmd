@@ -13,9 +13,6 @@ This R script does the following:
  - process and plot data from 8 Insect Detect camera traps, which were deployed above platforms in 9 different meadows in Sachsen-Anhalt, Germany from July to August 2024
  
  
-
- 
- 
 ## 1 Import required packages
 
 ```{r setup, include=FALSE}
@@ -372,6 +369,121 @@ ggplot(insect_platform_cams, aes(x = top1, y = mean_duration, fill = top1)) +
        y = "Mean Duration (s)") +
   scale_fill_viridis_d()
 ```
+
+```{r}
+rm(timediff, insect_platform_cams, ct36, ct37, ct38, ct_all)
+```
+
+```{r save csv platform}
+platform_cams_csv <- platform_cams |>
+  #create a column combining site and transect
+  mutate(Site_Tn= paste(location, transect, sep = "_")) |>
+  #create a column combining camera ID and track_ID
+  mutate(ID = paste(cam_ID, track_ID, sep = "_")) |>
+  #remove "seppi-" prefix in ID
+  mutate(ID = str_remove(ID, "seppi-")) |>
+  select(Site_Tn, location, transect, date,  ID, cam_ID,start_time, top1, det_conf_mean, track_ID_imgs, top1_imgs, top1_prob_mean, top1_prob_weighted)
+
+#save as csv
+write_csv(platform_cams_csv, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/InsectDetect_platform_cams.csv")
+rm(platform_cams_csv)
+```
+
+Sample_date	Site	camID	Transect_number
+11/07/2024	WED	cam36	T3
+14/07/2024	STP	cam36	T1
+18/07/2024	JEP	cam36	T2
+20/07/2024	KOT	cam36	T5
+21/07/2024	DES	cam36	T1
+24/07/2024	HLI	cam36	T1
+29/07/2024	WUP	cam36	T3
+30/07/2024	WDG	cam36	T5
+13/08/2024	BUH	cam36	T1
+11/07/2024	WED	cam37	T5
+14/07/2024	STP	cam37	T5
+18/07/2024	JEP	cam37	T5
+20/07/2024	KOT	cam37	T1
+21/07/2024	DES	cam37	T3
+24/07/2024	HLI	cam37	T4
+29/07/2024	WUP	cam37	T5
+30/07/2024	WDG	cam37	T1
+13/08/2024	BUH	cam37	T3
+11/07/2024	WED	cam38	T2
+14/07/2024	STP	cam38	T3
+18/07/2024	JEP	cam38	T1
+20/07/2024	KOT	cam38	T3
+21/07/2024	DES	cam38	T5
+24/07/2024	HLI	cam38	T5
+29/07/2024	WUP	cam38	T1
+30/07/2024	WDG	cam38	T3
+13/08/2024	BUH	cam38	T5
+
+```{r log_rec csv}
+#on camptrap_logs_rec assign a site and transect to the recording logs, according to record start date and camera ID
+camtrap_logs_rec_csv <- camtrap_logs_rec |>
+  #site assignment
+  mutate(Site = case_when(
+    grepl("2024-07-11", record_start_date) ~ "WED",  # Match the 11th July to Wedringen
+    grepl("2024-07-14", record_start_date) ~ "STP",  # Match the 14th July to Steutz
+    grepl("2024-07-18", record_start_date) ~ "JEP",  # Match the 18th July to Jerichow
+    grepl("2024-07-20", record_start_date) ~ "KOT",  # Match the 20th July to Köthen
+    grepl("2024-07-21", record_start_date) ~ "DES",  # Match the 21nd July to Dessau
+    grepl("2024-07-24", record_start_date) ~ "HLI",  # Match the 24th July to Pölsfeld
+    grepl("2024-07-29", record_start_date) ~ "WUP",  # Match the 29th July to Wulfen
+    grepl("2024-07-30", record_start_date) ~ "WDG",  # Match the 30th July to Wedringen
+    grepl("2024-08-13", record_start_date) ~ "BUH",  # Match the 13th August to Bühne
+    TRUE ~ "UNKNOWN"  # Default value
+  )) |>
+  #transect assignment
+  mutate(Transect = case_when(
+    grepl("seppi-cam36", cam_ID) & grepl("WED", Site) ~ "T3",  #cam36, WED, T3
+    grepl("seppi-cam36", cam_ID) & grepl("STP", Site) ~ "T1",  #cam36, STP, T4
+    grepl("seppi-cam36", cam_ID) & grepl("JEP", Site) ~ "T2",  #cam36, JEP, T2
+    grepl("seppi-cam36", cam_ID) & grepl("KOT", Site) ~ "T5",  #cam36, KOT, T5
+    grepl("seppi-cam36", cam_ID) & grepl("DES", Site) ~ "T1",  #cam36, DES, T1
+    grepl("seppi-cam36", cam_ID) & grepl("HLI", Site) ~ "T1",  #cam36, HLI, T1
+    grepl("seppi-cam36", cam_ID) & grepl("WUP", Site) ~ "T3",  #cam36, WUP, T3
+    grepl("seppi-cam36", cam_ID) & grepl("WDG", Site) ~ "T5",  #cam36, WDG, T5
+    grepl("seppi-cam36", cam_ID) & grepl("BUH", Site) ~ "T1",  #cam36, BUH, T1
+    
+    grepl("seppi-cam37", cam_ID) & grepl("WED", Site) ~ "T5",  #cam37, WED, T5
+    grepl("seppi-cam37", cam_ID) & grepl("STP", Site) ~ "T5",  #cam37, STP, T5
+    grepl("seppi-cam37", cam_ID) & grepl("JEP", Site) ~ "T5",  #cam37, JEP, T5
+    grepl("seppi-cam37", cam_ID) & grepl("KOT", Site) ~ "T1",  #cam37, KOT, T1
+    grepl("seppi-cam37", cam_ID) & grepl("DES", Site) ~ "T3",  #cam37, DES, T3
+    grepl("seppi-cam37", cam_ID) & grepl("HLI", Site) ~ "T4",  #cam37, HLI, T4
+    grepl("seppi-cam37", cam_ID) & grepl("WUP", Site) ~ "T5",  #cam37, WUP, T5
+    grepl("seppi-cam37", cam_ID) & grepl("WDG", Site) ~ "T1",  #cam37, WDG, T1
+    grepl("seppi-cam37", cam_ID) & grepl("BUH", Site) ~ "T3",  #cam37, BUH, T1
+
+    grepl("seppi-cam38", cam_ID) & grepl("WED", Site) ~ "T2",  #cam38, WED, T2
+    grepl("seppi-cam38", cam_ID) & grepl("STP", Site) ~ "T3",  #cam38, STP, T3
+    grepl("seppi-cam38", cam_ID) & grepl("JEP", Site) ~ "T1",  #cam38, JEP, T1
+    grepl("seppi-cam38", cam_ID) & grepl("KOT", Site) ~ "T3",  #cam38, KOT, T3
+    grepl("seppi-cam38", cam_ID) & grepl("DES", Site) ~ "T5",  #cam38, DES, T5
+    grepl("seppi-cam38", cam_ID) & grepl("HLI", Site) ~ "T5",  #cam38, HLI, T5
+    grepl("seppi-cam38", cam_ID) & grepl("WUP", Site) ~ "T1",  #cam38, WUP, T1
+    grepl("seppi-cam38", cam_ID) & grepl("WDG", Site) ~ "T3",  #cam38, WDG, T3
+    grepl("seppi-cam38", cam_ID) & grepl("BUH", Site) ~ "T5",  #cam38, BUH, T5
+    TRUE ~ "UNKNOWN"  # Default value
+  )) |> 
+  # Group by Site, Transect, and cam_ID
+  group_by(Site, Transect, cam_ID) |> 
+  summarise(
+    # Sum the rec_time_min for each combination of Site, Transect, and cam_ID
+    rec_time_min = sum(rec_time_min), 
+    
+    # Keep the first rec_start_time for each combination of Site, Transect, and cam_ID
+    first_record_start_time = first(record_start_time),
+    
+    # Drop the grouping after summarization
+    .groups = "drop"
+  )
+  
+#save as csv
+write_csv(camtrap_logs_rec_csv, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/platform_recording_logs.csv")
+```
+
 
 # Flower cameras
 

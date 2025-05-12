@@ -40,7 +40,7 @@ library(fossil) # helps with creating site-by-species-matrix for use with iNEXT
 Steps: 
 
 1. load from excel file
-2. remove rows with missing field labels
+2. remove rows with missing field labels "ID_date"
 3. separate the site name into columns for site, transect, color and date
 4. format the date column
 5. add a column with the type of site (young restored or reference)
@@ -57,6 +57,7 @@ bowltrap_clean <- df %>%
   # Remove rows where 'ID_date' contains '_missing'
   filter(!str_detect(ID_date, "_missing")) %>%
   select(SITE = ID_date, 
+         count_large = No_large_Individuums,
          small = notes,
          thrips = less_1mm, #all very small thrips were counted in the "less than 1 mm" column
          apidae:acalyptrate) %>% #select sites' names, notes and all the taxa columns
@@ -75,9 +76,15 @@ bowltrap_clean <- df %>%
   
 # Clean and process the `small` column
 bowltrap_clean <- bowltrap_clean %>%
-  mutate(small = str_remove(small, "small: ")) %>%  # Remove "small: " prefix
-  mutate(small = str_replace_all(small, "none", "")) %>%  # Replace "none" with an empty string
-  separate_rows(small, sep = ", ") %>%  # Split rows into individual entries
+  
+  # Remove "small: " prefix
+  mutate(small = str_remove(small, "small: ")) %>% 
+  
+  # Replace "none" with an empty string
+  mutate(small = str_replace_all(small, "none", "")) %>%  
+  
+  # Split rows into individual entries
+  separate_rows(small, sep = ", ") %>%  
   
   # Split counts and insect names
   separate(small, into = c("count", "insect"), sep = " ", extra = "merge", fill = "right") %>%
@@ -105,20 +112,25 @@ bowltrap_clean <- bowltrap_clean %>%
 rm(df) #remove the larger original dataframe to clear up memory
 ```
 
-```{r save wide format data into csv}}
+```{r save long format data into csv}
 # remove all columns that start with "small_"
 bowltrap_clean_save <- bowltrap_clean %>% 
   select(-starts_with("small_"))%>%
-  # Combine "Site" and "Transect" into a new column
-  mutate(Site_Tn = paste(Site, Transect, sep = "_")) %>%
   #remove SITE column
   select(-SITE) %>%
-  #group rows that have the same Site_Tn value,
-  group_by(Site_Tn, Site, Transect,Site_type,Date, ) %>%
+  #group rows that have the same Site and Transect value,
+  group_by(Site,Transect,Site_type,Date) %>%
   #sum up the counts for each taxa column [,6:30]
   summarise(across(apidae:acalyptrate, sum)) %>%
   #ungroup the data
-  ungroup()
+  ungroup()%>%
+  #transform the data into long format
+  pivot_longer(cols =  apidae:acalyptrate,  
+               names_to = "Taxa", 
+               values_to = "Count")
+  
+sum(bowltrap_clean_save$Count)
+unique(bowltrap_clean_save$Taxa)
 
 #save the data in wide format
 write.csv(bowltrap_clean_save, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/bowltrap_clean.csv", row.names = FALSE)
@@ -335,7 +347,7 @@ net_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A3
 
 ```{r clean transect data}
 net_data <- net_data_load %>%
-  select(date=date, site = Site, transect = Transect, final_ID = final_ID, plant_species=plant_species, field_ID=pollinator_field_ID, observed =observed, collected=collected, family=Family, genus= genus, species=final_species) #select columns of interest
+  select(date=date, site = Site, transect = Transect, final_ID = final_ID, plant_species=plant_species, field_ID=pollinator_field_ID, observed =observed, collected=collected, order= Order,family=Family, genus= genus, species=final_species) #select columns of interest
 
 
 net_data <- net_data %>%
@@ -379,55 +391,14 @@ net_data <- net_data %>%
 ```
 
 ```{r save cleaned data into csv}
+#save the data in long format
+net_data_long <- net_data %>%
+  select(date, site, transect, site_type, plant_species, total_interaction,order,family, genus,lowest_taxa)
 
-### FAMILY LEVEL
+## save both lt and family in long format
+write.csv(net_data_long, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_long.csv", row.names = FALSE)
 
-#select columns of interest and create new column that contains the site_transect_plant_species
-net_data_save_fam <- net_data %>%
-  select(site,  site_type, transect, date, plant_species, total_interaction, family)%>%
-  #create new column that contains the site_transect_plant_species
-  mutate(Site_Tn_plantsp = paste(site, transect, plant_species, sep = "_")) %>%
-  #add _ where spaces are in the Site_Tn_plantsp column
-  mutate(Site_Tn_plantsp = gsub(" ", "_", Site_Tn_plantsp))%>%
-  
-  ## PIVOT STEPS
-  #remove empty rows in the 'family' column
-  filter(!is.na(family)) %>%
-  
-  # pivot wider - taking family for headers and total_interaction for values, and site_transect_plant_species as rows
-  pivot_wider(
-    names_from = family, 
-    values_from = total_interaction, 
-    values_fill = list(total_interaction = 0),  # Fill missing values with 0
-    values_fn = list(total_interaction = sum)  # Sum values when there are duplicates
-  ) 
-
-#save the data in wide format
-write.csv(net_data_save_fam, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_family.csv", row.names = FALSE)
-
-
-### TAXA LEVEL
-
-net_data_save_low <- net_data %>%
-  select(date, site, transect, site_type, plant_species, total_interaction, lowest_taxa)%>%
-  #create new column that contains the site_transect_plant_species
-  mutate(Site_Tn_plantsp = paste(site, transect, plant_species, sep = "_")) %>%
-  #add _ where spaces are in the Site_Tn_plantsp column
-  mutate(Site_Tn_plantsp = gsub(" ", "_", Site_Tn_plantsp))%>%
-  
-  ## PIVOT STEPS
-  # pivot wider - taking lowest_taxa for headers and total_interaction for values, and site_transect_plant_species as rows
-  pivot_wider(
-    names_from = lowest_taxa, 
-    values_from = total_interaction, 
-    values_fill = list(total_interaction = 0),  # Fill missing values with 0
-    values_fn = list(total_interaction = sum)  # Sum values when there are duplicates
-  )
-
-# save the data in wide format
-write.csv(net_data_save_low, "C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/data/net_data_taxa.csv", row.names = FALSE)
-
-rm(net_data_save_fam, net_data_save_low) #remove the data frames to clear up memory
+rm(net_data_long) #remove the data frames to clear up memory
 ```
 
 

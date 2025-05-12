@@ -66,6 +66,7 @@ library(fossil)
 library(gridExtra) # Arrange multiple plots
 library(patchwork) # Arrange multiple plot
 
+
 plant_data_load <-read_sheet("https://docs.google.com/spreadsheets/d/1YDOoUobRU6A36um0-iut6kY77X0jEMYXtFWR3-Zankc/edit?usp=sharing", sheet=3) #sheet 3 has the plant data
 ```
 
@@ -384,7 +385,7 @@ site_scores <- site_scores %>%
   mutate(Site_Type = ifelse(Site %in% c("WED", "KOT", "WDG", "BUH"), "Young Restored", "Reference"))
 
 # Plot with customized colors
-ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
+(nmdsflower <- ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) +
   geom_point(size = 4, alpha = 0.8) + # Adjust alpha for transparency if needed
   geom_text(vjust = -0.5, size = 4) +
   scale_color_manual(values = steelorange) + # Apply custom colors
@@ -394,11 +395,12 @@ ggplot(site_scores, aes(x = NMDS1, y = NMDS2, color = Site_Type, label = Site)) 
                aes(group = Site_Type, fill = Site_Type), 
                alpha = 0.3,show.legend = FALSE) + # Add convex hull  
   scale_fill_manual(values = steelorange) + # Apply fill colors to polygons
-theme_minimal() +
-  labs(title = "NMDS of Plant Species by Site",
+  labs(title = "NMDS of Flower Species by Site",
        x = "NMDS1",
        y = "NMDS2",
-       color = "Site Type") # Update legend title
+       color = "Site Type")+
+    #change legend position
+  theme(legend.position = "right"))
 ``` 
 
 ## A.2. PERMANOVA - Permutational Multivariate Analysis of Variance 
@@ -969,21 +971,27 @@ rm(sp, simp, shann, combined_plot)
 ```
 
 ```{r boxplot diversity indices}
-# Reorder Site levels by mean Floral_species_richness
-diversity_indices <- diversity_indices %>%
-  mutate(Site = fct_reorder(Site, Floral_species_richness, .fun = mean, .desc = FALSE))
+# Order the Site factor: group by Site_type first, then sort by mean Floral_species_richness within each group
+site_order <- diversity_indices %>%
+  group_by(Site_type, Site) %>%
+  summarize(mean_richness = mean(Floral_species_richness, na.rm = TRUE)) %>%
+  arrange(Site_type, mean_richness) %>%
+  pull(Site)
+
+# Apply the custom order
+diversity_indices$Site <- factor(diversity_indices$Site, levels = site_order)
 
 # Boxplot: species richness per site
 (sp <- ggplot(diversity_indices, aes(x = Site, y = Floral_species_richness, fill = Site)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) + 
   #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
-  scale_color_manual(values = custom_colors) +
+  #scale_color_manual(values = custom_colors) +
 #theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
-    title = "Floral Species Richness",
+    title = "Floral Species \nRichness",
     x = "Site",
-    y = "Number of Flower Species",
+    y = "Number of Flower Species per Transect",
     fill = "Site"
   ) +
   ylim(0, 30) +
@@ -994,44 +1002,48 @@ diversity_indices <- diversity_indices %>%
 (simp <- ggplot(diversity_indices, aes(x = Site, y = Floral_simpson_index, fill = Site)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
-  scale_color_manual(values = custom_colors) +
+  #scale_color_manual(values = custom_colors) +
  #theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
-    title = "Floral Simpson Diversity Index",
+    title = "Floral Simpson \nDiversity Index",
     x = "Site",
     y = "Simpson Diversity Index",
     fill = "Site"
   ) +
   scale_fill_manual(values = custom_colors) +
-  theme(legend.position = "none"))
+  theme(legend.position = "right"))
 
 # Boxplot: shannon index per site
 (shann <- ggplot(diversity_indices, aes(x = Site, y = Floral_shannon_index, fill = Site)) +
   geom_boxplot(outlier.shape = NA, alpha = 0.7) +
   #geom_jitter(aes(color = Site), width = 0.2, size = 1.5, alpha = 0.5) +
-  scale_color_manual(values = custom_colors) +
+  #scale_color_manual(values = custom_colors) +
  #theme_minimal() +
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   labs(
-    title = "Floral Shannon Diversity Index",
+    title = "Floral Shannon \nDiversity Index",
     x = "Site",
     y = "Shannon Diversity Index",
     fill = "Site"
   ) +
   scale_fill_manual(values = custom_colors) +
-  theme(legend.position = "right"))
+  theme(legend.position = "none"))
 
 # Combine the plots
-combined_plot <- sp + simp + shann + plot_annotation(title = "Relative Flower Diversity Metrics per Site") & 
-  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16))
+combined_plot <- sp  + shann + simp
+#+ plot_annotation(title = "Relative Flower Diversity Metrics") &  theme(plot.title = element_text(hjust = 0.5, size = 16)) #, face = "bold"
 
 # Print and save
 print(combined_plot)
 
-ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/plant_diversity_metrics.png", width = 16, height = 8)
+library(cowplot)
+cowplot::plot_grid(nmdsflower, combined_plot,ncol = 1, labels = c("A", "B"), label_size = 16, rel_widths = c(1, 1.2))
 
-rm(sp, simp, shann, combined_plot)
+ggsave("C:/Users/Almas/Desktop/UNI_LEIPSI/Thesis/Thesis_Rproject/figures/plant_diversity_metrics.png", 
+       width = 10, height = 10, dpi = 600)
+
+#rm(sp, simp, shann, combined_plot, site_order)
 ```
 
 ```{r}

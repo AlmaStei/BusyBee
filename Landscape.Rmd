@@ -44,9 +44,9 @@ The landcover classes are coded as numbers in the data. For now we are keeping t
 
 | Code | Landcover class |
 |:-----|:----------------|
-| 1    | Continuous urban fabric |
-| 2    | Discontinuous urban fabric |
-| 3    | Industrial or commercial units |
+| 01    | Continuous urban fabric |
+| 02    | Discontinuous urban fabric |
+| 03    | Industrial or commercial units |
 | 11   | Sports and leisure facilities |
 | 12   | Non-irrigated arable land |
 | 18   | Pastures |
@@ -66,19 +66,15 @@ colnames(corine)[1] <- "Site"
 corine$LandCover <- ifelse(corine$LandCover < 10, paste0("0", corine$LandCover), corine$LandCover)
 
 #rename the rows in LandCover with the prefix CORINE
-corine$LandCover <- paste("CORINE", corine$LandCover, sep = "_")
+#corine$LandCover <- paste("CORINE", corine$LandCover, sep = "_")
 
 # pivot the data to wide format
 corine_wide <- corine %>% 
+  #rename the rows in LandCover with the prefix CORINE
+  mutate(LandCover = paste("CORINE", LandCover, sep = "_")) %>%
   pivot_wider(names_from = LandCover, values_from = Area_m2)%>%
   #replace NA with 0
   replace(is.na(.), 0)
-
-#site names - add a prefix indicating the site_type
-#  for "DES", "HLI", "JEP", "STP", "WUP"  add "ref" - reference sites
-# for  "BUH" ,   "KOT"  ,  "WDG",    "WED" add "res" - restored sites
-corine_wide$Site <- ifelse(corine_wide$Site %in% c("DES", "HLI", "JEP", "STP", "WUP"), paste("ref", corine_wide$Site, sep = "_"), paste("res", corine_wide$Site, sep = "_"))
-
 ```
 
 The CORINE dataset has many classes of land cover, some of which are very similar and this level of precision is not needed in the scope of this research. We will combine some of the classes to reduce the number of classes in the data. Here are the new 6 classes
@@ -137,6 +133,24 @@ corine_relative <- corine_wide_reduced %>%
   mutate(across(agri:water, ~ round(.x, 3)))
 ```
 
+
+Since we have a maximum of 45 sampling points over the whole experience, we can not have too many explanatory variables. We will also create a new catgorical column that contains the class which occupied the majority of the buffer. 
+
+```{r}
+# create a new column with the class which occupied the majority of the buffer
+corine_relative <- corine_relative %>%
+  mutate(majority_class = case_when(
+    agri > grass & agri > snh & agri > forest & agri > urban & agri > water ~ "agri",
+    grass > agri & grass > snh & grass > forest & grass > urban & grass > water ~ "grass",
+    snh > agri & snh > grass & snh > forest & snh > urban & snh > water ~ "snh",
+    forest > agri & forest > grass & forest > snh & forest > urban & forest > water ~ "forest",
+    urban > agri & urban > grass & urban > snh & urban > forest & urban > water ~ "urban",
+    water > agri & water > grass & water > snh & water > forest & water > urban ~ "water"
+  ))
+```
+
+
+
 ### Save the data
 
 ```{r}
@@ -171,9 +185,13 @@ worldcover_wide <- worldcover %>%
   #replace NA with 0
   replace(is.na(.), 0)
 
+#site names - add a prefix indicating the site_type
+#  for "DES", "HLI", "JEP", "STP", "WUP"  add "ref" - reference sites
+# for  "BUH" ,   "KOT"  ,  "WDG",    "WED" add "res" - restored sites
 
   #add site_type prefix
 worldcover_wide$Site <- ifelse(worldcover_wide$Site %in% c("DES", "HLI", "JEP", "STP", "WUP"), paste("ref", worldcover_wide$Site, sep = "_"), paste("res", worldcover_wide$Site, sep = "_"))
+corine_wide$Site <- ifelse(corine_wide$Site %in% c("DES", "HLI", "JEP", "STP", "WUP"), paste("ref", corine_wide$Site, sep = "_"), paste("res", corine_wide$Site, sep = "_"))
 
 ```
 
